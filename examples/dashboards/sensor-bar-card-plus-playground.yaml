@@ -81,161 +81,157 @@ views:
           ## Interactive Playground
           These cards respond directly to the active helper settings and are intended to be the main debugging and screenshot surface.
 
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
-          - type: vertical-stack
-            cards:
-              - type: markdown
-                content: |
-                  **Live Color Mode Preview**
-                  Switch the helper and compare the currently selected color algorithm on the same sensor and same scale.
-              - type: conditional
-                conditions:
-                  - entity: input_select.sbcp_color_mode
-                    state: gradient
-                card:
-                  type: custom:sensor-bar-card-plus
-                  title: "Active color mode: gradient"
-                  color_mode: gradient
-                  label_position: left
-                  label_width: 150
-                  show_target_label: true
-                  above_target_color: '#991b1b'
-                  gradient_stops:
-                    - pos: 0
-                      color: '#2563eb'
-                    - pos: 45
-                      color: '#06b6d4'
-                    - pos: 75
-                      color: '#f59e0b'
-                    - pos: 100
-                      color: '#dc2626'
-                  min_entity: sensor.sbcp_playground_min
-                  max_entity: sensor.sbcp_playground_max
-                  target_entity: sensor.sbcp_playground_target
-                  entities:
-                    - entity: sensor.sbcp_playground_sensor
-                      name: Live preview
-              - type: conditional
-                conditions:
-                  - entity: input_select.sbcp_color_mode
-                    state: severity
-                card:
-                  type: custom:sensor-bar-card-plus
-                  title: "Active color mode: severity"
-                  color_mode: severity
-                  label_position: left
-                  label_width: 150
-                  show_target_label: true
-                  min_entity: sensor.sbcp_playground_min
-                  max_entity: sensor.sbcp_playground_max
-                  target_entity: sensor.sbcp_playground_target
-                  severity:
-                    - from: 0
-                      to: 35
-                      color: '#22c55e'
-                    - from: 35
-                      to: 70
-                      color: '#f59e0b'
-                    - from: 70
-                      to: 100
-                      color: '#ef4444'
-                  entities:
-                    - entity: sensor.sbcp_playground_sensor
-                      name: Live preview
-              - type: conditional
-                conditions:
-                  - entity: input_select.sbcp_color_mode
-                    state: single
-                card:
-                  type: custom:sensor-bar-card-plus
-                  title: "Active color mode: single"
-                  color_mode: single
-                  color: '#0f766e'
-                  label_position: left
-                  label_width: 150
-                  show_target_label: true
-                  above_target_color: '#ef4444'
-                  min_entity: sensor.sbcp_playground_min
-                  max_entity: sensor.sbcp_playground_max
-                  target_entity: sensor.sbcp_playground_target
-                  entities:
-                    - entity: sensor.sbcp_playground_sensor
-                      name: Live preview
+          - type: markdown
+            content: |
+              **Live Color Mode Preview**
+              Switch the helper and compare the currently selected color algorithm on the same sensor and same scale.
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_color_mode
+                state: gradient
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active color mode: gradient"
+              color_mode: gradient
+              label_position: left
+              label_width: 150
+              show_target_label: true
+              above_target_color: '#991b1b'
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 45
+                  color: '#06b6d4'
+                - pos: 75
+                  color: '#f59e0b'
+                - pos: 100
+                  color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_color_mode
+                state: severity
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active color mode: severity"
+              color_mode: severity
+              label_position: left
+              label_width: 150
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              severity:
+                - from: 0
+                  to: 35
+                  color: '#22c55e'
+                - from: 35
+                  to: 70
+                  color: '#f59e0b'
+                - from: 70
+                  to: 100
+                  color: '#ef4444'
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_color_mode
+                state: single
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active color mode: single"
+              color_mode: single
+              color: '#0f766e'
+              label_position: left
+              label_width: 150
+              show_target_label: true
+              above_target_color: '#ef4444'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
 
-          - type: vertical-stack
-            cards:
-              - type: markdown
-                content: |
-                  **Live Label Mode Preview**
-                  Switch the helper and verify the same sensor under each label placement mode.
-              - type: conditional
-                conditions:
-                  - entity: input_select.sbcp_label_mode
-                    state: left
-                card:
-                  type: custom:sensor-bar-card-plus
-                  title: "Active label mode: left"
-                  color_mode: gradient
-                  label_position: left
-                  label_width: 150
-                  show_target_label: true
-                  min_entity: sensor.sbcp_playground_min
-                  max_entity: sensor.sbcp_playground_max
-                  target_entity: sensor.sbcp_playground_target
-                  entities:
-                    - entity: sensor.sbcp_playground_sensor
-                      name: Playground Sensor
-              - type: conditional
-                conditions:
-                  - entity: input_select.sbcp_label_mode
-                    state: above
-                card:
-                  type: custom:sensor-bar-card-plus
-                  title: "Active label mode: above"
-                  color_mode: gradient
-                  label_position: above
-                  show_target_label: true
-                  min_entity: sensor.sbcp_playground_min
-                  max_entity: sensor.sbcp_playground_max
-                  target_entity: sensor.sbcp_playground_target
-                  entities:
-                    - entity: sensor.sbcp_playground_sensor
-                      name: Playground Sensor
-              - type: conditional
-                conditions:
-                  - entity: input_select.sbcp_label_mode
-                    state: inside
-                card:
-                  type: custom:sensor-bar-card-plus
-                  title: "Active label mode: inside"
-                  color_mode: gradient
-                  label_position: inside
-                  height: 52
-                  show_target_label: true
-                  min_entity: sensor.sbcp_playground_min
-                  max_entity: sensor.sbcp_playground_max
-                  target_entity: sensor.sbcp_playground_target
-                  entities:
-                    - entity: sensor.sbcp_playground_sensor
-                      name: Playground Sensor
-              - type: conditional
-                conditions:
-                  - entity: input_select.sbcp_label_mode
-                    state: "off"
-                card:
-                  type: custom:sensor-bar-card-plus
-                  title: "Active label mode: off"
-                  color_mode: gradient
-                  label_position: "off"
-                  show_target_label: true
-                  min_entity: sensor.sbcp_playground_min
-                  max_entity: sensor.sbcp_playground_max
-                  target_entity: sensor.sbcp_playground_target
-                  entities:
-                    - entity: sensor.sbcp_playground_sensor
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              **Live Label Mode Preview**
+              Switch the helper and verify the same sensor under each label placement mode.
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_label_mode
+                state: left
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active label mode: left"
+              color_mode: gradient
+              label_position: left
+              label_width: 150
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_label_mode
+                state: above
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active label mode: above"
+              color_mode: gradient
+              label_position: above
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_label_mode
+                state: inside
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active label mode: inside"
+              color_mode: gradient
+              label_position: inside
+              height: 52
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_label_mode
+                state: "off"
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active label mode: off"
+              color_mode: gradient
+              label_position: "off"
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
 
       # Height and decimal controls remain interactive, but only one matching
       # card is shown at a time so the page stays legible.
@@ -509,7 +505,7 @@ views:
         target_entity: sensor.sbcp_playground_target
         entities:
           - entity: sensor.sbcp_playground_sensor
-            name: Playground Sensor
+            name: Sensor
 
       - type: custom:sensor-bar-card-plus
         title: Severity
@@ -535,7 +531,7 @@ views:
         target_entity: sensor.sbcp_playground_target
         entities:
           - entity: sensor.sbcp_playground_sensor
-            name: Playground Sensor
+            name: Sensor
 
       - type: custom:sensor-bar-card-plus
         title: Single Color
@@ -550,7 +546,7 @@ views:
         target_entity: sensor.sbcp_playground_target
         entities:
           - entity: sensor.sbcp_playground_sensor
-            name: Playground Sensor
+            name: Sensor
 
       # Section: Label Modes
       # The main view keeps only the visually useful label demonstrations.
@@ -573,7 +569,7 @@ views:
             target_entity: sensor.sbcp_playground_target
             entities:
               - entity: sensor.sbcp_playground_sensor
-                name: Playground Sensor
+                name: Sensor
           - type: custom:sensor-bar-card-plus
             title: Above Labels
             label_position: above
@@ -583,7 +579,7 @@ views:
             target_entity: sensor.sbcp_playground_target
             entities:
               - entity: sensor.sbcp_playground_sensor
-                name: Playground Sensor
+                name: Sensor
           - type: custom:sensor-bar-card-plus
             title: Inside Labels
             label_position: inside
@@ -594,7 +590,7 @@ views:
             target_entity: sensor.sbcp_playground_target
             entities:
               - entity: sensor.sbcp_playground_sensor
-                name: Playground Sensor
+                name: Sensor
           - type: custom:sensor-bar-card-plus
             title: Labels Off
             label_position: "off"
@@ -691,7 +687,7 @@ views:
             target_entity: sensor.sbcp_playground_target
             entities:
               - entity: sensor.sbcp_playground_sensor
-                name: Playground Sensor
+                name: Sensor
           - type: custom:sensor-bar-card-plus
             title: Above target color
             color_mode: single
@@ -706,7 +702,7 @@ views:
             target_entity: sensor.sbcp_playground_target
             entities:
               - entity: sensor.sbcp_playground_sensor
-                name: Playground Sensor
+                name: Sensor
 
       # Section: Peak Tracking
       # Peak-related cards stay visible in the main view because they are a core
@@ -732,7 +728,7 @@ views:
             target_entity: sensor.sbcp_playground_target
             entities:
               - entity: sensor.sbcp_playground_sensor
-                name: Playground Sensor
+                name: Sensor
           - type: custom:sensor-bar-card-plus
             title: Peak plus target label
             color_mode: gradient
@@ -747,7 +743,7 @@ views:
             target_entity: sensor.sbcp_playground_target
             entities:
               - entity: sensor.sbcp_playground_sensor
-                name: Playground Sensor
+                name: Sensor
 
   # Edge cases are isolated from the showcase view so the main demo remains
   # visually coherent while still making odd cases reproducible.

@@ -414,7 +414,8 @@ class SensorBarCard extends HTMLElement {
         .main-line {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
+          min-width: 0;
         }
         .icon-wrap {
           display: flex;
@@ -430,19 +431,24 @@ class SensorBarCard extends HTMLElement {
           display: block;
         }
         .label-left {
-          flex-shrink: 0;
+          flex: 1 1 auto;
+          min-width: 0;
           font-size: 13px;
           font-weight: 500;
           color: var(--primary-text-color, #333);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
           display: flex;
           align-items: center;
         }
-        .bar-wrap {
-          flex: 1;
+        .label-left-text {
+          display: block;
           min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .bar-wrap {
+          flex: 1 1 48px;
+          min-width: 48px;
           position: relative;
         }
         .bar-track {
@@ -645,7 +651,7 @@ class SensorBarCard extends HTMLElement {
       </div>` : '';
 
     const leftLabel  = lp === 'left' 
-      ? `<div class="label-left" style="width:${ecfg.label_width}px;height:${h}px;">${name}</div>` 
+      ? `<div class="label-left" style="flex:0 1 min(${ecfg.label_width}px, 40%);max-width:min(${ecfg.label_width}px, 40%);height:${h}px;"><span class="label-left-text">${name}</span></div>` 
       : '';
     const rightValue = lp !== 'inside' && lp !== 'above'
       ? `<div class="value-right" style="height:${h}px;">${stateDisplay}${unit ? `<span class="unit"> ${unit}</span>` : ''}</div>`
