@@ -15,7 +15,8 @@ views:
           This view is the clean showcase surface. All controls drive helper-backed template sensors, and every bar card still consumes normal `sensor.*` entities.
 
       # Live controls only for values that still have a meaningful effect on the
-      # current dashboard. Stale label helpers were intentionally removed.
+      # current dashboard. Wave controls let contributors exercise animation
+      # without manually dragging values back and forth.
       - type: grid
         columns: 2
         square: false
@@ -32,6 +33,12 @@ views:
                 name: Max
               - entity: input_number.sbcp_target_value
                 name: Target
+              - entity: input_boolean.sbcp_wave_enabled
+                name: Wave drive current value
+              - entity: input_select.sbcp_waveform
+                name: Waveform
+              - entity: input_number.sbcp_wave_period
+                name: Wave period
               - entity: input_text.sbcp_custom_raw_state
                 name: Custom text state
 
@@ -72,6 +79,28 @@ views:
             name: Negative sensor
           - entity: sensor.sbcp_playground_text_state
             name: Text-state sensor
+
+      # Animation preview. The helper-driven wave generator updates the normal
+      # sensor entity so the card animation path can be tested continuously.
+      - type: markdown
+        content: |
+          ## Animation Preview
+          Enable `Wave drive current value` and select `sine`, `triangle`, or `random` to drive continuous motion through the normal sensor entity. `Random` uses the full current-value helper range instead of the active min/max scale.
+
+      - type: custom:sensor-bar-card-plus
+        title: Animated sensor preview
+        color_mode: gradient
+        label_position: left
+        label_width: 150
+        animated: true
+        show_peak: true
+        show_target_label: true
+        min_entity: sensor.sbcp_playground_min
+        max_entity: sensor.sbcp_playground_max
+        target_entity: sensor.sbcp_playground_target
+        entities:
+          - entity: sensor.sbcp_playground_sensor
+            name: Sensor
 
       # Section: Interactive Playground
       # The cards below are the primary live debugging surface for the current
@@ -620,6 +649,47 @@ views:
             max_entity: sensor.sbcp_playground_max
             entities:
               - entity: sensor.sbcp_playground_no_icon
+
+      # Long-label stress cases across multiple label modes. This keeps bug
+      # fixes for above/inside truncation directly reproducible.
+      - type: markdown
+        content: |
+          ## Long Label Mode Tests
+          Dedicated long-label cards for left, above, and inside layouts so truncation and collision fixes stay testable.
+
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:sensor-bar-card-plus
+            title: Long label left
+            label_position: left
+            label_width: 220
+            color_mode: gradient
+            min_entity: sensor.sbcp_playground_min
+            max_entity: sensor.sbcp_playground_max
+            target_entity: sensor.sbcp_playground_target
+            entities:
+              - entity: sensor.sbcp_playground_long_label
+          - type: custom:sensor-bar-card-plus
+            title: Long label above
+            label_position: above
+            color_mode: gradient
+            min_entity: sensor.sbcp_playground_min
+            max_entity: sensor.sbcp_playground_max
+            target_entity: sensor.sbcp_playground_target
+            entities:
+              - entity: sensor.sbcp_playground_long_label
+          - type: custom:sensor-bar-card-plus
+            title: Long label inside
+            label_position: inside
+            color_mode: gradient
+            height: 52
+            min_entity: sensor.sbcp_playground_min
+            max_entity: sensor.sbcp_playground_max
+            target_entity: sensor.sbcp_playground_target
+            entities:
+              - entity: sensor.sbcp_playground_long_label
 
       # Section: Dynamic Scaling
       # Dynamic min/max/target behavior belongs on the main test view because it

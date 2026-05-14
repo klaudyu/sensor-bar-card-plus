@@ -56,6 +56,15 @@ input_number:
     mode: slider
     initial: 1
 
+  sbcp_wave_period:
+    name: SBCP Wave Period
+    min: 4
+    max: 60
+    step: 1
+    mode: slider
+    initial: 12
+    unit_of_measurement: s
+
 input_boolean:
   sbcp_animated:
     name: SBCP Animated
@@ -68,6 +77,10 @@ input_boolean:
   sbcp_show_peak:
     name: SBCP Show Peak
     initial: true
+
+  sbcp_wave_enabled:
+    name: SBCP Wave Enabled
+    initial: false
 
 input_select:
   sbcp_color_mode:
@@ -86,6 +99,14 @@ input_select:
       - inside
       - "off"
     initial: left
+
+  sbcp_waveform:
+    name: SBCP Waveform
+    options:
+      - sine
+      - triangle
+      - random
+    initial: sine
 
 input_text:
   sbcp_label:
@@ -260,3 +281,38 @@ sensor:
         unit_of_measurement: W
         icon_template: mdi:flash-outline
         value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 1.25 + 24) | round(1) }}"
+
+automation:
+  - id: sbcp_wave_driver
+    alias: SBCP Wave Driver
+    description: Drive the playground current value from a selectable waveform.
+    trigger:
+      - platform: time_pattern
+        seconds: "/1"
+    condition:
+      - condition: state
+        entity_id: input_boolean.sbcp_wave_enabled
+        state: "on"
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.sbcp_current_value
+        data:
+          value: >-
+            {% set min_v = states('input_number.sbcp_min_value') | float(0) %}
+            {% set max_v = states('input_number.sbcp_max_value') | float(100) %}
+            {% set period = states('input_number.sbcp_wave_period') | float(12) %}
+            {% set cycle = ((as_timestamp(now()) % period) / period) if period > 0 else 0 %}
+            {% set center = (min_v + max_v) / 2 %}
+            {% set amplitude = ((max_v - min_v) / 2) | abs %}
+            {% set waveform = states('input_select.sbcp_waveform') %}
+            {% if waveform == 'random' %}
+              {{ ((range(-2000, 5001) | random) / 10) | round(1) }}
+            {% elif waveform == 'triangle' %}
+              {% set wave = 1 - 4 * ((cycle - 0.5) | abs) %}
+              {{ (center + amplitude * wave) | round(1) }}
+            {% else %}
+              {% set wave = sin(cycle * 2 * pi) %}
+              {{ (center + amplitude * wave) | round(1) }}
+            {% endif %}
+    mode: single
