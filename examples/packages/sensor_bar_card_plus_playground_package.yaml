@@ -1,0 +1,262 @@
+# Sensor Bar Card Plus Playground package
+# Install this file through Home Assistant packages so the dashboard can run
+# without any real production sensors.
+
+input_number:
+  sbcp_current_value:
+    name: SBCP Current Value
+    min: -200
+    max: 500
+    step: 0.1
+    mode: box
+    initial: 42.7
+    unit_of_measurement: W
+
+  sbcp_min_value:
+    name: SBCP Min Value
+    min: -200
+    max: 400
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: W
+
+  sbcp_max_value:
+    name: SBCP Max Value
+    min: -100
+    max: 500
+    step: 1
+    mode: box
+    initial: 100
+    unit_of_measurement: W
+
+  sbcp_target_value:
+    name: SBCP Target Value
+    min: -200
+    max: 600
+    step: 0.1
+    mode: box
+    initial: 65
+    unit_of_measurement: W
+
+  sbcp_bar_height:
+    name: SBCP Bar Height
+    min: 24
+    max: 52
+    step: 14
+    mode: slider
+    initial: 38
+    unit_of_measurement: px
+
+  sbcp_decimal_precision:
+    name: SBCP Decimal Precision
+    min: 0
+    max: 2
+    step: 1
+    mode: slider
+    initial: 1
+
+input_boolean:
+  sbcp_animated:
+    name: SBCP Animated
+    initial: true
+
+  sbcp_show_target_label:
+    name: SBCP Show Target Label
+    initial: true
+
+  sbcp_show_peak:
+    name: SBCP Show Peak
+    initial: true
+
+input_select:
+  sbcp_color_mode:
+    name: SBCP Color Mode
+    options:
+      - gradient
+      - severity
+      - single
+    initial: gradient
+
+  sbcp_label_mode:
+    name: SBCP Label Mode
+    options:
+      - left
+      - above
+      - inside
+      - "off"
+    initial: left
+
+input_text:
+  sbcp_label:
+    name: SBCP Label
+    initial: Playground Sensor
+    max: 80
+
+  sbcp_long_label:
+    name: SBCP Long Label
+    initial: Extremely Long Friendly Sensor Label For Alignment, Overflow, And Screenshot Testing
+    max: 255
+
+  sbcp_custom_raw_state:
+    name: SBCP Custom Raw State
+    initial: noisy-state
+    max: 80
+
+sensor:
+  - platform: template
+    sensors:
+      # Primary playground sensor. This is the entity most demo cards consume.
+      sbcp_playground_sensor:
+        friendly_name: Playground Sensor
+        unit_of_measurement: W
+        icon_template: mdi:flash
+        value_template: "{{ states('input_number.sbcp_current_value') | float(0) }}"
+
+      # Helper values are mirrored as ordinary sensors so the card under test
+      # always consumes entity states rather than helper entities directly.
+      sbcp_playground_min:
+        friendly_name: SBCP Playground Min
+        unit_of_measurement: W
+        icon_template: mdi:arrow-collapse-left
+        value_template: "{{ states('input_number.sbcp_min_value') | float(0) }}"
+
+      sbcp_playground_max:
+        friendly_name: SBCP Playground Max
+        unit_of_measurement: W
+        icon_template: mdi:arrow-collapse-right
+        value_template: "{{ states('input_number.sbcp_max_value') | float(0) }}"
+
+      sbcp_playground_target:
+        friendly_name: SBCP Playground Target
+        unit_of_measurement: W
+        icon_template: mdi:bullseye-arrow
+        value_template: "{{ states('input_number.sbcp_target_value') | float(0) }}"
+
+      sbcp_playground_bar_height:
+        friendly_name: SBCP Playground Bar Height
+        unit_of_measurement: px
+        icon_template: mdi:arrow-expand-vertical
+        value_template: "{{ states('input_number.sbcp_bar_height') | int(38) }}"
+
+      sbcp_playground_decimal_precision:
+        friendly_name: SBCP Playground Decimal Precision
+        icon_template: mdi:decimal
+        value_template: "{{ states('input_number.sbcp_decimal_precision') | int(1) }}"
+
+      sbcp_playground_color_mode:
+        friendly_name: SBCP Playground Color Mode
+        icon_template: mdi:palette-outline
+        value_template: "{{ states('input_select.sbcp_color_mode') }}"
+
+      sbcp_playground_label_mode:
+        friendly_name: SBCP Playground Label Mode
+        icon_template: mdi:format-text
+        value_template: "{{ states('input_select.sbcp_label_mode') }}"
+
+      # Long-label entity for overflow and alignment checks.
+      sbcp_playground_long_label:
+        friendly_name: Extremely Long Friendly Sensor Label For Alignment, Overflow, And Screenshot Testing
+        unit_of_measurement: W
+        icon_template: mdi:transmission-tower
+        value_template: "{{ states('input_number.sbcp_current_value') | float(0) }}"
+
+      # No icon attribute on purpose for missing-icon tests.
+      sbcp_playground_no_icon:
+        friendly_name: SBCP Playground No Icon
+        unit_of_measurement: W
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.82 + 5) | round(1) }}"
+
+      sbcp_playground_negative:
+        friendly_name: SBCP Playground Negative
+        unit_of_measurement: W
+        icon_template: mdi:minus-circle-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) | abs * -1) | round(1) }}"
+
+      sbcp_playground_unavailable:
+        friendly_name: SBCP Playground Unavailable
+        icon_template: mdi:alert-circle-outline
+        value_template: unavailable
+
+      sbcp_playground_unknown:
+        friendly_name: SBCP Playground Unknown
+        icon_template: mdi:help-circle-outline
+        value_template: unknown
+
+      sbcp_playground_text_state:
+        friendly_name: SBCP Playground Text State
+        icon_template: mdi:message-alert-outline
+        value_template: "{{ states('input_text.sbcp_custom_raw_state') }}"
+
+      # Synthetic entities for multi-row rendering and stress tests.
+      sbcp_stress_01:
+        friendly_name: SBCP Stress 01
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.35 + 6) | round(1) }}"
+
+      sbcp_stress_02:
+        friendly_name: SBCP Stress 02
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.55 + 14) | round(1) }}"
+
+      sbcp_stress_03:
+        friendly_name: SBCP Stress 03
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.75 + 22) | round(1) }}"
+
+      sbcp_stress_04:
+        friendly_name: SBCP Stress 04
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.95 + 30) | round(1) }}"
+
+      sbcp_stress_05:
+        friendly_name: SBCP Stress 05
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 1.05 + 12) | round(1) }}"
+
+      sbcp_stress_06:
+        friendly_name: SBCP Stress 06
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 1.15 + 4) | round(1) }}"
+
+      sbcp_stress_07:
+        friendly_name: SBCP Stress 07
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 1.35 - 8) | round(1) }}"
+
+      sbcp_stress_08:
+        friendly_name: SBCP Stress 08
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 1.55 - 18) | round(1) }}"
+
+      sbcp_stress_09:
+        friendly_name: SBCP Stress 09
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.45 + 40) | round(1) }}"
+
+      sbcp_stress_10:
+        friendly_name: SBCP Stress 10
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.65 + 48) | round(1) }}"
+
+      sbcp_stress_11:
+        friendly_name: SBCP Stress 11
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 0.85 + 56) | round(1) }}"
+
+      sbcp_stress_12:
+        friendly_name: SBCP Stress 12
+        unit_of_measurement: W
+        icon_template: mdi:flash-outline
+        value_template: "{{ (states('input_number.sbcp_current_value') | float(0) * 1.25 + 24) | round(1) }}"
