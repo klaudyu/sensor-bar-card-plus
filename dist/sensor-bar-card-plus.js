@@ -682,6 +682,13 @@ class SensorBarCard extends HTMLElement {
           white-space: nowrap;
           display: inline-flex;
           align-items: baseline;
+          gap: 0;
+        }
+        .above-bar-label-value.has-unit {
+          gap: 2px;
+        }
+        .above-bar-label-value.tight-unit {
+          gap: 0;
         }
         .above-bar-label-unit {
           color: var(--secondary-text-color, #888);
@@ -737,10 +744,11 @@ class SensorBarCard extends HTMLElement {
         }
 
         .value-right {
-          flex: 0 0 var(--sbcp-value-width);
-          width: var(--sbcp-value-width);
-          min-width: var(--sbcp-value-width);
-          max-width: var(--sbcp-value-width);
+          --sbcp-value-extra-width: 0px;
+          flex: 0 0 calc(var(--sbcp-value-width) + var(--sbcp-value-extra-width));
+          width: calc(var(--sbcp-value-width) + var(--sbcp-value-extra-width));
+          min-width: calc(var(--sbcp-value-width) + var(--sbcp-value-extra-width));
+          max-width: calc(var(--sbcp-value-width) + var(--sbcp-value-extra-width));
           text-align: right;
           font-size: 13px;
           font-weight: 600;
@@ -753,12 +761,6 @@ class SensorBarCard extends HTMLElement {
           box-sizing: border-box;
           padding-right: 1px;
           min-width: 0;
-        }
-        .value-right.negative-value {
-          flex-basis: calc(var(--sbcp-value-width) + 8px);
-          width: calc(var(--sbcp-value-width) + 8px);
-          min-width: calc(var(--sbcp-value-width) + 8px);
-          max-width: calc(var(--sbcp-value-width) + 8px);
         }
         .value-right[data-hide-unit="true"] .unit-group {
           display: none;
@@ -809,12 +811,21 @@ class SensorBarCard extends HTMLElement {
           color: var(--secondary-text-color, #888);
           line-height: 1.1;
         }
+        .measure-layer {
+          position: fixed;
+          left: -9999px;
+          top: -9999px;
+          visibility: hidden;
+          pointer-events: none;
+          white-space: nowrap;
+        }
       </style>
 
       <ha-card>
         <div class="card">
           ${cfg.title ? `<div class="card-title">${cfg.title}</div>` : ''}
           <div class="rows"></div>
+          <div class="measure-layer"></div>
         </div>
       </ha-card>
     `;
@@ -861,11 +872,14 @@ class SensorBarCard extends HTMLElement {
       else if (width < 320) density = 'compact';
 
       const labelText = mainLine.querySelector('.label-left-text');
-      const naturalLabelWidth = labelText ? labelText.scrollWidth : Number.POSITIVE_INFINITY;
+      const fullLabelWidth = labelText ? labelText.scrollWidth : Number.POSITIVE_INFINITY;
+      const visibleLabelWidth = labelText ? labelText.clientWidth : Number.POSITIVE_INFINITY;
+      const labelIsTruncated = labelText ? fullLabelWidth > visibleLabelWidth + 1 : false;
+      const effectiveLabelWidth = labelIsTruncated ? visibleLabelWidth : fullLabelWidth;
       let relaxBy = 0;
-      if (Number.isFinite(naturalLabelWidth)) {
-        if (naturalLabelWidth <= 72 && width >= 185) relaxBy = 1;
-        if (naturalLabelWidth <= 44 && width >= 205) relaxBy = 2;
+      if (Number.isFinite(effectiveLabelWidth)) {
+        if (effectiveLabelWidth <= 72 && width >= 185) relaxBy = 1;
+        if (effectiveLabelWidth <= 44 && width >= 205) relaxBy = 2;
       }
 
       const currentIndex = densities.indexOf(density);
@@ -926,14 +940,40 @@ class SensorBarCard extends HTMLElement {
     });
   }
 
-  _measureTextWidth(el, text) {
-    if (!el || !text) return 0;
-    const style = getComputedStyle(el);
-    const canvas = this._measureCanvas || (this._measureCanvas = document.createElement('canvas'));
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return 0;
-    ctx.font = `${style.fontStyle} ${style.fontVariant} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    return ctx.measureText(text).width;
+  _measureValueMarkupWidth(valueEl, display, unit, hideUnit) {
+    const layer = this.shadowRoot?.querySelector('.measure-layer');
+    if (!layer || !valueEl) return 0;
+    const clone = valueEl.cloneNode(false);
+    clone.removeAttribute('data-hide-unit');
+    clone.style.removeProperty('--sbcp-value-extra-width');
+    clone.style.width = 'auto';
+    clone.style.minWidth = '0';
+    clone.style.maxWidth = 'none';
+    clone.style.flex = '0 0 auto';
+    clone.innerHTML = this._formatRightValueMarkup(display, unit, hideUnit);
+    layer.replaceChildren(clone);
+    return clone.scrollWidth;
+  }
+
+  _applyValueWidthReservation() {
+    if (!this.shadowRoot) return;
+    this.shadowRoot.querySelectorAll('.value-right').forEach(valueEl => {
+      const display = this._decodeDataAttr(valueEl.dataset.display || '');
+      const unit = this._decodeDataAttr(valueEl.dataset.unit || '');
+      if (!display) {
+        valueEl.style.setProperty('--sbcp-value-extra-width', '0px');
+        return;
+      }
+
+      const style = getComputedStyle(valueEl);
+      const baseWidth = parseFloat(style.getPropertyValue('--sbcp-value-width')) || valueEl.clientWidth || 0;
+      const reserveFullValue = unit && (this._isTightUnit(unit) || String(unit).trim().length <= 1);
+      const desiredWidth = Math.ceil(
+        this._measureValueMarkupWidth(valueEl, display, reserveFullValue ? unit : '', !reserveFullValue) + 2
+      );
+      const extraWidth = Math.max(0, Math.min(24, desiredWidth - baseWidth));
+      valueEl.style.setProperty('--sbcp-value-extra-width', `${extraWidth}px`);
+    });
   }
 
   _applyValueVisibility() {
@@ -950,15 +990,9 @@ class SensorBarCard extends HTMLElement {
         return;
       }
 
-      const numberEl = valueEl.querySelector('.value-right-number');
-      const unitEl = valueEl.querySelector('.unit') || valueEl;
-      if (!numberEl) return;
-
       const availableWidth = valueEl.clientWidth;
-      const numberWidth = this._measureTextWidth(numberEl, display);
-      const separatorWidth = this._isTightUnit(unit) ? 0 : 2;
-      const unitWidth = this._measureTextWidth(unitEl, unit);
-      const shouldHideUnit = numberWidth + separatorWidth + unitWidth > availableWidth + 1;
+      const fullWidth = this._measureValueMarkupWidth(valueEl, display, unit, false);
+      const shouldHideUnit = fullWidth > availableWidth + 1;
       const hideUnitFlag = shouldHideUnit ? 'true' : 'false';
 
       if (valueEl.dataset.hideUnit !== hideUnitFlag) {
@@ -974,6 +1008,7 @@ class SensorBarCard extends HTMLElement {
       this._applyLeftModeDensity();
       this._applyAboveLabelDensity();
       this._applyInsideLabelDensity();
+      this._applyValueWidthReservation();
 
       requestAnimationFrame(() => {
         this._applyValueVisibility();
@@ -1013,15 +1048,11 @@ class SensorBarCard extends HTMLElement {
     return `<span class="${textClass}"><span class="value-right-number">${display}</span><span class="unit-group"><span class="unit">${cleanUnit}</span></span></span>`;
   }
 
-  _isNegativeDisplay(display) {
-    return String(display).trim().startsWith('-');
-  }
-
   _formatAboveValueMarkup(display, unit) {
     if (!unit) return `<span class="above-bar-label-value">${display}</span>`;
     const cleanUnit = String(unit);
-    const spacer = this._isTightUnit(cleanUnit) ? '' : ' ';
-    return `<span class="above-bar-label-value"><span class="above-bar-label-number">${display}</span><span class="above-bar-label-unit">${spacer}${cleanUnit}</span></span>`;
+    const unitModeClass = this._isTightUnit(cleanUnit) ? 'tight-unit' : 'has-unit';
+    return `<span class="above-bar-label-value ${unitModeClass}"><span class="above-bar-label-number">${display}</span><span class="above-bar-label-unit">${cleanUnit}</span></span>`;
   }
 
   _buildRow(entityCfg, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor) {
@@ -1068,7 +1099,7 @@ class SensorBarCard extends HTMLElement {
       ? `<div class="label-left" style="flex:0 1 min(${ecfg.label_width}px, var(--sbcp-left-label-share));max-width:min(${ecfg.label_width}px, var(--sbcp-left-label-share));height:${h}px;"><span class="label-left-text">${name}</span></div>`
       : '';
     const rightValue = lp !== 'inside' && lp !== 'above'
-      ? `<div class="value-right${this._isNegativeDisplay(stateDisplay) ? ' negative-value' : ''}" data-display="${this._encodeDataAttr(stateDisplay)}" data-unit="${this._encodeDataAttr(unit)}" data-hide-unit="false" style="height:${h}px;">${this._formatRightValueMarkup(stateDisplay, unit, false)}</div>`
+      ? `<div class="value-right" data-display="${this._encodeDataAttr(stateDisplay)}" data-unit="${this._encodeDataAttr(unit)}" data-hide-unit="false" style="height:${h}px;">${this._formatRightValueMarkup(stateDisplay, unit, false)}</div>`
       : '';    
       
     return `
@@ -1195,7 +1226,6 @@ class SensorBarCard extends HTMLElement {
       // Update displayed value
       const valueEl = row.querySelector('.value-right');
       if (valueEl) {
-        valueEl.classList.toggle('negative-value', this._isNegativeDisplay(display));
         valueEl.dataset.display = this._encodeDataAttr(display);
         valueEl.dataset.unit = this._encodeDataAttr(unit);
         valueEl.dataset.hideUnit = 'false';
