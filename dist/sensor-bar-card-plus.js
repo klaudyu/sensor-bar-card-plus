@@ -502,6 +502,7 @@ class SensorBarCard extends HTMLElement {
         .above-line {
           display: flex;
           gap: 10px;
+          min-width: 0;
         }
         .above-icon-spacer {
           flex: 0 0 28px;
@@ -510,10 +511,22 @@ class SensorBarCard extends HTMLElement {
           flex: 1;
           min-width: 0;
           display: flex;
-          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
           font-size: 12px;
           color: var(--secondary-text-color, #888);
           margin-bottom: 2px;
+        }
+        .above-bar-label-name {
+          flex: 1 1 auto;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .above-bar-label-value {
+          flex: 0 0 auto;
+          white-space: nowrap;
         }
         /* ── Shared marker base ── */
         .peak-marker, .target-marker {
@@ -639,8 +652,8 @@ class SensorBarCard extends HTMLElement {
       <div class="above-line">
         ${ecfg.icon && ecfg.icon !== false ? `<div class="above-icon-spacer"></div>` : ''}
         <div class="above-bar-label">
-          <span>${name}</span>
-          <span>${stateDisplay}${unit ? ' ' + unit : ''}</span>
+          <span class="above-bar-label-name">${name}</span>
+          <span class="above-bar-label-value">${stateDisplay}${unit ? ' ' + unit : ''}</span>
         </div>
       </div>` : '';
 

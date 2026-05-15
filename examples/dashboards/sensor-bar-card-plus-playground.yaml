@@ -52,6 +52,10 @@ views:
                 name: Decimal precision
               - entity: input_boolean.sbcp_animated
                 name: Animated
+              - entity: input_boolean.sbcp_target_enabled
+                name: Show target marker
+              - entity: input_boolean.sbcp_above_target_enabled
+                name: Enable above-target color
               - entity: input_boolean.sbcp_show_target_label
                 name: Show target label
               - entity: input_boolean.sbcp_show_peak
@@ -101,6 +105,70 @@ views:
         entities:
           - entity: sensor.sbcp_playground_sensor
             name: Sensor
+
+      # Feature toggles that cannot be bound directly as entities in the card
+      # are tested via conditional card variants selected from helper booleans.
+      - type: markdown
+        content: |
+          ## Target And Highlight Toggles
+          Use the helper switches to verify target marker on/off behavior and above-target highlighting on/off on a normal-width card.
+
+      - type: vertical-stack
+        cards:
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_above_target_enabled
+                state: "on"
+            card: &target_toggle_card
+              type: custom:sensor-bar-card-plus
+              title: Target on / Above-target color on
+              color_mode: single
+              color: '#2563eb'
+              label_position: left
+              label_width: 160
+              show_target_label: true
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_above_target_enabled
+                state: "off"
+            card:
+              <<: *target_toggle_card
+              title: Target on / Above-target color off
+              above_target_color: null
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_above_target_enabled
+                state: "on"
+            card:
+              <<: *target_toggle_card
+              title: Target off / Above-target color on
+              target_entity: null
+              show_target_label: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_above_target_enabled
+                state: "off"
+            card:
+              <<: *target_toggle_card
+              title: Target off / Above-target color off
+              target_entity: null
+              show_target_label: false
+              above_target_color: null
 
       # Section: Interactive Playground
       # The cards below are the primary live debugging surface for the current
@@ -584,9 +652,7 @@ views:
           ## Label Modes
           The clean showcase variants for left, above, inside, off, long-label, and no-icon rendering.
 
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
           - type: custom:sensor-bar-card-plus
             title: Left Labels
@@ -699,9 +765,7 @@ views:
           ## Dynamic Scaling
           Dynamic `min_entity`, `max_entity`, and `target_entity` demonstrations using the live helper-backed sensors.
 
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
           - type: custom:sensor-bar-card-plus
             title: Dynamic max_entity
@@ -733,6 +797,40 @@ views:
             entities:
               - entity: sensor.sbcp_playground_sensor
                 name: Fully dynamic scale
+          - type: custom:sensor-bar-card-plus
+            title: Negative min scale
+            color_mode: gradient
+            label_position: left
+            label_width: 170
+            min: -120
+            max: 120
+            target: 0
+            show_target_label: true
+            entities:
+              - entity: sensor.sbcp_playground_negative
+                name: Negative scale sensor
+          - type: custom:sensor-bar-card-plus
+            title: Extremely large max scale
+            color_mode: severity
+            label_position: left
+            label_width: 170
+            min: 0
+            max: 10000
+            target: 5000
+            show_target_label: true
+            severity:
+              - from: 0
+                to: 25
+                color: '#22c55e'
+              - from: 25
+                to: 75
+                color: '#f59e0b'
+              - from: 75
+                to: 100
+                color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Huge max sensor
 
       # Section: Target Marker Tests
       # Target marker movement and above-target coloring remain part of the main
@@ -742,9 +840,7 @@ views:
           ## Target Marker Tests
           Move the target helper to test marker movement, label clamping, and above-target coloring.
 
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
           - type: custom:sensor-bar-card-plus
             title: Dynamic target_entity
@@ -782,9 +878,7 @@ views:
           ## Peak Tracking
           Increase the current value and then lower it again to confirm peak markers persist until a page reload.
 
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
           - type: custom:sensor-bar-card-plus
             title: Peak enabled

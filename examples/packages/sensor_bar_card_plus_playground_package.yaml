@@ -70,6 +70,14 @@ input_boolean:
     name: SBCP Animated
     initial: true
 
+  sbcp_target_enabled:
+    name: SBCP Target Enabled
+    initial: true
+
+  sbcp_above_target_enabled:
+    name: SBCP Above Target Enabled
+    initial: true
+
   sbcp_show_target_label:
     name: SBCP Show Target Label
     initial: true
