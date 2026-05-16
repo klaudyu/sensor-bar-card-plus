@@ -1,0 +1,880 @@
+title: Sensor Bar Card Plus Screenshots
+views:
+  - title: Screenshots
+    path: sensor-bar-card-plus-screenshots
+    icon: mdi:image-multiple
+    badges: []
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              # Sensor Bar Card Plus Screenshot Board
+              Clean, single-column capture surface for repository screenshots.
+
+              Uses the same helpers and template sensors as the playground package.
+
+          # Hero / feature variety
+          - type: custom:sensor-bar-card-plus
+            title: Caravan Power
+            label_position: left
+            max: 3000
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Caravan
+                icon: mdi:caravan
+
+          - type: custom:sensor-bar-card-plus
+            title: Left Labels
+            label_position: left
+            label_width: 140
+            color_mode: gradient
+            max: 3000
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Caravan
+                icon: mdi:caravan
+              - entity: sensor.sbcp_playground_sensor
+                name: Fridge
+                icon: mdi:fridge
+                max: 2000
+              - entity: sensor.sbcp_playground_sensor
+                name: Lighting
+                icon: mdi:lightbulb
+                max: 1000
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_above_labels
+              type: custom:sensor-bar-card-plus
+              title: Above Labels
+              label_position: above
+              color_mode: gradient
+              min: 0
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Caravan
+                  icon: mdi:caravan
+                  max: 3000
+                - entity: sensor.sbcp_playground_sensor
+                  name: Fridge
+                  icon: mdi:fridge
+                  max: 2000
+                - entity: sensor.sbcp_playground_sensor
+                  name: Lighting
+                  icon: mdi:lightbulb
+                  max: 1000
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_above_labels
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_inside_labels
+              type: custom:sensor-bar-card-plus
+              title: Inside Labels
+              label_position: inside
+              color_mode: gradient
+              height: 52
+              min: 0
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Caravan
+                  icon: mdi:caravan
+                  max: 3000
+                - entity: sensor.sbcp_playground_sensor
+                  name: Fridge
+                  icon: mdi:fridge
+                  max: 2000
+                - entity: sensor.sbcp_playground_sensor
+                  name: Lighting
+                  icon: mdi:lightbulb
+                  max: 1000
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_inside_labels
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_labels_off
+              type: custom:sensor-bar-card-plus
+              title: Labels Off
+              label_position: "off"
+              color_mode: gradient
+              min: 0
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  icon: mdi:caravan
+                  max: 3000
+                - entity: sensor.sbcp_playground_sensor
+                  icon: mdi:fridge
+                  max: 2000
+                - entity: sensor.sbcp_playground_sensor
+                  icon: mdi:lightbulb
+                  max: 1000
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_labels_off
+              target_entity: null
+              show_target_label: false
+
+          - type: custom:sensor-bar-card-plus
+            title: Long Labels
+            label_position: left
+            label_width: 320
+            color_mode: single
+            color: '#2563eb'
+            min_entity: sensor.sbcp_playground_min
+            max_entity: sensor.sbcp_playground_max
+            entities:
+              - entity: sensor.sbcp_playground_long_label
+
+          - type: custom:sensor-bar-card-plus
+            title: Label Width
+            label_position: left
+            color_mode: single
+            color: '#4a9eff'
+            max: 3000
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Label
+                label_width: 35
+              - entity: sensor.sbcp_playground_sensor
+                name: Label
+                label_width: 75
+              - entity: sensor.sbcp_playground_sensor
+                name: Label
+
+          # Color mode captures
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_gradient
+              type: custom:sensor-bar-card-plus
+              title: Gradient
+              color_mode: gradient
+              label_position: left
+              label_width: 160
+              show_target_label: true
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 35
+                  color: '#0ea5e9'
+                - pos: 70
+                  color: '#f59e0b'
+                - pos: 100
+                  color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_gradient
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_severity
+              type: custom:sensor-bar-card-plus
+              title: Severity
+              color_mode: severity
+              label_position: left
+              label_width: 160
+              show_target_label: true
+              severity:
+                - from: 0
+                  to: 30
+                  color: '#22c55e'
+                - from: 30
+                  to: 60
+                  color: '#facc15'
+                - from: 60
+                  to: 85
+                  color: '#f97316'
+                - from: 85
+                  to: 100
+                  color: '#ef4444'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_severity
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_single_color
+              type: custom:sensor-bar-card-plus
+              title: Single Color
+              color_mode: single
+              color: '#0f766e'
+              label_position: left
+              label_width: 160
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_single_color
+              target_entity: null
+              show_target_label: false
+
+          # Marker and target captures
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_dynamic_all
+              type: custom:sensor-bar-card-plus
+              title: Dynamic min / max / target entities
+              color_mode: gradient
+              label_position: left
+              label_width: 170
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_dynamic_all
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_dynamic_target
+              type: custom:sensor-bar-card-plus
+              title: Dynamic target_entity
+              color_mode: gradient
+              label_position: left
+              label_width: 170
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_dynamic_target
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_long_target_clamp
+              type: custom:sensor-bar-card-plus
+              title: Long target label clamp
+              color_mode: gradient
+              label_position: left
+              label_width: 170
+              decimal: 1
+              unit: kilowatt-hours equivalent
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_long_target_clamp
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_above_target_color
+              type: custom:sensor-bar-card-plus
+              title: Above target color
+              color_mode: single
+              color: '#2563eb'
+              label_position: left
+              label_width: 170
+              above_target_color: '#dc2626'
+              target_color: '#111827'
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_above_target_color
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_show_peak
+                state: "on"
+            card: &screenshot_peak_target_overlap
+              type: custom:sensor-bar-card-plus
+              title: Peak / target overlap
+              color_mode: gradient
+              label_position: left
+              label_width: 170
+              show_peak: true
+              show_target_label: true
+              peak_color: '#7c3aed'
+              target_color: '#0f766e'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_target
+                  name: Overlap reference
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_show_peak
+                state: "off"
+            card:
+              <<: *screenshot_peak_target_overlap
+              show_peak: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_show_peak
+                state: "on"
+            card:
+              <<: *screenshot_peak_target_overlap
+              target_entity: null
+              show_target_label: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_show_peak
+                state: "off"
+            card:
+              <<: *screenshot_peak_target_overlap
+              target_entity: null
+              show_target_label: false
+              show_peak: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_show_peak
+                state: "on"
+            card: &screenshot_peak_plus_target
+              type: custom:sensor-bar-card-plus
+              title: Peak plus target label
+              color_mode: gradient
+              label_position: left
+              label_width: 170
+              show_peak: true
+              show_target_label: true
+              peak_color: '#7c3aed'
+              target_color: '#0f766e'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_show_peak
+                state: "off"
+            card:
+              <<: *screenshot_peak_plus_target
+              show_peak: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_show_peak
+                state: "on"
+            card:
+              <<: *screenshot_peak_plus_target
+              target_entity: null
+              show_target_label: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_show_peak
+                state: "off"
+            card:
+              <<: *screenshot_peak_plus_target
+              target_entity: null
+              show_target_label: false
+              show_peak: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_show_peak
+                state: "on"
+            card: &screenshot_peak_marker
+              type: custom:sensor-bar-card-plus
+              title: Peak Marker
+              label_position: left
+              show_peak: true
+              max: 3000
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: With Peak
+                  icon: mdi:caravan
+                - entity: sensor.sbcp_playground_sensor
+                  name: Without Peak
+                  icon: mdi:caravan
+                  show_peak: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_show_peak
+                state: "off"
+            card:
+              <<: *screenshot_peak_marker
+              show_peak: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_target_marker
+              type: custom:sensor-bar-card-plus
+              title: Target Marker
+              label_position: left
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Green Target
+                  icon: mdi:target
+                  min: 0
+                  max: 3000
+                  target: 2000
+                  target_color: '#4CAF50'
+                - entity: sensor.sbcp_playground_sensor
+                  name: Red Target
+                  icon: mdi:target
+                  min: 0
+                  max: 3000
+                  target: 2000
+                  target_color: '#F44336'
+                - entity: sensor.sbcp_playground_sensor
+                  name: Default Color
+                  icon: mdi:target
+                  min: 0
+                  max: 3000
+                  target: 2000
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_target_marker
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Green Target
+                  icon: mdi:target
+                  min: 0
+                  max: 3000
+                - entity: sensor.sbcp_playground_sensor
+                  name: Red Target
+                  icon: mdi:target
+                  min: 0
+                  max: 3000
+                - entity: sensor.sbcp_playground_sensor
+                  name: Default Color
+                  icon: mdi:target
+                  min: 0
+                  max: 3000
+
+          # Formatting and text-state captures
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_tight_seconds
+              type: custom:sensor-bar-card-plus
+              title: Tight time unit - seconds
+              color_mode: single
+              color: '#2563eb'
+              label_position: left
+              label_width: 160
+              unit: s
+              decimal: 0
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Response time
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_tight_seconds
+              target_entity: null
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_tight_hours
+              type: custom:sensor-bar-card-plus
+              title: Tight time unit - hours
+              color_mode: single
+              color: '#0f766e'
+              label_position: above
+              unit: h
+              decimal: 0
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Runtime
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_tight_hours
+              target_entity: null
+
+          - type: custom:sensor-bar-card-plus
+            title: Custom text state
+            color_mode: single
+            color: '#9333ea'
+            label_position: left
+            label_width: 170
+            entities:
+              - entity: sensor.sbcp_playground_text_state
+                name: Text from helper
+
+          - type: custom:sensor-bar-card-plus
+            title: Unknown and unavailable
+            color_mode: severity
+            label_position: left
+            label_width: 170
+            entities:
+              - entity: sensor.sbcp_playground_unknown
+              - entity: sensor.sbcp_playground_unavailable
+
+          - type: custom:sensor-bar-card-plus
+            title: Decimal Places
+            label_position: left
+            min: 0
+            max: 40
+            label_width: 160
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: No decimal (0)
+                decimal: 0
+              - entity: sensor.sbcp_playground_sensor
+                name: One decimal (1)
+                decimal: 1
+              - entity: sensor.sbcp_playground_sensor
+                name: Two decimals (2)
+                decimal: 2
+              - entity: sensor.sbcp_playground_sensor
+                name: Raw (no decimal set)
+
+          - type: custom:sensor-bar-card-plus
+            title: Icon Control
+            label_position: left
+            max: 3000
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Auto (entity icon)
+              - entity: sensor.sbcp_playground_sensor
+                name: Explicit icon
+                icon: mdi:flash
+              - entity: sensor.sbcp_playground_sensor
+                name: No icon
+                icon: false
+
+          - type: custom:sensor-bar-card-plus
+            title: Bar Heights
+            label_position: left
+            max: 3000
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: 24px Compact
+                icon: mdi:minus
+                height: 24
+              - entity: sensor.sbcp_playground_sensor
+                name: Default (38px)
+                icon: mdi:minus
+              - entity: sensor.sbcp_playground_sensor
+                name: 52px Tall
+                icon: mdi:minus
+                height: 52
+              - entity: sensor.sbcp_playground_sensor
+                name: 70px Taller
+                icon: mdi:minus
+                height: 70
+
+          - type: custom:sensor-bar-card-plus
+            title: Per-Entity Overrides
+            color_mode: gradient
+            label_position: left
+            animated: true
+            show_peak: false
+            max: 3000
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Default (inherits globals)
+                icon: mdi:caravan
+              - entity: sensor.sbcp_playground_sensor
+                name: Single blue + peak on
+                icon: mdi:fridge
+                color_mode: single
+                color: '#4a9eff'
+                show_peak: true
+              - entity: sensor.sbcp_playground_sensor
+                name: Severity + label above
+                icon: mdi:lightbulb
+                color_mode: severity
+                label_position: above
+                severity:
+                  - from: 0
+                    to: 33
+                    color: '#4CAF50'
+                  - from: 33
+                    to: 75
+                    color: '#FF9800'
+                  - from: 75
+                    to: 100
+                    color: '#F44336'
+              - entity: sensor.sbcp_playground_sensor
+                name: Tall + no animation
+                icon: mdi:water-percent
+                animated: false
+                height: 52
+
+          # Edge and stress captures
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_show_peak
+                state: "on"
+            card: &screenshot_stress
+              type: custom:sensor-bar-card-plus
+              title: Multi-row stress card
+              color_mode: gradient
+              label_position: left
+              label_width: 150
+              show_peak: true
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_stress_01
+                  peak_color: '#7c3aed'
+                  target_color: '#0f766e'
+                - entity: sensor.sbcp_stress_02
+                  peak_color: '#ef4444'
+                  target_color: '#f97316'
+                - entity: sensor.sbcp_stress_03
+                  peak_color: '#2563eb'
+                  target_color: '#06b6d4'
+                - entity: sensor.sbcp_stress_04
+                  peak_color: '#111827'
+                  target_color: '#f3f4f6'
+                - entity: sensor.sbcp_stress_05
+                  peak_color: '#22c55e'
+                  target_color: '#84cc16'
+                - entity: sensor.sbcp_stress_06
+                  peak_color: '#fb7185'
+                  target_color: '#f9a8d4'
+                - entity: sensor.sbcp_stress_07
+                  peak_color: '#0ea5e9'
+                  target_color: '#a5f3fc'
+                - entity: sensor.sbcp_stress_08
+                  peak_color: '#a855f7'
+                  target_color: '#d8b4fe'
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+              - entity: input_boolean.sbcp_show_peak
+                state: "off"
+            card:
+              <<: *screenshot_stress
+              show_peak: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_show_peak
+                state: "on"
+            card:
+              <<: *screenshot_stress
+              target_entity: null
+              show_target_label: false
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+              - entity: input_boolean.sbcp_show_peak
+                state: "off"
+            card:
+              <<: *screenshot_stress
+              target_entity: null
+              show_target_label: false
+              show_peak: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_negative
+              type: custom:sensor-bar-card-plus
+              title: Negative values
+              color_mode: gradient
+              label_position: left
+              label_width: 190
+              min: -100
+              max: 100
+              target: 0
+              show_target_label: true
+              entities:
+                - entity: sensor.sbcp_playground_negative
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_negative
+              target: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_target_above_max
+              type: custom:sensor-bar-card-plus
+              title: target > max
+              color_mode: single
+              color: '#0f766e'
+              label_position: left
+              label_width: 190
+              min: 0
+              max: 50
+              target_entity: sensor.sbcp_playground_target
+              show_target_label: true
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Raise target above 50
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_target_above_max
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_min_eq_max
+              type: custom:sensor-bar-card-plus
+              title: min == max
+              color_mode: severity
+              label_position: left
+              label_width: 190
+              min: 50
+              max: 50
+              target: 50
+              show_target_label: true
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_min_eq_max
+              target: null
+              show_target_label: false

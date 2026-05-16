@@ -645,6 +645,64 @@ views:
           - entity: sensor.sbcp_playground_sensor
             name: Sensor
 
+      # Section: Display Formatting
+      # These cards make spacing and state handling visible in the main demo
+      # view so contributors can verify formatting without switching to the
+      # edge-case page.
+      - type: markdown
+        content: |
+          ## Display Formatting
+          Focused checks for unit spacing, tight time-unit formatting, and text-state rendering.
+
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:sensor-bar-card-plus
+            title: Tight time unit - seconds
+            color_mode: single
+            color: '#2563eb'
+            label_position: left
+            label_width: 160
+            unit: s
+            decimal: 0
+            min_entity: sensor.sbcp_playground_min
+            max_entity: sensor.sbcp_playground_max
+            target_entity: sensor.sbcp_playground_target
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Response time
+          - type: custom:sensor-bar-card-plus
+            title: Tight time unit - hours
+            color_mode: single
+            color: '#0f766e'
+            label_position: above
+            unit: h
+            decimal: 0
+            min_entity: sensor.sbcp_playground_min
+            max_entity: sensor.sbcp_playground_max
+            target_entity: sensor.sbcp_playground_target
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Runtime
+          - type: custom:sensor-bar-card-plus
+            title: Custom text state
+            color_mode: single
+            color: '#9333ea'
+            label_position: left
+            label_width: 170
+            entities:
+              - entity: sensor.sbcp_playground_text_state
+                name: Text from helper
+          - type: custom:sensor-bar-card-plus
+            title: Unknown and unavailable
+            color_mode: severity
+            label_position: left
+            label_width: 170
+            entities:
+              - entity: sensor.sbcp_playground_unknown
+              - entity: sensor.sbcp_playground_unavailable
+
       # Section: Label Modes
       # The main view keeps only the visually useful label demonstrations.
       - type: markdown

@@ -34,7 +34,7 @@ Works great for power, temperature, humidity, battery, CO₂, water flow, and an
 
 Clicking any bar opens the native Home Assistant entity dialog with full history, attributes, and charts.
 
-![Preview](images/hero.png)
+![Preview](images/playground-label-modes.png)
 
 > *My first ever Home Assistant card — please open an issue if you find bugs or have feature requests!*
 
@@ -44,12 +44,12 @@ Clicking any bar opens the native Home Assistant entity dialog with full history
 
 - 🎨 **Three colour modes** — smooth gradient (with custom stop colours), severity bands, or a single fixed colour
 - 📍 **Four label positions** — left, above, inside the bar, or off
-- 📈 **Optional peak marker** — a subtle chevron and line marking the highest value seen this session
-- 🎯 **Optional target marker** — a fixed chevron and line marking a configurable goal or threshold
-- `PLUS` 🚨 **Optional above-target color** — highlight the filled bar segment beyond the target with a separate color
-- `PLUS` 🔄 **Dynamic min/max/target support** — optionally source `min`, `max`, and `target` from other entity states
-- `PLUS` 🏷️ **Optional target value label** — show the target value below the marker
-- `PLUS` ↔️ **Responsive label alignment** — above labels and target labels stay aligned during resize and zoom
+- 📈 **Optional peak marker** — a compact top-edge reference marker showing the highest value seen this session
+- 🎯 **Optional target marker** — a compact bottom-edge reference marker showing a configurable goal or threshold
+- <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> 🚨 **Optional above-target color** — highlight the filled bar segment beyond the target with a separate color
+- <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> 🔄 **Dynamic min/max/target support** — optionally source `min`, `max`, and `target` from other entity states
+- <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> 🏷️ **Optional target value label** — show the target value below the marker
+- <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> ↔️ **Responsive label alignment** — above labels and target labels stay aligned during resize and zoom
 - ✨ **Animated fill** — smooth bar width and colour transitions on value change
 - 🖱️ **Native HA entity dialog** — click any bar to open the Home Assistant more-info popup with history
 - 🔧 **Per-entity overrides** — every option can be set as a global default and overridden per entity
@@ -63,7 +63,7 @@ Clicking any bar opens the native Home Assistant entity dialog with full history
 
 ## Installation
 
-`PLUS` labels in this README mark features that are specific to Sensor Bar Card Plus and are not part of the original upstream card.
+<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> labels in this README mark features that are specific to Sensor Bar Card Plus and are not part of the original upstream card.
 
 ### HACS (Recommended)
 
@@ -89,6 +89,33 @@ If you already use the original project, this fork can be installed side-by-side
 
 ---
 
+## Demo Playground
+
+The repository includes a self-contained Home Assistant playground for testing, screenshots, and contributor debugging:
+
+- dashboard YAML: `examples/dashboards/sensor-bar-card-plus-playground.yaml`
+- helper + template package: `examples/packages/sensor_bar_card_plus_playground_package.yaml`
+
+The playground exposes helper entities for current value, min/max/target, animation, label mode, color mode, target label, peak display, and stress scenarios. The card itself still consumes normal `sensor.*` entities, so it behaves like a real installation rather than talking directly to helpers.
+
+Use it to verify:
+
+- color modes
+- label modes
+- dynamic min/max/target entities
+- peak and target marker behavior
+- edge cases like `unknown`, `unavailable`, and negative values
+- responsive rendering and stress layouts
+
+Repository-ready screenshots captured from the screenshot board are stored alongside the existing README images, for example:
+
+- `images/playground-label-modes.png`
+- `images/playground-target-markers.png`
+- `images/playground-marker-overlap.png`
+- `images/playground-stress-markers.png`
+
+---
+
 ## Quick Start
 
 ```yaml
@@ -109,7 +136,7 @@ All options can be set at the **card level as global defaults** and overridden i
 
 ### Card Options
 
-| Option | Type | Default | Description | Plus |
+| Option | Type | Default | Description | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
 |---|---|---|---|---|
 | `title` | string | — | Optional title shown above the bars | - |
 | `entities` | list | **required** | List of entities to display | - | 
@@ -122,15 +149,15 @@ All options can be set at the **card level as global defaults** and overridden i
 | `show_peak` | boolean | `false` | Show peak marker for the highest value seen this session | - |
 | `peak_color` | string | `#888` | Colour of the peak marker | - |
 | `target` | number | — | Fixed target marker value (same scale as `min`/`max`) | - |
-| `target_entity` | string | — | Entity whose numeric state is used as the target marker value | `PLUS` |
+| `target_entity` | string | — | Entity whose numeric state is used as the target marker value | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
 | `target_color` | string | `#888` | Colour of the target marker | - |
-| `above_target_color` | string | — | Colour used for the filled portion of the bar beyond the target | `PLUS` |
-| `show_target_label` | boolean | `false` | Show the target value as a label below the target marker | `PLUS` |
+| `above_target_color` | string | — | Colour used for the filled portion of the bar beyond the target | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
+| `show_target_label` | boolean | `false` | Show the target value as a label below the target marker | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
 | `decimal` | number | — | Decimal places to show in the value (e.g. `0`, `1`, `2`) | - |
 | `min` | number | `0` | Minimum value (shown as 0% bar width) | - |
-| `min_entity` | string | — | Entity whose numeric state is used as the minimum value | `PLUS` |
+| `min_entity` | string | — | Entity whose numeric state is used as the minimum value | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
 | `max` | number | `100` | Maximum value (shown as 100% bar width) | - |
-| `max_entity` | string | — | Entity whose numeric state is used as the maximum value | `PLUS` |
+| `max_entity` | string | — | Entity whose numeric state is used as the maximum value | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
 | `height` | number | `38` | Bar height in pixels | - |
 | `label_width` | number | `100` | Width of the name label column in pixels — only applies when `label_position: left` | - |
 | `unit` | string | — | Override the unit of measurement displayed next to the value | - |
@@ -247,7 +274,7 @@ entities:
 
 ## Peak Marker
 
-When `show_peak: true` is set, the card tracks the highest value seen since the page was loaded and displays it as a subtle marker on the bar — a small downward chevron (▼) at the top with a vertical line through the bar. Use `peak_color` to change the marker colour.
+When `show_peak: true` is set, the card tracks the highest value seen since the page was loaded and displays it as a compact top-edge marker on the bar. Use `peak_color` to change the marker colour.
 
 This is useful for catching brief spikes you might otherwise miss, for example a kettle or appliance switching on momentarily.
 
@@ -257,13 +284,13 @@ This is useful for catching brief spikes you might otherwise miss, for example a
 
 ## Target Marker
 
-When `target` is set to a value, a fixed marker is drawn on the bar at that position — a small upward chevron (▲) at the bottom with a vertical line through the bar. Use `target_color` to change the marker colour.
+When `target` is set to a value, a fixed marker is drawn on the bar at that position as a compact bottom-edge marker. Use `target_color` to change the marker colour.
 
-The target chevron points **up** from the bottom of the bar while the peak chevron points **down** from the top, so the two markers are always easy to tell apart at a glance.
+The target marker sits on the **bottom** edge of the bar while the peak marker sits on the **top** edge, so the two remain easy to distinguish at a glance and can overlap cleanly when needed.
 
 The target value uses the same scale as `min` and `max` — so if `max: 3000` and you want a target at 2000W, set `target: 2000`.
 
-`PLUS` 
+<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
 
 You can also provide `min_entity`, `max_entity`, and `target_entity` to source those values from other Home Assistant entities. If both a constant value and an entity are provided, the entity value takes precedence. If the entity state is unavailable or non-numeric, the card falls back to the constant value.
 
@@ -309,7 +336,7 @@ If an entity ID is not found in Home Assistant (e.g. a typo or a device that's b
 
 ### Dynamic Min / Max / Target Entities
 
-`PLUS`
+<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
 
 Use entity states to drive the scale and target marker dynamically. This is useful when thresholds or limits are managed elsewhere in Home Assistant.
 
@@ -350,7 +377,7 @@ Smooth colour transition as the value rises from `min` to `max`. By default the 
 
 This example uses a different custom gradient for each sensor type — cool blue for power, warm amber for temperature, ocean tones for humidity, and a traffic-light palette for battery.
 
-![Gradient colour mode](images/example-gradient.png)
+![Gradient colour mode](images/playground-color-gradient.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -409,7 +436,7 @@ entities:
 
 Hard colour bands that change at defined thresholds. Great for showing clearly when something is in a good, warning, or critical state.
 
-![Severity colour mode](images/example-severity.png)
+![Severity colour mode](images/playground-color-severity.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -447,7 +474,7 @@ entities:
 
 One fixed colour for all bars regardless of value. Good for battery levels or any sensor where you just want clean consistent styling.
 
-![Single colour mode](images/example-single.png)
+![Single colour mode](images/playground-color-single.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -602,7 +629,7 @@ entities:
 
 ### Peak Marker
 
-When `show_peak: true`, a subtle chevron (▼) and vertical line marks the highest value seen since the page loaded. Use `peak_color` to choose a colour — defaults to grey.
+When `show_peak: true`, a compact top-edge marker marks the highest value seen since the page loaded. Use `peak_color` to choose a colour — defaults to grey.
 
 ![Peak marker](images/example-peak.png)
 
@@ -627,7 +654,7 @@ entities:
 
 ### Target Marker
 
-A fixed marker (▲) showing a goal or threshold. The target chevron points **up** from the bottom of the bar — the opposite of the peak marker — making the two easy to distinguish. Use `target_color` to choose a colour — defaults to grey.
+A fixed bottom-edge marker showing a goal or threshold. It sits opposite the peak marker so the two remain easy to distinguish even when they are close together. Use `target_color` to choose a colour — defaults to grey.
 
 ![Target marker](images/example-target.png)
 
@@ -662,7 +689,7 @@ entities:
 
 ### Target Marker With Value Label
 
-`PLUS`
+<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
 
 Enable `show_target_label` to render the target value below the marker. The label stays attached to the marker during updates and remains within the bar bounds when the card is narrow or the target is close to either edge.
 
@@ -693,7 +720,7 @@ entities:
 
 ### Above-Target Color
 
-`PLUS`
+<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
 
 Use `above_target_color` to highlight only the part of the filled bar that extends beyond the target marker. This is useful when you want the normal range to keep its existing bar color while clearly calling out the exceeded portion.
 
@@ -725,9 +752,9 @@ entities:
 
 ### Peak & Target Together
 
-Peak (▼ top) and target (▲ bottom) on the same bar. Peak tracks the session high while target marks your goal — both independently coloured so they're always easy to tell apart.
+Peak (top edge) and target (bottom edge) on the same bar. Peak tracks the session high while target marks your goal — both independently coloured so they're always easy to tell apart.
 
-![Peak and target together](images/example-peak-target.png)
+![Peak and target together](images/playground-peak-target.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
