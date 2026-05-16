@@ -660,3 +660,50 @@ If you want to support the original author:
 <https://buymeacoffee.com/tommysharpnz>
 
 This fork intentionally ships under a separate resource path and separate card type so both cards can coexist safely in the same Home Assistant installation.
+
+## What This Fork Materially Changes
+
+Compared to the original card, this fork adds or reworks:
+
+- layout refactor for consistent bar alignment and more truthful row geometry
+- responsive label/value fallback behavior during resize, zoom, and cramped widths
+- dynamic `min_entity`, `max_entity`, and `target_entity`
+- target marker, target value label, and above-target color highlighting
+- synchronized target animation so marker, label, and threshold split move together
+- `severity_gradient` as a separate color mode, alongside proper fixed-band `severity`
+- stable animated color scales so severity bands and target thresholds do not stretch or wobble
+- improved marker rendering and marker coexistence
+- more robust handling for text states, negative values, unit display, and inside/above/left layout edge cases
+- various bug fixes and rendering improvements across responsive behavior, truncation, and value fitting
+
+## Future Directions
+
+Likely future work includes:
+
+- a more general two-marker system instead of hardcoded target/peak semantics
+- an optional live value indicator, similar to the core Home Assistant gauge card
+- support for alternative marker roles such as valley, second target, or mixed references
+- additional UI/editor improvements where practical
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+Recommended workflow:
+
+1. Make changes in `dist/sensor-bar-card-plus.js`
+2. Verify behavior in the demo playground and screenshot board
+3. Update screenshots or README examples if the user-facing behavior changed
+4. Open a pull request with a concise explanation of the change
+
+## Support
+
+If you want to support the original project, please support TommySharpNZ directly:
+
+<https://buymeacoffee.com/tommysharpnz>
+
+If you use this fork professionally or rely on it heavily, issues with strong reproduction details and screenshot evidence are especially helpful.
+
+## License
+
+[MIT](LICENSE)
