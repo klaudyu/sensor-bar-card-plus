@@ -246,6 +246,141 @@ views:
             conditions:
               - entity: input_boolean.sbcp_target_enabled
                 state: "on"
+            card: &screenshot_severity_gradient
+              type: custom:sensor-bar-card-plus
+              title: Severity Gradient
+              color_mode: severity_gradient
+              label_position: left
+              label_width: 160
+              show_target_label: true
+              severity:
+                - from: 0
+                  to: 30
+                  color: '#22c55e'
+                - from: 30
+                  to: 60
+                  color: '#facc15'
+                - from: 60
+                  to: 85
+                  color: '#f97316'
+                - from: 85
+                  to: 100
+                  color: '#ef4444'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_severity_gradient
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_severity_rainbow
+              type: custom:sensor-bar-card-plus
+              title: Severity Rainbow
+              color_mode: severity
+              label_position: left
+              label_width: 160
+              show_target_label: true
+              severity:
+                - from: 0
+                  to: 14
+                  color: '#ef4444'
+                - from: 14
+                  to: 28
+                  color: '#f97316'
+                - from: 28
+                  to: 42
+                  color: '#facc15'
+                - from: 42
+                  to: 56
+                  color: '#22c55e'
+                - from: 56
+                  to: 70
+                  color: '#06b6d4'
+                - from: 70
+                  to: 84
+                  color: '#2563eb'
+                - from: 84
+                  to: 100
+                  color: '#7c3aed'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_severity_rainbow
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
+            card: &screenshot_severity_gradient_rainbow
+              type: custom:sensor-bar-card-plus
+              title: Severity Gradient Rainbow
+              color_mode: severity_gradient
+              label_position: left
+              label_width: 160
+              show_target_label: true
+              severity:
+                - from: 0
+                  to: 14
+                  color: '#ef4444'
+                - from: 14
+                  to: 28
+                  color: '#f97316'
+                - from: 28
+                  to: 42
+                  color: '#facc15'
+                - from: 42
+                  to: 56
+                  color: '#22c55e'
+                - from: 56
+                  to: 70
+                  color: '#06b6d4'
+                - from: 70
+                  to: 84
+                  color: '#2563eb'
+                - from: 84
+                  to: 100
+                  color: '#7c3aed'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "off"
+            card:
+              <<: *screenshot_severity_gradient_rainbow
+              target_entity: null
+              show_target_label: false
+
+          - type: conditional
+            conditions:
+              - entity: input_boolean.sbcp_target_enabled
+                state: "on"
             card: &screenshot_single_color
               type: custom:sensor-bar-card-plus
               title: Single Color

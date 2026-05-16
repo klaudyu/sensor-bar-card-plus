@@ -13,7 +13,7 @@
  *   type: custom:sensor-bar-card-plus
  *   title: My Sensors             # optional card title
  *   label_position: left          # left | above | inside | off
- *   color_mode: gradient          # gradient | severity | single
+ *   color_mode: gradient          # gradient | severity | severity_gradient | single
  *   color: '#4a9eff'              # bar colour when color_mode is 'single'
  *   animated: true                # smooth bar fill transition on value change
  *   show_peak: true               # show peak marker (highest value seen this session)
@@ -301,13 +301,73 @@ class SensorBarCard extends HTMLElement {
     const num = parseFloat(value);
     return Number.isFinite(num) ? num : null;
   }
+
+  _hexToRgb(color) {
+    if (!color || typeof color !== 'string') return null;
+    const hex = color.replace('#', '').trim();
+    const full = hex.length === 3
+      ? hex.split('').map(c => c + c).join('')
+      : hex;
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+    return {
+      r: parseInt(full.slice(0, 2), 16),
+      g: parseInt(full.slice(2, 4), 16),
+      b: parseInt(full.slice(4, 6), 16),
+    };
+  }
+
+  _getSeverityInterpolationStops(ecfg) {
+    const bands = Array.isArray(ecfg.severity) ? [...ecfg.severity] : [];
+    const sorted = bands
+      .filter(s => Number.isFinite(s?.from) && Number.isFinite(s?.to) && s?.color)
+      .sort((a, b) => a.from - b.from);
+
+    if (!sorted.length) return [];
+
+    const stops = [];
+    for (let i = 0; i < sorted.length; i++) {
+      const band = sorted[i];
+      const rgb = this._hexToRgb(band.color);
+      if (!rgb) continue;
+      let anchor;
+      if (i === 0) {
+        anchor = band.from;
+      } else if (i === sorted.length - 1) {
+        anchor = band.to;
+      } else {
+        anchor = band.from + ((band.to - band.from) / 2);
+      }
+      if (!stops.length || stops[stops.length - 1].p !== anchor) {
+        stops.push({ p: anchor, ...rgb });
+      }
+    }
+
+    return stops;
+  }
+
+  _getSeverityBandGradientCss(ecfg) {
+    const bands = Array.isArray(ecfg.severity) ? [...ecfg.severity] : [];
+    const sorted = bands
+      .filter(s => Number.isFinite(s?.from) && Number.isFinite(s?.to) && s?.color)
+      .sort((a, b) => a.from - b.from);
+
+    if (!sorted.length) return null;
+
+    const stops = [];
+    for (const band of sorted) {
+      stops.push(`${band.color} ${band.from}%`, `${band.color} ${band.to}%`);
+    }
+    return `linear-gradient(to right, ${stops.join(', ')})`;
+  }
   
   _getColor(pct, ecfg) {
     if (ecfg.color_mode === 'single') return ecfg.color;
 
-    if (ecfg.color_mode === 'gradient') {
+    if (ecfg.color_mode === 'gradient' || ecfg.color_mode === 'severity_gradient') {
       let stops;
-      if (ecfg.gradient_stops && ecfg.gradient_stops.length >= 2) {
+      if (ecfg.color_mode === 'severity_gradient') {
+        stops = this._getSeverityInterpolationStops(ecfg);
+      } else if (ecfg.gradient_stops && ecfg.gradient_stops.length >= 2) {
         stops = ecfg.gradient_stops.map(s => {
           const hex = s.color.replace('#','');
           const full = hex.length === 3
@@ -323,6 +383,7 @@ class SensorBarCard extends HTMLElement {
           { p: 100, r: 244, g: 67,  b: 54  },
         ];
       }
+      if (!stops || !stops.length) return ecfg.color;
       let lo = stops[0], hi = stops[stops.length - 1];
       for (let i = 0; i < stops.length - 1; i++) {
         if (pct >= stops[i].p && pct <= stops[i + 1].p) {
@@ -340,25 +401,42 @@ class SensorBarCard extends HTMLElement {
     return ecfg.color;
   }
 
-  _getFillStyle(pct, h, color, ecfg, targetPct = null) {
-    const borderRadius = pct >= 97 ? 'border-radius:6px;' : 'border-radius:6px 0 0 6px;';
-    const widthStyle = `width:${pct}%;height:${h}px;`;
+  _getScaleStyle(color, ecfg, targetPct = null) {
+    const sizeStyle = 'width:100%;height:100%;';
 
     const hasAboveTargetColor =
       ecfg.above_target_color &&
       targetPct !== null &&
       Number.isFinite(targetPct) &&
-      pct > targetPct;
+      targetPct >= 0 &&
+      targetPct <= 100;
+
+    if (ecfg.color_mode === 'severity') {
+      const severityGradient = this._getSeverityBandGradientCss(ecfg);
+      if (severityGradient) {
+        if (hasAboveTargetColor) {
+          return (
+            sizeStyle +
+            `background-image:${severityGradient},linear-gradient(to right, transparent 0%, transparent ${targetPct}%, ${ecfg.above_target_color} ${targetPct}%, ${ecfg.above_target_color} 100%);` +
+            'background-repeat:no-repeat,no-repeat;'
+          );
+        }
+
+        return (
+          sizeStyle +
+          `background-image:${severityGradient};` +
+          'background-repeat:no-repeat;'
+        );
+      }
+    }
 
     if (hasAboveTargetColor) {
-      const normalStop = Math.max(0, Math.min(100, (targetPct / pct) * 100));
       return (
-        widthStyle +
-        borderRadius +
+        sizeStyle +
         `background:linear-gradient(to right, ` +
         `${color} 0%, ` +
-        `${color} ${normalStop}%, ` +
-        `${ecfg.above_target_color} ${normalStop}%, ` +
+        `${color} ${targetPct}%, ` +
+        `${ecfg.above_target_color} ${targetPct}%, ` +
         `${ecfg.above_target_color} 100%);`
       );
     }
@@ -369,15 +447,21 @@ class SensorBarCard extends HTMLElement {
         : '#4CAF50 0%,#FF9800 50%,#F44336 100%';
 
       return (
-        widthStyle +
-        borderRadius +
+        sizeStyle +
         'background:linear-gradient(to right,' + gs + ');' +
-        'background-size:' + ((100 / pct) * 100).toFixed(1) + '% 100%;' +
         'background-repeat:no-repeat;'
       );
     }
 
-    return widthStyle + borderRadius + 'background:' + color + ';';
+    return sizeStyle + 'background:' + color + ';';
+  }
+
+  _getMaskStyle(pct, h) {
+    const clampedPct = Math.min(100, Math.max(0, pct));
+    const isHidden = clampedPct >= 100;
+    const left = Math.min(100, Math.max(0, clampedPct));
+    const radius = clampedPct <= 0 ? 'border-radius:6px;' : 'border-radius:0 6px 6px 0;';
+    return `left:${left}%;height:${h}px;${radius}display:${isHidden ? 'none' : 'block'};`;
   }
 
   _render() {
@@ -563,13 +647,20 @@ class SensorBarCard extends HTMLElement {
           background: var(--secondary-background-color, #e8e8e8);
           overflow: hidden;
         }
-        .bar-fill {
-          height: 100%;
-          border-radius: 6px 0 0 6px;
-          transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background-color 0.4s ease;
-          min-width: 4px;
-          position: relative;
+        .bar-scale {
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
           z-index: 1;
+        }
+        .bar-fill {
+          position: absolute;
+          top: 0;
+          right: 0;
+          height: 100%;
+          background: var(--secondary-background-color, #e8e8e8);
+          transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
+          z-index: 2;
         }
         .bar-fill.no-anim { transition: none; }
 
@@ -582,7 +673,7 @@ class SensorBarCard extends HTMLElement {
           gap: 6px;
           padding: 0 6px;
           pointer-events: none;
-          z-index: 2;
+          z-index: 3;
         }
         .bar-inner-label[data-inside-density="compact"] {
           gap: 5px;
@@ -688,7 +779,7 @@ class SensorBarCard extends HTMLElement {
           text-overflow: ellipsis;
           box-sizing: border-box;
           pointer-events: none;
-          z-index: 5;
+          z-index: 6;
           visibility: hidden;
         }
         .above-line {
@@ -1260,8 +1351,9 @@ class SensorBarCard extends HTMLElement {
             ${leftLabel}
             <div class="bar-wrap">
               <div class="bar-track" style="height:${h}px;">
+                <div class="bar-scale" style="${this._getScaleStyle(color, ecfg, targetPct)}"></div>
                 <div class="bar-fill${ecfg.animated ? '' : ' no-anim'}"
-                  style="${this._getFillStyle(pct, h, color, ecfg, targetPct)}"></div>
+                  style="${this._getMaskStyle(pct, h)}"></div>
                 ${innerLabel}
                 ${peakMarker}
                 ${targetMarker}
@@ -1366,13 +1458,17 @@ class SensorBarCard extends HTMLElement {
 
       // Update bar fill width and colour in-place — this is what triggers the CSS transition
       const fill = row.querySelector('.bar-fill');
+      const scale = row.querySelector('.bar-scale');
       let liveTargetPct = null;
       if (targetVal !== null) {
         liveTargetPct = Math.min(100, Math.max(0, ((targetVal - safeMin) / range) * 100));
       }
 
+      if (scale) {
+        scale.style.cssText = this._getScaleStyle(color, ecfg, liveTargetPct);
+      }
       if (fill) {
-        fill.style.cssText = this._getFillStyle(pct, ecfg.height, color, ecfg, liveTargetPct);
+        fill.style.cssText = this._getMaskStyle(pct, ecfg.height);
         fill.className = `bar-fill${ecfg.animated ? '' : ' no-anim'}`;
       }
 

@@ -96,6 +96,7 @@ input_select:
     options:
       - gradient
       - severity
+      - severity_gradient
       - single
     initial: gradient
 

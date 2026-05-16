@@ -241,6 +241,33 @@ views:
           - type: conditional
             conditions:
               - entity: input_select.sbcp_color_mode
+                state: severity_gradient
+            card:
+              type: custom:sensor-bar-card-plus
+              title: "Active color mode: severity_gradient"
+              color_mode: severity_gradient
+              label_position: left
+              label_width: 150
+              show_target_label: true
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              target_entity: sensor.sbcp_playground_target
+              severity:
+                - from: 0
+                  to: 35
+                  color: '#22c55e'
+                - from: 35
+                  to: 70
+                  color: '#f59e0b'
+                - from: 70
+                  to: 100
+                  color: '#ef4444'
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Sensor
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_color_mode
                 state: single
             card:
               type: custom:sensor-bar-card-plus
