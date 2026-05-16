@@ -401,44 +401,18 @@ class SensorBarCard extends HTMLElement {
     return ecfg.color;
   }
 
-  _getScaleStyle(color, ecfg, targetPct = null) {
+  _getScaleStyle(color, ecfg) {
     const sizeStyle = 'width:100%;height:100%;';
-
-    const hasAboveTargetColor =
-      ecfg.above_target_color &&
-      targetPct !== null &&
-      Number.isFinite(targetPct) &&
-      targetPct >= 0 &&
-      targetPct <= 100;
 
     if (ecfg.color_mode === 'severity') {
       const severityGradient = this._getSeverityBandGradientCss(ecfg);
       if (severityGradient) {
-        if (hasAboveTargetColor) {
-          return (
-            sizeStyle +
-            `background-image:${severityGradient},linear-gradient(to right, transparent 0%, transparent ${targetPct}%, ${ecfg.above_target_color} ${targetPct}%, ${ecfg.above_target_color} 100%);` +
-            'background-repeat:no-repeat,no-repeat;'
-          );
-        }
-
         return (
           sizeStyle +
           `background-image:${severityGradient};` +
           'background-repeat:no-repeat;'
         );
       }
-    }
-
-    if (hasAboveTargetColor) {
-      return (
-        sizeStyle +
-        `background:linear-gradient(to right, ` +
-        `${color} 0%, ` +
-        `${color} ${targetPct}%, ` +
-        `${ecfg.above_target_color} ${targetPct}%, ` +
-        `${ecfg.above_target_color} 100%);`
-      );
     }
 
     if (ecfg.color_mode === 'gradient') {
@@ -454,6 +428,23 @@ class SensorBarCard extends HTMLElement {
     }
 
     return sizeStyle + 'background:' + color + ';';
+  }
+
+  _getAboveTargetOverlayStyle(pct, h, ecfg, targetPct = null) {
+    const hasAboveTargetColor =
+      ecfg.above_target_color &&
+      targetPct !== null &&
+      Number.isFinite(targetPct) &&
+      targetPct >= 0 &&
+      targetPct <= 100 &&
+      pct > targetPct;
+
+    if (!hasAboveTargetColor) {
+      return `left:0;height:${h}px;display:none;`;
+    }
+
+    const left = Math.min(100, Math.max(0, targetPct));
+    return `left:${left}%;height:${h}px;background:${ecfg.above_target_color};display:block;`;
   }
 
   _getMaskStyle(pct, h) {
@@ -653,6 +644,16 @@ class SensorBarCard extends HTMLElement {
           border-radius: inherit;
           z-index: 1;
         }
+        .bar-above-target {
+          position: absolute;
+          top: 0;
+          right: 0;
+          transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
+          z-index: 2;
+        }
+        .bar-above-target.no-anim {
+          transition: none;
+        }
         .bar-fill {
           position: absolute;
           top: 0;
@@ -660,7 +661,7 @@ class SensorBarCard extends HTMLElement {
           height: 100%;
           background: var(--secondary-background-color, #e8e8e8);
           transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
-          z-index: 2;
+          z-index: 3;
         }
         .bar-fill.no-anim { transition: none; }
 
@@ -673,7 +674,7 @@ class SensorBarCard extends HTMLElement {
           gap: 6px;
           padding: 0 6px;
           pointer-events: none;
-          z-index: 3;
+          z-index: 4;
         }
         .bar-inner-label[data-inside-density="compact"] {
           gap: 5px;
@@ -781,6 +782,7 @@ class SensorBarCard extends HTMLElement {
           pointer-events: none;
           z-index: 6;
           visibility: hidden;
+          transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
         }
         .above-line {
           display: flex;
@@ -1351,7 +1353,8 @@ class SensorBarCard extends HTMLElement {
             ${leftLabel}
             <div class="bar-wrap">
               <div class="bar-track" style="height:${h}px;">
-                <div class="bar-scale" style="${this._getScaleStyle(color, ecfg, targetPct)}"></div>
+                <div class="bar-scale" style="${this._getScaleStyle(color, ecfg)}"></div>
+                <div class="bar-above-target${ecfg.animated ? '' : ' no-anim'}" style="${this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct)}"></div>
                 <div class="bar-fill${ecfg.animated ? '' : ' no-anim'}"
                   style="${this._getMaskStyle(pct, h)}"></div>
                 ${innerLabel}
@@ -1458,6 +1461,7 @@ class SensorBarCard extends HTMLElement {
 
       // Update bar fill width and colour in-place — this is what triggers the CSS transition
       const fill = row.querySelector('.bar-fill');
+      const aboveTarget = row.querySelector('.bar-above-target');
       const scale = row.querySelector('.bar-scale');
       let liveTargetPct = null;
       if (targetVal !== null) {
@@ -1465,7 +1469,11 @@ class SensorBarCard extends HTMLElement {
       }
 
       if (scale) {
-        scale.style.cssText = this._getScaleStyle(color, ecfg, liveTargetPct);
+        scale.style.cssText = this._getScaleStyle(color, ecfg);
+      }
+      if (aboveTarget) {
+        aboveTarget.style.cssText = this._getAboveTargetOverlayStyle(pct, ecfg.height, ecfg, liveTargetPct);
+        aboveTarget.className = `bar-above-target${ecfg.animated ? '' : ' no-anim'}`;
       }
       if (fill) {
         fill.style.cssText = this._getMaskStyle(pct, ecfg.height);
