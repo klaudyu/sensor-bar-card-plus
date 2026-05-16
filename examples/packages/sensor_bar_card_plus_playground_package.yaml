@@ -117,6 +117,13 @@ input_select:
       - random
     initial: sine
 
+  sbcp_wave_target:
+    name: SBCP Wave Target
+    options:
+      - current_value
+      - target_value
+    initial: current_value
+
 input_text:
   sbcp_label:
     name: SBCP Label
@@ -294,7 +301,7 @@ sensor:
 automation:
   - id: sbcp_wave_driver
     alias: SBCP Wave Driver
-    description: Drive the playground current value from a selectable waveform.
+    description: Drive the selected playground helper from a selectable waveform.
     trigger:
       - platform: time_pattern
         seconds: "/1"
@@ -303,11 +310,8 @@ automation:
         entity_id: input_boolean.sbcp_wave_enabled
         state: "on"
     action:
-      - service: input_number.set_value
-        target:
-          entity_id: input_number.sbcp_current_value
-        data:
-          value: >-
+      - variables:
+          wave_value: >-
             {% set min_v = states('input_number.sbcp_min_value') | float(0) %}
             {% set max_v = states('input_number.sbcp_max_value') | float(100) %}
             {% set period = states('input_number.sbcp_wave_period') | float(12) %}
@@ -324,4 +328,21 @@ automation:
               {% set wave = sin(cycle * 2 * pi) %}
               {{ (center + amplitude * wave) | round(1) }}
             {% endif %}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_select.sbcp_wave_target
+                state: target_value
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_target_value
+                data:
+                  value: "{{ wave_value }}"
+        default:
+          - service: input_number.set_value
+            target:
+              entity_id: input_number.sbcp_current_value
+            data:
+              value: "{{ wave_value }}"
     mode: single

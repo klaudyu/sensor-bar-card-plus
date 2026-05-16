@@ -34,7 +34,9 @@ views:
               - entity: input_number.sbcp_target_value
                 name: Target
               - entity: input_boolean.sbcp_wave_enabled
-                name: Wave drive current value
+                name: Wave drive helper
+              - entity: input_select.sbcp_wave_target
+                name: Wave target
               - entity: input_select.sbcp_waveform
                 name: Waveform
               - entity: input_number.sbcp_wave_period
@@ -89,7 +91,7 @@ views:
       - type: markdown
         content: |
           ## Animation Preview
-          Enable `Wave drive current value` and select `sine`, `triangle`, or `random` to drive continuous motion through the normal sensor entity. `Random` uses the full current-value helper range instead of the active min/max scale.
+          Enable `Wave drive helper`, choose whether it targets the current value or the target value, and select `sine`, `triangle`, or `random` for continuous motion. `Random` uses the full helper range instead of the active min/max scale.
 
       - type: custom:sensor-bar-card-plus
         title: Animated sensor preview
