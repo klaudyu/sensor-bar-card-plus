@@ -4,6 +4,7 @@
 [![GitHub release](https://img.shields.io/github/release/cdelaet/sensor-bar-card-plus.svg)](https://github.com/cdelaet/sensor-bar-card-plus/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+
 A polished, configurable Lovelace bar card for Home Assistant with responsive layouts, dynamic scale entities, animated target/peak markers, and richer color systems.
 
 Works well for power, temperature, humidity, battery, CO2, water flow, response times, quotas, and any other numeric sensor.
@@ -20,6 +21,8 @@ This repository is a separate card based on the original project by TommySharpNZ
 - card type: `custom:sensor-bar-card-plus`
 
 The fork exists to ship additional features and rendering fixes without conflicting with the original card.
+
+[![Buy me a coffee on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/chrisdelaet)
 
 ## Highlights
 
@@ -696,13 +699,11 @@ Recommended workflow:
 3. Update screenshots or README examples if the user-facing behavior changed
 4. Open a pull request with a concise explanation of the change
 
-## Support
+## Support Me
 
-If you want to support the original project, please support TommySharpNZ directly:
+If `sensor-bar-card-plus` improves your Home Assistant dashboard, you can support continued development, maintenance, fixes, documentation, and new features.
 
-<https://buymeacoffee.com/tommysharpnz>
-
-If you use this fork professionally or rely on it heavily, issues with strong reproduction details and screenshot evidence are especially helpful.
+[![Buy me a coffee on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/chrisdelaet)
 
 ## License
 
