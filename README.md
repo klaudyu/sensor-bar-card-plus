@@ -10,6 +10,7 @@ It is built for dashboards where the visual context should follow live Home Assi
 
 ![Sensor Bar Card Plus showcase](images/hero.png)
 
+
 [![Buy me a coffee on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/chrisdelaet)
 
 ## Highlights
@@ -24,19 +25,25 @@ It is built for dashboards where the visual context should follow live Home Assi
 - ✨ **Smooth animation** with stable color geometry
 - 🖱️ **Native Home Assistant more-info dialog** on click
 
-## Installation
 
 <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> badges in this README mark features that are specific to Sensor Bar Card Plus.
 
+## Installation
+
 ### HACS
 
+[![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cdelaet&repository=sensor-bar-card-plus&category=plugin)
+
+Sensor Bar Card Plus is available through HACS and this is the recommended installation method.
+
 1. Open **HACS** in Home Assistant.
-2. Go to **Custom repositories**.
-3. Add `https://github.com/cdelaet/sensor-bar-card-plus` as a **Dashboard** repository.
-4. Install **Sensor Bar Card Plus**.
-5. Hard refresh the browser.
+2. Search for **Sensor Bar Card Plus**.
+3. Open the card page and choose **Download**.
+4. Hard refresh the browser.
 
 ### Manual
+
+If you prefer not to use HACS, manual installation is still supported:
 
 1. Download `sensor-bar-card-plus.js` from the [latest release](https://github.com/cdelaet/sensor-bar-card-plus/releases/latest).
 2. Copy it to `/config/www/`.
