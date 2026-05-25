@@ -22,6 +22,10 @@
  *   target_entity: sensor.my_target_sensor   # optional entity providing the target marker value
  *   target_color: '#4a9eff'        # colour of the target marker (default grey)
  *   above_target_color: '#F44336' # optional color for filled bar section beyond the target
+ *   baseline: 0                    # optional neutral point for bidirectional fill
+ *   baseline_entity: sensor.my_baseline_sensor # optional entity providing the baseline value
+ *   above_baseline_color: '#34d399' # optional fill color override above baseline
+ *   below_baseline_color: '#ef4444' # optional fill color override below baseline
  *   decimal: 1                     # decimal places for displayed value (null = use raw value)
  *   min: 0                        # minimum value
  *   min_entity: sensor.my_min_sensor         # optional entity providing the minimum value
@@ -156,6 +160,10 @@ class SensorBarCard extends HTMLElement {
       target_color: '#888',
       show_target_label: false,
       above_target_color: null, 
+      baseline: null,
+      baseline_entity: null,
+      above_baseline_color: null,
+      below_baseline_color: null,
       decimal: null,
       gradient_stops: null,
       min: 0,
@@ -219,6 +227,8 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.min_entity = normalizedEntity.scale.min.entity;
     normalizedEntity.max = normalizedEntity.scale.max.fallback;
     normalizedEntity.max_entity = normalizedEntity.scale.max.entity;
+    normalizedEntity.baseline = normalizedEntity.scale.baseline.fallback;
+    normalizedEntity.baseline_entity = normalizedEntity.scale.baseline.entity;
     normalizedEntity.height = normalizedEntity.layout.height;
     normalizedEntity.label_position = normalizedEntity.layout.label_position;
     normalizedEntity.label_width = normalizedEntity.layout.label_width;
@@ -228,6 +238,8 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.severity = normalizedEntity.bar.severity;
     normalizedEntity.animated = normalizedEntity.bar.animated;
     normalizedEntity.above_target_color = normalizedEntity.bar.above_target_color;
+    normalizedEntity.above_baseline_color = normalizedEntity.bar.above_baseline_color;
+    normalizedEntity.below_baseline_color = normalizedEntity.bar.below_baseline_color;
     normalizedEntity.decimal = normalizedEntity.formatting.decimal;
     normalizedEntity.unit = normalizedEntity.formatting.unit;
     normalizedEntity.target = normalizedEntity.target_marker.source.fallback;
@@ -263,6 +275,7 @@ class SensorBarCard extends HTMLElement {
     return {
       min: this.normalizeScaleBound(entityConfig, cardConfig, 'min', 0),
       max: this.normalizeScaleBound(entityConfig, cardConfig, 'max', 100),
+      baseline: this.normalizeScaleBound(entityConfig, cardConfig, 'baseline', null),
     };
   }
 
@@ -275,6 +288,8 @@ class SensorBarCard extends HTMLElement {
       severity: entityConfig.severity ?? cardBar?.severity ?? cardConfig?.severity ?? null,
       animated: entityConfig.animated ?? cardBar?.animated ?? cardConfig?.animated ?? true,
       above_target_color: entityConfig.above_target_color ?? cardBar?.above_target_color ?? cardConfig?.above_target_color ?? null,
+      above_baseline_color: entityConfig.above_baseline_color ?? cardBar?.above_baseline_color ?? cardConfig?.above_baseline_color ?? null,
+      below_baseline_color: entityConfig.below_baseline_color ?? cardBar?.below_baseline_color ?? cardConfig?.below_baseline_color ?? null,
     };
   }
 
@@ -347,6 +362,7 @@ class SensorBarCard extends HTMLElement {
         entityCfg.entity,
         ecfg.scale?.min?.entity,
         ecfg.scale?.max?.entity,
+        ecfg.scale?.baseline?.entity,
         ecfg.target_marker?.source?.entity
       ].filter(Boolean);
       
@@ -523,17 +539,11 @@ class SensorBarCard extends HTMLElement {
     return ecfg.bar.color;
   }
 
-  _getScaleStyle(color, ecfg) {
-    const sizeStyle = 'width:100%;height:100%;';
-
+  _getBarBackgroundStyle(color, ecfg) {
     if (ecfg.bar.color_mode === 'severity') {
       const severityGradient = this._getSeverityBandGradientCss(ecfg);
       if (severityGradient) {
-        return (
-          sizeStyle +
-          `background-image:${severityGradient};` +
-          'background-repeat:no-repeat;'
-        );
+        return `background-image:${severityGradient};background-repeat:no-repeat;`;
       }
     }
 
@@ -542,14 +552,218 @@ class SensorBarCard extends HTMLElement {
         ? [...ecfg.bar.gradient_stops].sort((a,b)=>a.pos-b.pos).map(s=>`${s.color} ${s.pos}%`).join(',')
         : '#4CAF50 0%,#FF9800 50%,#F44336 100%';
 
-      return (
-        sizeStyle +
-        'background:linear-gradient(to right,' + gs + ');' +
-        'background-repeat:no-repeat;'
-      );
+      return `background:linear-gradient(to right,${gs});background-repeat:no-repeat;`;
     }
 
-    return sizeStyle + 'background:' + color + ';';
+    return `background:${color};`;
+  }
+
+  _getGradientInterpolationStops(ecfg) {
+    if (ecfg.bar.color_mode === 'severity_gradient') {
+      return this._getSeverityInterpolationStops(ecfg);
+    }
+
+    if (ecfg.bar.gradient_stops && ecfg.bar.gradient_stops.length >= 2) {
+      return ecfg.bar.gradient_stops
+        .map((s) => {
+          const rgb = this._hexToRgb(s.color);
+          return rgb ? { p: s.pos, ...rgb } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.p - b.p);
+    }
+
+    return [
+      { p: 0,   r: 76,  g: 175, b: 80  },
+      { p: 50,  r: 255, g: 152, b: 0   },
+      { p: 100, r: 244, g: 67,  b: 54  },
+    ];
+  }
+
+  _interpolateStopColor(stops, pct) {
+    if (!Array.isArray(stops) || !stops.length) return null;
+    const clampedPct = Math.min(100, Math.max(0, pct));
+    let lo = stops[0];
+    let hi = stops[stops.length - 1];
+
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (clampedPct >= stops[i].p && clampedPct <= stops[i + 1].p) {
+        lo = stops[i];
+        hi = stops[i + 1];
+        break;
+      }
+    }
+
+    const t = lo.p === hi.p ? 0 : (clampedPct - lo.p) / (hi.p - lo.p);
+    return {
+      r: Math.round(lo.r + t * (hi.r - lo.r)),
+      g: Math.round(lo.g + t * (hi.g - lo.g)),
+      b: Math.round(lo.b + t * (hi.b - lo.b)),
+    };
+  }
+
+  _rgbToCss(rgb) {
+    if (!rgb) return null;
+    return `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+  }
+
+  _buildSegmentGradientStyle(stops, startPct, endPct) {
+    if (!Array.isArray(stops) || !stops.length) return null;
+
+    const start = Math.min(100, Math.max(0, startPct));
+    const end = Math.min(100, Math.max(0, endPct));
+    const width = end - start;
+    if (width <= 0) return null;
+
+    const gradientStops = [];
+    const pushStop = (pct, rgb) => {
+      if (!rgb) return;
+      const normalizedPct = width === 0 ? 0 : ((pct - start) / width) * 100;
+      const cssColor = this._rgbToCss(rgb);
+      if (!cssColor) return;
+      const last = gradientStops[gradientStops.length - 1];
+      if (last && last.color === cssColor && Math.abs(last.pct - normalizedPct) < 0.0001) return;
+      gradientStops.push({ color: cssColor, pct: normalizedPct });
+    };
+
+    pushStop(start, this._interpolateStopColor(stops, start));
+    for (const stop of stops) {
+      if (stop.p > start && stop.p < end) {
+        pushStop(stop.p, stop);
+      }
+    }
+    pushStop(end, this._interpolateStopColor(stops, end));
+
+    if (!gradientStops.length) return null;
+
+    const cssStops = gradientStops.map((stop) => `${stop.color} ${stop.pct}%`).join(',');
+    return `background:linear-gradient(to right,${cssStops});background-repeat:no-repeat;`;
+  }
+
+  _buildSegmentSeverityStyle(ecfg, startPct, endPct, fallbackColor) {
+    const bands = Array.isArray(ecfg.bar?.severity) ? [...ecfg.bar.severity] : [];
+    const sorted = bands
+      .filter((s) => Number.isFinite(s?.from) && Number.isFinite(s?.to) && s?.color)
+      .sort((a, b) => a.from - b.from);
+
+    const start = Math.min(100, Math.max(0, startPct));
+    const end = Math.min(100, Math.max(0, endPct));
+    const width = end - start;
+    if (!sorted.length || width <= 0) return `background:${fallbackColor};`;
+
+    const cssStops = [];
+    for (const band of sorted) {
+      const segmentStart = Math.max(start, band.from);
+      const segmentEnd = Math.min(end, band.to);
+      if (segmentEnd <= segmentStart) continue;
+      const localStart = ((segmentStart - start) / width) * 100;
+      const localEnd = ((segmentEnd - start) / width) * 100;
+      cssStops.push(`${band.color} ${localStart}%`, `${band.color} ${localEnd}%`);
+    }
+
+    if (!cssStops.length) return `background:${fallbackColor};`;
+    return `background:linear-gradient(to right,${cssStops.join(',')});background-repeat:no-repeat;`;
+  }
+
+  _getSegmentBackgroundStyle(color, ecfg, startPct, endPct, overrideColor = null) {
+    if (overrideColor) {
+      return `background:${overrideColor};`;
+    }
+
+    if (ecfg.bar.color_mode === 'single') {
+      return `background:${color};`;
+    }
+
+    if (ecfg.bar.color_mode === 'severity') {
+      return this._buildSegmentSeverityStyle(ecfg, startPct, endPct, color);
+    }
+
+    if (ecfg.bar.color_mode === 'gradient' || ecfg.bar.color_mode === 'severity_gradient') {
+      const stops = this._getGradientInterpolationStops(ecfg);
+      return this._buildSegmentGradientStyle(stops, startPct, endPct) || `background:${color};`;
+    }
+
+    return `background:${color};`;
+  }
+
+  _getScaleStyle(color, ecfg) {
+    return `width:100%;height:100%;${this._getBarBackgroundStyle(color, ecfg)}`;
+  }
+
+  _getNormalizedPercent(valuePct, baselinePct = null) {
+    const clampedValue = Math.min(100, Math.max(0, valuePct));
+    if (!Number.isFinite(baselinePct)) {
+      return {
+        usesBaseline: false,
+        start: 0,
+        end: clampedValue,
+        positive: true,
+        baseline: null,
+        hidden: clampedValue <= 0,
+      };
+    }
+
+    const clampedBaseline = Math.min(100, Math.max(0, baselinePct));
+    return {
+      usesBaseline: true,
+      start: Math.min(clampedValue, clampedBaseline),
+      end: Math.max(clampedValue, clampedBaseline),
+      positive: clampedValue >= clampedBaseline,
+      baseline: clampedBaseline,
+      hidden: clampedValue === clampedBaseline,
+    };
+  }
+
+  _getSegmentStyle(startPct, endPct, h, ecfg, color, overrideColor = null, positive = true) {
+    const left = Math.min(100, Math.max(0, startPct));
+    const right = Math.min(100, Math.max(0, endPct));
+    const width = Math.max(0, right - left);
+    if (width <= 0) {
+      return `display:none;left:0;width:0;height:${h}px;`;
+    }
+
+    const backgroundStyle = this._getSegmentBackgroundStyle(color, ecfg, left, right, overrideColor);
+
+    let radius = positive ? 'border-radius:0 6px 6px 0;' : 'border-radius:6px 0 0 6px;';
+    if (left <= 0 && right >= 100) radius = 'border-radius:6px;';
+    else if (left <= 0) radius = 'border-radius:6px 0 0 6px;';
+    else if (right >= 100) radius = 'border-radius:0 6px 6px 0;';
+    return `display:block;top:0;left:${left}%;width:${width}%;height:${h}px;right:auto;bottom:auto;${radius}${backgroundStyle}`;
+  }
+
+  _getBaselineFillStyle(pct, h, ecfg, color, baselinePct = null) {
+    const geometry = this._getNormalizedPercent(pct, baselinePct);
+    if (!geometry.usesBaseline) return this._getScaleStyle(color, ecfg);
+    const overrideColor = geometry.positive ? ecfg.bar.above_baseline_color : ecfg.bar.below_baseline_color;
+    return this._getSegmentStyle(geometry.start, geometry.end, h, ecfg, color, overrideColor, geometry.positive);
+  }
+
+  _getAboveTargetSegmentStyle(pct, h, ecfg, targetPct = null, baselinePct = null) {
+    if (!ecfg.bar.above_target_color || !Number.isFinite(targetPct)) {
+      return `left:0;height:${h}px;display:none;`;
+    }
+
+    const geometry = this._getNormalizedPercent(pct, baselinePct);
+    if (!geometry.usesBaseline) {
+      return this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct);
+    }
+    if (geometry.hidden || !Number.isFinite(geometry.baseline)) {
+      return `left:0;height:${h}px;display:none;`;
+    }
+
+    const clampedTarget = Math.min(100, Math.max(0, targetPct));
+    if (geometry.positive) {
+      if (clampedTarget < geometry.baseline || pct <= clampedTarget) {
+        return `left:0;height:${h}px;display:none;`;
+      }
+      return this._getSegmentStyle(clampedTarget, pct, h, ecfg, ecfg.bar.above_target_color, ecfg.bar.above_target_color, true);
+    }
+
+    if (clampedTarget > geometry.baseline || pct >= clampedTarget) {
+      return `left:0;height:${h}px;display:none;`;
+    }
+
+    return this._getSegmentStyle(pct, clampedTarget, h, ecfg, ecfg.bar.above_target_color, ecfg.bar.above_target_color, false);
   }
 
   _getAboveTargetOverlayStyle(pct, h, ecfg, targetPct = null) {
@@ -1415,7 +1629,7 @@ class SensorBarCard extends HTMLElement {
     return `<span class="inside-value-text ${unitModeClass}"><span class="inside-number">${display}</span><span class="inside-unit">${cleanUnit}</span></span>`;
   }
 
-  _buildRow(entityCfg, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor) {
+  _buildRow(entityCfg, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor, baselinePct = null) {
     const ecfg = this._resolve(entityCfg);
     const layout = ecfg.layout;
     const bar = ecfg.bar;
@@ -1430,6 +1644,7 @@ class SensorBarCard extends HTMLElement {
     const targetMarkerColor = targetColor || '#888';
     const peakContrastColor = this._getMarkerContrastColor(peakMarkerColor);
     const targetContrastColor = this._getMarkerContrastColor(targetMarkerColor);
+    const usesBaseline = Number.isFinite(baselinePct);
 
     // Peak marker — chevron top, line full height, configurable colour
     const peakMarker = peakMarkerCfg.show && peakPct !== null ? `
@@ -1479,10 +1694,10 @@ class SensorBarCard extends HTMLElement {
             ${leftLabel}
             <div class="bar-wrap">
               <div class="bar-track" style="height:${h}px;">
-                <div class="bar-scale" style="${this._getScaleStyle(color, ecfg)}"></div>
-                <div class="bar-above-target${bar.animated ? '' : ' no-anim'}" style="${this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct)}"></div>
+                <div class="bar-scale" style="${usesBaseline ? this._getBaselineFillStyle(pct, h, ecfg, color, baselinePct) : this._getScaleStyle(color, ecfg)}"></div>
+                <div class="bar-above-target${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? this._getAboveTargetSegmentStyle(pct, h, ecfg, targetPct, baselinePct) : this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct)}"></div>
                 <div class="bar-fill${bar.animated ? '' : ' no-anim'}"
-                  style="${this._getMaskStyle(pct, h)}"></div>
+                  style="${usesBaseline ? `display:none;left:0;height:${h}px;` : this._getMaskStyle(pct, h)}"></div>
                 ${innerLabel}
                 ${peakMarker}
                 ${targetMarker}
@@ -1516,6 +1731,7 @@ class SensorBarCard extends HTMLElement {
         const unit      = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
         const minVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
         const maxVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
+        const baselineVal = this._getNormalizedResolvableNumericValue(ecfg.scale.baseline);
         const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
         const safeMin   = Number.isFinite(minVal) ? minVal : 0;
         const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
@@ -1531,6 +1747,10 @@ class SensorBarCard extends HTMLElement {
         if (targetVal !== null) {
           targetPct = Math.min(100, Math.max(0, ((targetVal - safeMin) / range) * 100));
         }
+        let baselinePct = null;
+        if (baselineVal !== null) {
+          baselinePct = Math.min(100, Math.max(0, ((baselineVal - safeMin) / range) * 100));
+        }
         let targetDisplay = null;
         if (targetVal !== null) {
           targetDisplay = this._formatDisplayWithUnit(targetVal.toLocaleString(), unit);
@@ -1541,7 +1761,7 @@ class SensorBarCard extends HTMLElement {
           peakPct     = pct;
           peakDisplay = display;
         }
-        html += this._buildRow(entityCfg, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color);
+        html += this._buildRow(entityCfg, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color, baselinePct);
       }
       rowsEl.innerHTML = html;
       this._rendered = true;
@@ -1570,6 +1790,7 @@ class SensorBarCard extends HTMLElement {
       const unit    = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
       const minVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
       const maxVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
+      const baselineVal = this._getNormalizedResolvableNumericValue(ecfg.scale.baseline);
       const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
       const safeMin   = Number.isFinite(minVal) ? minVal : 0;
       const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
@@ -1590,19 +1811,29 @@ class SensorBarCard extends HTMLElement {
       const aboveTarget = row.querySelector('.bar-above-target');
       const scale = row.querySelector('.bar-scale');
       let liveTargetPct = null;
+      let liveBaselinePct = null;
       if (targetVal !== null) {
         liveTargetPct = Math.min(100, Math.max(0, ((targetVal - safeMin) / range) * 100));
       }
+      if (baselineVal !== null) {
+        liveBaselinePct = Math.min(100, Math.max(0, ((baselineVal - safeMin) / range) * 100));
+      }
 
       if (scale) {
-        scale.style.cssText = this._getScaleStyle(color, ecfg);
+        scale.style.cssText = Number.isFinite(liveBaselinePct)
+          ? this._getBaselineFillStyle(pct, ecfg.layout.height, ecfg, color, liveBaselinePct)
+          : this._getScaleStyle(color, ecfg);
       }
       if (aboveTarget) {
-        aboveTarget.style.cssText = this._getAboveTargetOverlayStyle(pct, ecfg.layout.height, ecfg, liveTargetPct);
+        aboveTarget.style.cssText = Number.isFinite(liveBaselinePct)
+          ? this._getAboveTargetSegmentStyle(pct, ecfg.layout.height, ecfg, liveTargetPct, liveBaselinePct)
+          : this._getAboveTargetOverlayStyle(pct, ecfg.layout.height, ecfg, liveTargetPct);
         aboveTarget.className = `bar-above-target${ecfg.bar.animated ? '' : ' no-anim'}`;
       }
       if (fill) {
-        fill.style.cssText = this._getMaskStyle(pct, ecfg.layout.height);
+        fill.style.cssText = Number.isFinite(liveBaselinePct)
+          ? `display:none;left:0;height:${ecfg.layout.height}px;`
+          : this._getMaskStyle(pct, ecfg.layout.height);
         fill.className = `bar-fill${ecfg.bar.animated ? '' : ' no-anim'}`;
       }
 
