@@ -193,6 +193,29 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getNormalizedPercent(50, 50)).toMatchObject({ start: 50, end: 50, hidden: true });
   });
 
+  it('anchors global baseline backgrounds with projected full-scale geometry', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      color_mode: 'severity_gradient',
+      baseline: { at: 0 },
+      severity: [
+        { from: 0, to: 50, color: '#ef4444' },
+        { from: 50, to: 100, color: '#22c55e' },
+      ],
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    expect(card._getAnchoredGlobalScaleProjection(25, 75)).toMatchObject({
+      widthPct: 200,
+      leftPct: -50,
+    });
+
+    const innerStyle = card._getAnchoredGlobalScaleInnerStyle(25, 75, ecfg, '#22c55e');
+    expect(innerStyle).toContain('left:-50%');
+    expect(innerStyle).toContain('width:200%');
+    expect(innerStyle).toContain('linear-gradient');
+  });
+
   it('formats numeric displays with decimal precision', () => {
     const card = createCard();
 

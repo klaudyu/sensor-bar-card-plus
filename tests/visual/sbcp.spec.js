@@ -217,6 +217,76 @@ const scenarios = [
     },
   },
   {
+    name: 'severity-left-edge',
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Severity left edge',
+      color_mode: 'severity',
+      severity,
+      label_position: 'left',
+      label_width: 170,
+      animated: false,
+      min: -120,
+      max: 120,
+      baseline: { at: 120 },
+      entities: [{ entity: 'sensor.main_negative', name: 'Touches left edge' }],
+    },
+  },
+  {
+    name: 'gradient-right-edge',
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Gradient right edge',
+      color_mode: 'gradient',
+      gradient_stops: gradientStops,
+      label_position: 'left',
+      label_width: 170,
+      animated: false,
+      min: -120,
+      max: 120,
+      baseline: { at: -120 },
+      entities: [{ entity: 'sensor.main_positive', name: 'Touches right edge' }],
+    },
+  },
+  {
+    name: 'override-left-edge',
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Override left edge',
+      color_mode: 'gradient',
+      gradient_stops: gradientStops,
+      label_position: 'left',
+      label_width: 170,
+      animated: false,
+      min: -120,
+      max: 120,
+      baseline: {
+        at: 120,
+        below: '#ef4444',
+      },
+      entities: [{ entity: 'sensor.main_negative', name: 'Override touches left' }],
+    },
+  },
+  {
+    name: 'override-right-edge',
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Override right edge',
+      color_mode: 'gradient',
+      gradient_stops: gradientStops,
+      label_position: 'left',
+      label_width: 170,
+      animated: false,
+      min: -120,
+      max: 120,
+      baseline: {
+        at: -120,
+        above: '#34d399',
+      },
+      entities: [{ entity: 'sensor.main_positive', name: 'Override touches right' }],
+    },
+  },
+  {
     name: 'baseline-target',
     config: {
       type: 'custom:sensor-bar-card-plus',
@@ -405,3 +475,42 @@ for (const scenario of scenarios) {
     await expect(mount).toHaveScreenshot(`${scenario.name}.png`);
   });
 }
+
+test('visual regression: baseline-severity-mid-transition', async ({ page }) => {
+  const config = {
+    type: 'custom:sensor-bar-card-plus',
+    title: 'Baseline severity transition',
+    color_mode: 'severity',
+    severity,
+    label_position: 'left',
+    label_width: 170,
+    animated: true,
+    min: -120,
+    max: 120,
+    baseline: { at: 0 },
+    entities: [{ entity: 'sensor.transitioning', name: 'Transitioning severity' }],
+  };
+
+  const mount = await render(page, {
+    config,
+    states: {
+      'sensor.transitioning': sensor(-95, { friendly_name: 'Transitioning severity', icon: 'mdi:swap-horizontal' }),
+    },
+  });
+
+  await page.evaluate(async () => {
+    const card = document.querySelector('sensor-bar-card-plus');
+    card.hass = {
+      states: {
+        'sensor.transitioning': window.__sbcpCreateState(95, {
+          friendly_name: 'Transitioning severity',
+          icon: 'mdi:swap-horizontal',
+          unit_of_measurement: 'W',
+        }),
+      },
+    };
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
+
+  await expect(mount).toHaveScreenshot('baseline-severity-mid-transition.png');
+});

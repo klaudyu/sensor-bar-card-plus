@@ -636,6 +636,30 @@ class SensorBarCard extends HTMLElement {
     return `background:${color};`;
   }
 
+  _buildFullScaleGradientStyle(stops) {
+    if (!Array.isArray(stops) || !stops.length) return null;
+    const cssStops = stops.map((stop) => {
+      const cssColor = stop.color ?? this._rgbToCss(stop);
+      return cssColor ? `${cssColor} ${stop.p}%` : null;
+    }).filter(Boolean);
+    if (!cssStops.length) return null;
+    return `background:linear-gradient(to right,${cssStops.join(',')});background-repeat:no-repeat;`;
+  }
+
+  _getGlobalScaleBackgroundStyle(color, ecfg) {
+    if (ecfg.bar.color_mode === 'severity') {
+      const severityGradient = this._getSeverityBandGradientCss(ecfg);
+      return severityGradient ? `background-image:${severityGradient};background-repeat:no-repeat;` : null;
+    }
+
+    if (ecfg.bar.color_mode === 'gradient' || ecfg.bar.color_mode === 'severity_gradient') {
+      const stops = this._getGradientInterpolationStops(ecfg);
+      return this._buildFullScaleGradientStyle(stops);
+    }
+
+    return null;
+  }
+
   _getGradientInterpolationStops(ecfg) {
     if (ecfg.bar.color_mode === 'severity_gradient') {
       return this._getSeverityInterpolationStops(ecfg);
@@ -814,6 +838,47 @@ class SensorBarCard extends HTMLElement {
     };
   }
 
+  _getIntervalRadiusStyle(startPct, endPct, positive = true) {
+    const left = Math.min(100, Math.max(0, startPct));
+    const right = Math.min(100, Math.max(0, endPct));
+    if (left <= 0 && right >= 100) return 'border-radius:6px;';
+    if (left <= 0) return 'border-radius:6px 0 0 6px;';
+    if (right >= 100) return 'border-radius:0 6px 6px 0;';
+    return positive ? 'border-radius:0 6px 6px 0;' : 'border-radius:6px 0 0 6px;';
+  }
+
+  _getSegmentWrapperStyle(startPct, endPct, h, positive = true) {
+    const left = Math.min(100, Math.max(0, startPct));
+    const right = Math.min(100, Math.max(0, endPct));
+    const width = Math.max(0, right - left);
+    if (width <= 0) {
+      return `display:none;left:0;width:0;height:${h}px;`;
+    }
+    const radius = this._getIntervalRadiusStyle(left, right, positive);
+    return `display:block;top:0;left:${left}%;width:${width}%;height:${h}px;right:auto;bottom:auto;overflow:hidden;${radius}`;
+  }
+
+  _getAnchoredGlobalScaleProjection(startPct, endPct) {
+    const left = Math.min(100, Math.max(0, startPct));
+    const right = Math.min(100, Math.max(0, endPct));
+    const width = Math.max(0, right - left);
+    if (width <= 0) return null;
+    return {
+      widthPct: 10000 / width,
+      leftPct: (-left / width) * 100,
+    };
+  }
+
+  _getAnchoredGlobalScaleInnerStyle(startPct, endPct, ecfg, color) {
+    const projection = this._getAnchoredGlobalScaleProjection(startPct, endPct);
+    if (!projection) return 'display:none;left:0;width:0;height:100%;';
+
+    const backgroundStyle = this._getGlobalScaleBackgroundStyle(color, ecfg);
+    if (!backgroundStyle) return 'display:none;left:0;width:0;height:100%;';
+
+    return `display:block;top:0;left:${projection.leftPct}%;width:${projection.widthPct}%;height:100%;${backgroundStyle}`;
+  }
+
   _getSegmentStyle(startPct, endPct, h, ecfg, color, overrideColor = null, positive = true) {
     const left = Math.min(100, Math.max(0, startPct));
     const right = Math.min(100, Math.max(0, endPct));
@@ -824,18 +889,32 @@ class SensorBarCard extends HTMLElement {
 
     const backgroundStyle = this._getSegmentBackgroundStyle(color, ecfg, left, right, overrideColor);
 
-    let radius = positive ? 'border-radius:0 6px 6px 0;' : 'border-radius:6px 0 0 6px;';
-    if (left <= 0 && right >= 100) radius = 'border-radius:6px;';
-    else if (left <= 0) radius = 'border-radius:6px 0 0 6px;';
-    else if (right >= 100) radius = 'border-radius:0 6px 6px 0;';
+    const radius = this._getIntervalRadiusStyle(left, right, positive);
     return `display:block;top:0;left:${left}%;width:${width}%;height:${h}px;right:auto;bottom:auto;${radius}${backgroundStyle}`;
   }
 
-  _getBaselineFillStyle(pct, h, ecfg, color, baselinePct = null) {
+  _getBaselineFillRenderState(pct, h, ecfg, color, baselinePct = null) {
     const geometry = this._getNormalizedPercent(pct, baselinePct);
-    if (!geometry.usesBaseline) return this._getScaleStyle(color, ecfg);
+    if (!geometry.usesBaseline) {
+      return {
+        outerStyle: this._getScaleStyle(color, ecfg),
+        innerStyle: 'display:none;left:0;width:0;height:100%;',
+      };
+    }
     const overrideColor = geometry.positive ? ecfg.baseline?.above?.color : ecfg.baseline?.below?.color;
-    return this._getSegmentStyle(geometry.start, geometry.end, h, ecfg, color, overrideColor, geometry.positive);
+    if (!overrideColor) {
+      const innerStyle = this._getAnchoredGlobalScaleInnerStyle(geometry.start, geometry.end, ecfg, color);
+      if (!innerStyle.startsWith('display:none')) {
+        return {
+          outerStyle: this._getSegmentWrapperStyle(geometry.start, geometry.end, h, geometry.positive),
+          innerStyle,
+        };
+      }
+    }
+    return {
+      outerStyle: this._getSegmentStyle(geometry.start, geometry.end, h, ecfg, color, overrideColor, geometry.positive),
+      innerStyle: 'display:none;left:0;width:0;height:100%;',
+    };
   }
 
   _getAboveTargetSegmentStyle(pct, h, ecfg, targetPct = null, baselinePct = null) {
@@ -1082,6 +1161,15 @@ class SensorBarCard extends HTMLElement {
           z-index: 1;
         }
         .bar-scale.no-anim {
+          transition: none;
+        }
+        .bar-scale-inner {
+          position: absolute;
+          top: 0;
+          height: 100%;
+          transition: left 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1);
+        }
+        .bar-scale-inner.no-anim {
           transition: none;
         }
         .bar-above-target {
@@ -1754,6 +1842,7 @@ class SensorBarCard extends HTMLElement {
     const peakContrastColor = this._getMarkerContrastColor(peakMarkerColor);
     const targetContrastColor = this._getMarkerContrastColor(targetMarkerColor);
     const usesBaseline = Number.isFinite(baselinePct);
+    const baselineFill = this._getBaselineFillRenderState(pct, h, ecfg, color, baselinePct);
 
     // Peak marker — chevron top, line full height, configurable colour
     const peakMarker = peakMarkerCfg.show && peakPct !== null ? `
@@ -1803,7 +1892,9 @@ class SensorBarCard extends HTMLElement {
             ${leftLabel}
             <div class="bar-wrap">
               <div class="bar-track" style="height:${h}px;">
-                <div class="bar-scale${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? this._getBaselineFillStyle(pct, h, ecfg, color, baselinePct) : this._getScaleStyle(color, ecfg)}"></div>
+                <div class="bar-scale${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? baselineFill.outerStyle : this._getScaleStyle(color, ecfg)}">
+                  <div class="bar-scale-inner${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? baselineFill.innerStyle : 'display:none;left:0;width:0;height:100%;'}"></div>
+                </div>
                 <div class="bar-above-target${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? this._getAboveTargetSegmentStyle(pct, h, ecfg, targetPct, baselinePct) : this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct)}"></div>
                 <div class="bar-fill${bar.animated ? '' : ' no-anim'}"
                   style="${usesBaseline ? `display:none;left:0;height:${h}px;` : this._getMaskStyle(pct, h)}"></div>
@@ -1913,17 +2004,25 @@ class SensorBarCard extends HTMLElement {
       const fill = row.querySelector('.bar-fill');
       const aboveTarget = row.querySelector('.bar-above-target');
       const scale = row.querySelector('.bar-scale');
+      const scaleInner = row.querySelector('.bar-scale-inner');
       let liveTargetPct = null;
       if (targetVal !== null) {
         liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
       }
       const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
+      const baselineFill = this._getBaselineFillRenderState(pct, ecfg.layout.height, ecfg, color, liveBaselinePct);
 
       if (scale) {
         scale.style.cssText = Number.isFinite(liveBaselinePct)
-          ? this._getBaselineFillStyle(pct, ecfg.layout.height, ecfg, color, liveBaselinePct)
+          ? baselineFill.outerStyle
           : this._getScaleStyle(color, ecfg);
         scale.className = `bar-scale${ecfg.bar.animated ? '' : ' no-anim'}`;
+      }
+      if (scaleInner) {
+        scaleInner.style.cssText = Number.isFinite(liveBaselinePct)
+          ? baselineFill.innerStyle
+          : 'display:none;left:0;width:0;height:100%;';
+        scaleInner.className = `bar-scale-inner${ecfg.bar.animated ? '' : ' no-anim'}`;
       }
       if (aboveTarget) {
         aboveTarget.style.cssText = Number.isFinite(liveBaselinePct)
