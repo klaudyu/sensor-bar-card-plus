@@ -492,6 +492,44 @@ class SensorBarCard extends HTMLElement {
     label.style.transform = 'translateX(-50%)';
     label.style.visibility = 'visible';
   }
+
+  _computeLiveFillState(entityCfg) {
+    const stateObj = this._hass?.states?.[entityCfg.entity];
+    if (!stateObj) return null;
+
+    const ecfg = this._resolve(entityCfg);
+    const rawVal = parseFloat(stateObj.state);
+    const minVal = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
+    const maxVal = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
+    const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
+    const safeMin = Number.isFinite(minVal) ? minVal : 0;
+    const safeMax = Number.isFinite(maxVal) ? maxVal : 100;
+    const pct = Number.isFinite(rawVal)
+      ? this._toScalePct(rawVal, safeMin, safeMax)
+      : 0;
+    const color = this._getColor(pct, ecfg);
+    const targetPct = targetVal !== null
+      ? this._toScalePct(targetVal, safeMin, safeMax)
+      : null;
+    const baselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
+
+    return this._getFillRenderState(pct, ecfg.layout.height, ecfg, color, targetPct, baselinePct);
+  }
+
+  _applyRowFillProjection(row, fillState = null) {
+    const scaleInner = row?.querySelector('.bar-scale-inner');
+    const track = row?.querySelector('.bar-track');
+    if (!scaleInner || !track) return;
+
+    const resolvedFillState = fillState || this._computeLiveFillState(this._config?.entities?.[parseInt(row.dataset.rowIndex, 10)]);
+    if (!resolvedFillState) {
+      scaleInner.style.cssText = 'display:none;left:0px;width:0px;height:100%;visibility:hidden;';
+      return;
+    }
+
+    const trackWidthPx = track.getBoundingClientRect().width;
+    scaleInner.style.cssText = this._getProjectedPaintStylePx(trackWidthPx, resolvedFillState);
+  }
   
   _getEntityNumericValue(entityId) {
     if (!entityId || !this._hass?.states?.[entityId]) return null;
@@ -614,25 +652,6 @@ class SensorBarCard extends HTMLElement {
     return ecfg.bar.color;
   }
 
-  _getBarBackgroundStyle(color, ecfg) {
-    if (ecfg.bar.color_mode === 'severity') {
-      const severityGradient = this._getSeverityBandGradientCss(ecfg);
-      if (severityGradient) {
-        return `background-image:${severityGradient};background-repeat:no-repeat;`;
-      }
-    }
-
-    if (ecfg.bar.color_mode === 'gradient') {
-      const gs = ecfg.bar.gradient_stops && ecfg.bar.gradient_stops.length >= 2
-        ? [...ecfg.bar.gradient_stops].sort((a,b)=>a.pos-b.pos).map(s=>`${s.color} ${s.pos}%`).join(',')
-        : '#4CAF50 0%,#FF9800 50%,#F44336 100%';
-
-      return `background:linear-gradient(to right,${gs});background-repeat:no-repeat;`;
-    }
-
-    return `background:${color};`;
-  }
-
   _buildFullScaleGradientStyle(stops) {
     if (!Array.isArray(stops) || !stops.length) return null;
     const cssStops = stops.map((stop) => {
@@ -641,20 +660,6 @@ class SensorBarCard extends HTMLElement {
     }).filter(Boolean);
     if (!cssStops.length) return null;
     return `background:linear-gradient(to right,${cssStops.join(',')});background-repeat:no-repeat;`;
-  }
-
-  _getGlobalScaleBackgroundStyle(color, ecfg) {
-    if (ecfg.bar.color_mode === 'severity') {
-      const severityGradient = this._getSeverityBandGradientCss(ecfg);
-      return severityGradient ? `background-image:${severityGradient};background-repeat:no-repeat;` : null;
-    }
-
-    if (ecfg.bar.color_mode === 'gradient' || ecfg.bar.color_mode === 'severity_gradient') {
-      const stops = this._getGradientInterpolationStops(ecfg);
-      return this._buildFullScaleGradientStyle(stops);
-    }
-
-    return null;
   }
 
   _getGradientInterpolationStops(ecfg) {
@@ -706,87 +711,29 @@ class SensorBarCard extends HTMLElement {
     return `rgb(${rgb.r},${rgb.g},${rgb.b})`;
   }
 
-  _buildSegmentGradientStyle(stops, startPct, endPct) {
-    if (!Array.isArray(stops) || !stops.length) return null;
-
-    const start = Math.min(100, Math.max(0, startPct));
-    const end = Math.min(100, Math.max(0, endPct));
-    const width = end - start;
-    if (width <= 0) return null;
-
-    const gradientStops = [];
-    const pushStop = (pct, rgb) => {
-      if (!rgb) return;
-      const normalizedPct = width === 0 ? 0 : ((pct - start) / width) * 100;
-      const cssColor = this._rgbToCss(rgb);
-      if (!cssColor) return;
-      const last = gradientStops[gradientStops.length - 1];
-      if (last && last.color === cssColor && Math.abs(last.pct - normalizedPct) < 0.0001) return;
-      gradientStops.push({ color: cssColor, pct: normalizedPct });
-    };
-
-    pushStop(start, this._interpolateStopColor(stops, start));
-    for (const stop of stops) {
-      if (stop.p > start && stop.p < end) {
-        pushStop(stop.p, stop);
-      }
-    }
-    pushStop(end, this._interpolateStopColor(stops, end));
-
-    if (!gradientStops.length) return null;
-
-    const cssStops = gradientStops.map((stop) => `${stop.color} ${stop.pct}%`).join(',');
-    return `background:linear-gradient(to right,${cssStops});background-repeat:no-repeat;`;
+  _buildSolidGradientStyle(color) {
+    return `linear-gradient(to right,${color} 0%,${color} 100%)`;
   }
 
-  _buildSegmentSeverityStyle(ecfg, startPct, endPct, fallbackColor) {
-    const bands = Array.isArray(ecfg.bar?.severity) ? [...ecfg.bar.severity] : [];
-    const sorted = bands
-      .filter((s) => Number.isFinite(s?.from) && Number.isFinite(s?.to) && s?.color)
-      .sort((a, b) => a.from - b.from);
-
-    const start = Math.min(100, Math.max(0, startPct));
-    const end = Math.min(100, Math.max(0, endPct));
-    const width = end - start;
-    if (!sorted.length || width <= 0) return `background:${fallbackColor};`;
-
-    const cssStops = [];
-    for (const band of sorted) {
-      const segmentStart = Math.max(start, band.from);
-      const segmentEnd = Math.min(end, band.to);
-      if (segmentEnd <= segmentStart) continue;
-      const localStart = ((segmentStart - start) / width) * 100;
-      const localEnd = ((segmentEnd - start) / width) * 100;
-      cssStops.push(`${band.color} ${localStart}%`, `${band.color} ${localEnd}%`);
-    }
-
-    if (!cssStops.length) return `background:${fallbackColor};`;
-    return `background:linear-gradient(to right,${cssStops.join(',')});background-repeat:no-repeat;`;
-  }
-
-  _getSegmentBackgroundStyle(color, ecfg, startPct, endPct, overrideColor = null) {
-    if (overrideColor) {
-      return `background:${overrideColor};`;
-    }
-
-    if (ecfg.bar.color_mode === 'single') {
-      return `background:${color};`;
-    }
-
+  _getBasePaintGradient(color, ecfg) {
     if (ecfg.bar.color_mode === 'severity') {
-      return this._buildSegmentSeverityStyle(ecfg, startPct, endPct, color);
+      return this._getSeverityBandGradientCss(ecfg);
     }
 
     if (ecfg.bar.color_mode === 'gradient' || ecfg.bar.color_mode === 'severity_gradient') {
       const stops = this._getGradientInterpolationStops(ecfg);
-      return this._buildSegmentGradientStyle(stops, startPct, endPct) || `background:${color};`;
+      return this._buildFullScaleGradientStyle(stops)?.replace(/^background:/, '').replace(/;background-repeat:no-repeat;$/, '');
     }
 
-    return `background:${color};`;
+    return this._buildSolidGradientStyle(color);
   }
 
-  _getScaleStyle(color, ecfg) {
-    return `width:100%;height:100%;${this._getBarBackgroundStyle(color, ecfg)}`;
+  _getOverlayGradient(startPct, endPct, color) {
+    if (!color) return null;
+    const start = Math.min(100, Math.max(0, startPct));
+    const end = Math.min(100, Math.max(0, endPct));
+    if (end <= start) return null;
+    return `linear-gradient(to right,transparent 0%,transparent ${start}%,${color} ${start}%,${color} ${end}%,transparent ${end}%,transparent 100%)`;
   }
 
   _toScalePct(value, minValue, maxValue) {
@@ -844,7 +791,7 @@ class SensorBarCard extends HTMLElement {
     return positive ? 'border-radius:0 6px 6px 0;' : 'border-radius:6px 0 0 6px;';
   }
 
-  _getSegmentWrapperStyle(startPct, endPct, h, positive = true) {
+  _getRevealWindowStyle(startPct, endPct, h, positive = true) {
     const left = Math.min(100, Math.max(0, startPct));
     const right = Math.min(100, Math.max(0, endPct));
     const width = Math.max(0, right - left);
@@ -855,116 +802,75 @@ class SensorBarCard extends HTMLElement {
     return `display:block;top:0;left:${left}%;width:${width}%;height:${h}px;right:auto;bottom:auto;overflow:hidden;${radius}`;
   }
 
-  _getAnchoredGlobalScaleProjection(startPct, endPct) {
-    const left = Math.min(100, Math.max(0, startPct));
-    const right = Math.min(100, Math.max(0, endPct));
-    const width = Math.max(0, right - left);
-    if (width <= 0) return null;
-    return {
-      widthPct: 10000 / width,
-      leftPct: (-left / width) * 100,
-    };
-  }
-
-  _getAnchoredGlobalScaleInnerStyle(startPct, endPct, ecfg, color) {
-    const projection = this._getAnchoredGlobalScaleProjection(startPct, endPct);
-    if (!projection) return 'display:none;left:0;width:0;height:100%;';
-
-    const backgroundStyle = this._getGlobalScaleBackgroundStyle(color, ecfg);
-    if (!backgroundStyle) return 'display:none;left:0;width:0;height:100%;';
-
-    return `display:block;top:0;left:${projection.leftPct}%;width:${projection.widthPct}%;height:100%;${backgroundStyle}`;
-  }
-
-  _getSegmentStyle(startPct, endPct, h, ecfg, color, overrideColor = null, positive = true) {
-    const left = Math.min(100, Math.max(0, startPct));
-    const right = Math.min(100, Math.max(0, endPct));
-    const width = Math.max(0, right - left);
-    if (width <= 0) {
-      return `display:none;left:0;width:0;height:${h}px;`;
-    }
-
-    const backgroundStyle = this._getSegmentBackgroundStyle(color, ecfg, left, right, overrideColor);
-
-    const radius = this._getIntervalRadiusStyle(left, right, positive);
-    return `display:block;top:0;left:${left}%;width:${width}%;height:${h}px;right:auto;bottom:auto;${radius}${backgroundStyle}`;
-  }
-
-  _getBaselineFillRenderState(pct, h, ecfg, color, baselinePct = null) {
-    const geometry = this._getNormalizedPercent(pct, baselinePct);
-    if (!geometry.usesBaseline) {
-      return {
-        outerStyle: this._getScaleStyle(color, ecfg),
-        innerStyle: 'display:none;left:0;width:0;height:100%;',
-      };
-    }
-    const overrideColor = geometry.positive ? ecfg.baseline?.above?.color : ecfg.baseline?.below?.color;
-    if (!overrideColor) {
-      const innerStyle = this._getAnchoredGlobalScaleInnerStyle(geometry.start, geometry.end, ecfg, color);
-      if (!innerStyle.startsWith('display:none')) {
-        return {
-          outerStyle: this._getSegmentWrapperStyle(geometry.start, geometry.end, h, geometry.positive),
-          innerStyle,
-        };
-      }
-    }
-    return {
-      outerStyle: this._getSegmentStyle(geometry.start, geometry.end, h, ecfg, color, overrideColor, geometry.positive),
-      innerStyle: 'display:none;left:0;width:0;height:100%;',
-    };
-  }
-
-  _getAboveTargetSegmentStyle(pct, h, ecfg, targetPct = null, baselinePct = null) {
-    if (!ecfg.bar.above_target_color || !Number.isFinite(targetPct)) {
-      return `left:0;height:${h}px;display:none;`;
-    }
-
-    const geometry = this._getNormalizedPercent(pct, baselinePct);
-    if (!geometry.usesBaseline) {
-      return this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct);
-    }
-    if (geometry.hidden || !Number.isFinite(geometry.baseline)) {
-      return `left:0;height:${h}px;display:none;`;
-    }
-
+  _getAboveTargetOverlayInterval(targetPct = null) {
+    if (!Number.isFinite(targetPct)) return null;
     const clampedTarget = Math.min(100, Math.max(0, targetPct));
-    if (geometry.positive) {
-      if (clampedTarget < geometry.baseline || pct <= clampedTarget) {
-        return `left:0;height:${h}px;display:none;`;
-      }
-      return this._getSegmentStyle(clampedTarget, pct, h, ecfg, ecfg.bar.above_target_color, ecfg.bar.above_target_color, true);
-    }
-
-    if (clampedTarget > geometry.baseline || pct >= clampedTarget) {
-      return `left:0;height:${h}px;display:none;`;
-    }
-
-    return this._getSegmentStyle(pct, clampedTarget, h, ecfg, ecfg.bar.above_target_color, ecfg.bar.above_target_color, false);
+    return { start: clampedTarget, end: 100 };
   }
 
-  _getAboveTargetOverlayStyle(pct, h, ecfg, targetPct = null) {
-    const hasAboveTargetColor =
-      ecfg.bar.above_target_color &&
-      targetPct !== null &&
-      Number.isFinite(targetPct) &&
-      targetPct >= 0 &&
-      targetPct <= 100 &&
-      pct > targetPct;
+  _getFullScalePaintStyle(pct, ecfg, color, targetPct = null, baselinePct = null) {
+    const layers = [];
+    const basePaint = this._getBasePaintGradient(color, ecfg);
+    const clampedBaseline = Number.isFinite(baselinePct)
+      ? Math.min(100, Math.max(0, baselinePct))
+      : null;
 
-    if (!hasAboveTargetColor) {
-      return `left:0;height:${h}px;display:none;`;
+    if (Number.isFinite(clampedBaseline)) {
+      const belowColor = ecfg.baseline?.below?.color ?? null;
+      const aboveColor = ecfg.baseline?.above?.color ?? null;
+      const belowOverlay = this._getOverlayGradient(0, clampedBaseline, belowColor);
+      const aboveOverlay = this._getOverlayGradient(clampedBaseline, 100, aboveColor);
+      if (belowOverlay) layers.push(belowOverlay);
+      if (aboveOverlay) layers.push(aboveOverlay);
     }
 
-    const left = Math.min(100, Math.max(0, targetPct));
-    return `left:${left}%;height:${h}px;background:${ecfg.bar.above_target_color};display:block;`;
+    if (ecfg.bar.above_target_color) {
+      const interval = this._getAboveTargetOverlayInterval(targetPct);
+      const targetOverlay = interval
+        ? this._getOverlayGradient(interval.start, interval.end, ecfg.bar.above_target_color)
+        : null;
+      if (targetOverlay) layers.push(targetOverlay);
+    }
+
+    if (basePaint) layers.push(basePaint);
+    if (!layers.length) return 'display:none;left:0;width:0;height:100%;';
+
+    return `display:block;top:0;height:100%;background-image:${layers.join(',')};background-repeat:no-repeat;background-size:100% 100%;`;
   }
 
-  _getMaskStyle(pct, h) {
-    const clampedPct = Math.min(100, Math.max(0, pct));
-    const isHidden = clampedPct >= 100;
-    const left = Math.min(100, Math.max(0, clampedPct));
-    const radius = clampedPct <= 0 ? 'border-radius:6px;' : 'border-radius:0 6px 6px 0;';
-    return `left:${left}%;height:${h}px;${radius}display:${isHidden ? 'none' : 'block'};`;
+  _getPaintProjectionPx(trackWidthPx, startPct, endPct) {
+    if (!Number.isFinite(trackWidthPx) || trackWidthPx <= 0) return null;
+    const start = Math.min(100, Math.max(0, startPct));
+    const end = Math.min(100, Math.max(0, endPct));
+    const startPx = (start / 100) * trackWidthPx;
+    const endPx = (end / 100) * trackWidthPx;
+    const widthPx = Math.max(0, endPx - startPx);
+    if (widthPx <= 0) return null;
+    return {
+      startPx,
+      endPx,
+      widthPx,
+      leftPx: startPx === 0 ? 0 : -startPx,
+      trackWidthPx,
+    };
+  }
+
+  _getProjectedPaintStylePx(trackWidthPx, fillState) {
+    if (!fillState?.paintBaseStyle) return 'display:none;left:0px;width:0px;height:100%;visibility:hidden;';
+    const projection = this._getPaintProjectionPx(trackWidthPx, fillState.geometry.start, fillState.geometry.end);
+    if (!projection) {
+      return `${fillState.paintBaseStyle}left:0px;width:0px;visibility:hidden;`;
+    }
+    return `${fillState.paintBaseStyle}left:${projection.leftPx}px;width:${projection.trackWidthPx}px;visibility:visible;`;
+  }
+
+  _getFillRenderState(pct, h, ecfg, color, targetPct = null, baselinePct = null) {
+    const geometry = this._getNormalizedPercent(pct, baselinePct);
+    return {
+      geometry,
+      windowStyle: this._getRevealWindowStyle(geometry.start, geometry.end, h, geometry.positive),
+      paintBaseStyle: `${this._getFullScalePaintStyle(pct, ecfg, color, targetPct, baselinePct)}left:0px;width:0px;visibility:hidden;`,
+    };
   }
 
   _render() {
@@ -1163,32 +1069,10 @@ class SensorBarCard extends HTMLElement {
         .bar-scale-inner {
           position: absolute;
           top: 0;
+          left: 0;
           height: 100%;
-          transition: left 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1);
-        }
-        .bar-scale-inner.no-anim {
-          transition: none;
-        }
-        .bar-above-target {
-          position: absolute;
-          top: 0;
-          right: 0;
-          transition: left 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1);
           z-index: 2;
         }
-        .bar-above-target.no-anim {
-          transition: none;
-        }
-        .bar-fill {
-          position: absolute;
-          top: 0;
-          right: 0;
-          height: 100%;
-          background: var(--secondary-background-color, #e8e8e8);
-          transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
-          z-index: 3;
-        }
-        .bar-fill.no-anim { transition: none; }
 
         .bar-inner-label {
           position: absolute;
@@ -1697,6 +1581,7 @@ class SensorBarCard extends HTMLElement {
         this._applyValueVisibility();
         const targetRows = rows || this.shadowRoot?.querySelectorAll('.row[data-entity]') || [];
         targetRows.forEach(row => {
+          this._applyRowFillProjection(row);
           this._positionTargetLabel(row);
         });
       });
@@ -1818,7 +1703,7 @@ class SensorBarCard extends HTMLElement {
     return `<span class="inside-value-text ${unitModeClass}"><span class="inside-number">${display}</span><span class="inside-unit">${cleanUnit}</span></span>`;
   }
 
-  _buildRow(entityCfg, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor) {
+  _buildRow(entityCfg, rowIndex, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor) {
     const ecfg = this._resolve(entityCfg);
     const layout = ecfg.layout;
     const bar = ecfg.bar;
@@ -1838,8 +1723,7 @@ class SensorBarCard extends HTMLElement {
     const targetMarkerColor = targetColor || '#888';
     const peakContrastColor = this._getMarkerContrastColor(peakMarkerColor);
     const targetContrastColor = this._getMarkerContrastColor(targetMarkerColor);
-    const usesBaseline = Number.isFinite(baselinePct);
-    const baselineFill = this._getBaselineFillRenderState(pct, h, ecfg, color, baselinePct);
+    const fillState = this._getFillRenderState(pct, h, ecfg, color, targetPct, baselinePct);
 
     // Peak marker — chevron top, line full height, configurable colour
     const peakMarker = peakMarkerCfg.show && peakPct !== null ? `
@@ -1881,7 +1765,7 @@ class SensorBarCard extends HTMLElement {
       : '';    
       
     return `
-      <div class="row" data-entity="${entityCfg.entity}">
+      <div class="row" data-entity="${entityCfg.entity}" data-row-index="${rowIndex}">
         <div class="row-stack">
           ${aboveLabel}
           <div class="main-line ${lp}-mode" style="height:${h}px;">
@@ -1889,12 +1773,9 @@ class SensorBarCard extends HTMLElement {
             ${leftLabel}
             <div class="bar-wrap">
               <div class="bar-track" style="height:${h}px;">
-                <div class="bar-scale${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? baselineFill.outerStyle : this._getScaleStyle(color, ecfg)}">
-                  <div class="bar-scale-inner${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? baselineFill.innerStyle : 'display:none;left:0;width:0;height:100%;'}"></div>
+                <div class="bar-scale${bar.animated ? '' : ' no-anim'}" style="${fillState.windowStyle}">
+                  <div class="bar-scale-inner" style="${fillState.paintBaseStyle}"></div>
                 </div>
-                <div class="bar-above-target${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? this._getAboveTargetSegmentStyle(pct, h, ecfg, targetPct, baselinePct) : this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct)}"></div>
-                <div class="bar-fill${bar.animated ? '' : ' no-anim'}"
-                  style="${usesBaseline ? `display:none;left:0;height:${h}px;` : this._getMaskStyle(pct, h)}"></div>
                 ${innerLabel}
                 ${peakMarker}
                 ${targetMarker}
@@ -1917,7 +1798,8 @@ class SensorBarCard extends HTMLElement {
     // First render: build all rows from scratch
     if (!this._rendered) {
       let html = '';
-      for (const entityCfg of entities) {
+      for (let entityIndex = 0; entityIndex < entities.length; entityIndex++) {
+        const entityCfg = entities[entityIndex];
         const stateObj = this._hass.states[entityCfg.entity];
         if (!stateObj) {
           html += `<div class="row"><span style="color:var(--error-color,red);font-size:12px;">Entity not found: ${entityCfg.entity}</span></div>`;
@@ -1931,7 +1813,6 @@ class SensorBarCard extends HTMLElement {
         const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
         const safeMin   = Number.isFinite(minVal) ? minVal : 0;
         const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
-        const range     = safeMax - safeMin || 1;
         const isNumericState = Number.isFinite(rawVal);
         const pct = Number.isFinite(rawVal)
           ? this._toScalePct(rawVal, safeMin, safeMax)
@@ -1953,7 +1834,7 @@ class SensorBarCard extends HTMLElement {
           peakPct     = pct;
           peakDisplay = display;
         }
-        html += this._buildRow(entityCfg, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color);
+        html += this._buildRow(entityCfg, entityIndex, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color);
       }
       rowsEl.innerHTML = html;
       this._rendered = true;
@@ -1985,7 +1866,6 @@ class SensorBarCard extends HTMLElement {
       const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
       const safeMin   = Number.isFinite(minVal) ? minVal : 0;
       const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
-      const range     = safeMax - safeMin || 1;
       const isNumericState = Number.isFinite(rawVal);
       const pct = Number.isFinite(rawVal)
         ? this._toScalePct(rawVal, safeMin, safeMax)
@@ -1998,8 +1878,6 @@ class SensorBarCard extends HTMLElement {
       if (!row) { rowIdx++; continue; }
 
       // Update bar fill width and colour in-place — this is what triggers the CSS transition
-      const fill = row.querySelector('.bar-fill');
-      const aboveTarget = row.querySelector('.bar-above-target');
       const scale = row.querySelector('.bar-scale');
       const scaleInner = row.querySelector('.bar-scale-inner');
       let liveTargetPct = null;
@@ -2007,31 +1885,15 @@ class SensorBarCard extends HTMLElement {
         liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
       }
       const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
-      const baselineFill = this._getBaselineFillRenderState(pct, ecfg.layout.height, ecfg, color, liveBaselinePct);
+      const fillState = this._getFillRenderState(pct, ecfg.layout.height, ecfg, color, liveTargetPct, liveBaselinePct);
 
       if (scale) {
-        scale.style.cssText = Number.isFinite(liveBaselinePct)
-          ? baselineFill.outerStyle
-          : this._getScaleStyle(color, ecfg);
+        scale.style.cssText = fillState.windowStyle;
         scale.className = `bar-scale${ecfg.bar.animated ? '' : ' no-anim'}`;
       }
       if (scaleInner) {
-        scaleInner.style.cssText = Number.isFinite(liveBaselinePct)
-          ? baselineFill.innerStyle
-          : 'display:none;left:0;width:0;height:100%;';
-        scaleInner.className = `bar-scale-inner${ecfg.bar.animated ? '' : ' no-anim'}`;
-      }
-      if (aboveTarget) {
-        aboveTarget.style.cssText = Number.isFinite(liveBaselinePct)
-          ? this._getAboveTargetSegmentStyle(pct, ecfg.layout.height, ecfg, liveTargetPct, liveBaselinePct)
-          : this._getAboveTargetOverlayStyle(pct, ecfg.layout.height, ecfg, liveTargetPct);
-        aboveTarget.className = `bar-above-target${ecfg.bar.animated ? '' : ' no-anim'}`;
-      }
-      if (fill) {
-        fill.style.cssText = Number.isFinite(liveBaselinePct)
-          ? `display:none;left:0;height:${ecfg.layout.height}px;`
-          : this._getMaskStyle(pct, ecfg.layout.height);
-        fill.className = `bar-fill${ecfg.bar.animated ? '' : ' no-anim'}`;
+        scaleInner.style.cssText = fillState.paintBaseStyle;
+        this._applyRowFillProjection(row, fillState);
       }
 
       // Update displayed value

@@ -17,9 +17,7 @@ views:
       # Live controls only for values that still have a meaningful effect on the
       # current dashboard. Wave controls let contributors exercise animation
       # without manually dragging values back and forth.
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
           - type: entities
             title: Scenario Controls
@@ -27,12 +25,20 @@ views:
             entities:
               - entity: input_number.sbcp_current_value
                 name: Current value
-              - entity: input_number.sbcp_min_value
-                name: Min
-              - entity: input_number.sbcp_max_value
-                name: Max
               - entity: input_number.sbcp_target_value
-                name: Target
+                name: Target value
+              - entity: input_number.sbcp_baseline_value
+                name: Baseline value
+              - entity: input_number.sbcp_min_value
+                name: Wave minimum
+              - entity: input_number.sbcp_max_value
+                name: Wave maximum
+              - entity: input_number.sbcp_current_quick
+                name: Current quick slider (-100 to 100)
+              - entity: input_number.sbcp_target_quick
+                name: Target quick slider (-100 to 100)
+              - entity: input_number.sbcp_baseline_quick
+                name: Baseline quick slider (-100 to 100)
               - entity: input_boolean.sbcp_wave_enabled
                 name: Wave drive helper
               - entity: input_select.sbcp_wave_target
@@ -41,9 +47,12 @@ views:
                 name: Waveform
               - entity: input_number.sbcp_wave_period
                 name: Wave period
+              - entity: input_select.sbcp_baseline_semantic_mode
+                name: Semantic fill mode
+              - entity: input_select.sbcp_baseline_interval_profile
+                name: Interval profile
               - entity: input_text.sbcp_custom_raw_state
                 name: Custom text state
-
           - type: entities
             title: Rendering Controls
             show_header_toggle: false
@@ -81,6 +90,8 @@ views:
             name: Max sensor
           - entity: sensor.sbcp_playground_target
             name: Target sensor
+          - entity: sensor.sbcp_playground_baseline
+            name: Baseline sensor
           - entity: sensor.sbcp_playground_negative
             name: Negative sensor
           - entity: sensor.sbcp_playground_text_state
@@ -91,7 +102,7 @@ views:
       - type: markdown
         content: |
           ## Animation Preview
-          Enable `Wave drive helper`, choose whether it targets the current value or the target value, and select `sine`, `triangle`, or `random` for continuous motion. `Random` uses the full helper range instead of the active min/max scale.
+          Enable `Wave drive helper`, choose whether it targets the current value, the target value, or the baseline value, and select `sine`, `triangle`, or `random` for continuous motion. `Random` uses the full helper range instead of the active min/max scale.
 
       - type: custom:sensor-bar-card-plus
         title: Animated sensor preview
@@ -1084,7 +1095,7 @@ views:
             max: 120
             baseline:
               at:
-                entity: sensor.sbcp_playground_target
+                entity: sensor.sbcp_playground_baseline
                 value: 10
             entities:
               - entity: sensor.sbcp_playground_sensor
@@ -1111,7 +1122,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             target: 60
             target_color: '#111827'
             show_target_label: true
@@ -1125,7 +1139,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             target_entity: sensor.sbcp_playground_target
             target_color: '#0f766e'
             show_target_label: true
@@ -1186,7 +1203,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             entities:
               - entity: sensor.sbcp_playground_negative
                 name: Single below
@@ -1199,7 +1219,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             entities:
               - entity: sensor.sbcp_playground_negative
                 name: Gradient below
@@ -1212,7 +1235,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             severity:
               - from: 0
                 to: 25
@@ -1238,7 +1264,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             severity:
               - from: 0
                 to: 25
@@ -1427,12 +1456,11 @@ views:
 
           Recommended helper values for a strong visual pass:
           - `Current value`: around `95`
+          - `Baseline value`: move between `-80`, `0`, and `80`
           - `Target`: move between `-80`, `0`, and `80`
-          - `Wave drive helper`: optional for dynamic target and peak checks
+          - `Wave drive helper`: optional for dynamic current, target, baseline, and peak checks
 
-      - type: grid
-        columns: 2
-        square: false
+      - type: vertical-stack
         cards:
           - type: entities
             title: Baseline Controls
@@ -1442,6 +1470,18 @@ views:
                 name: Current value
               - entity: input_number.sbcp_target_value
                 name: Target value
+              - entity: input_number.sbcp_baseline_value
+                name: Baseline value
+              - entity: input_number.sbcp_min_value
+                name: Wave minimum
+              - entity: input_number.sbcp_max_value
+                name: Wave maximum
+              - entity: input_number.sbcp_current_quick
+                name: Current quick slider (-100 to 100)
+              - entity: input_number.sbcp_target_quick
+                name: Target quick slider (-100 to 100)
+              - entity: input_number.sbcp_baseline_quick
+                name: Baseline quick slider (-100 to 100)
               - entity: input_boolean.sbcp_wave_enabled
                 name: Wave drive helper
               - entity: input_select.sbcp_wave_target
@@ -1450,22 +1490,566 @@ views:
                 name: Waveform
               - entity: input_number.sbcp_wave_period
                 name: Wave period
-          - type: entities
-            title: Baseline Sensors
-            show_header_toggle: false
-            entities:
-              - entity: sensor.sbcp_playground_negative
-                name: Negative sensor
-              - entity: sensor.sbcp_playground_sensor
-                name: Positive sensor
-              - entity: sensor.sbcp_playground_target
-                name: Dynamic target sensor
-              - entity: sensor.sbcp_stress_01
-                name: Stress 01
-              - entity: sensor.sbcp_stress_07
-                name: Stress 07
-              - entity: sensor.sbcp_stress_12
-                name: Stress 12
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: entities
+                title: Baseline Sensors A
+                show_header_toggle: false
+                entities:
+                  - entity: sensor.sbcp_playground_negative
+                    name: Negative sensor
+                  - entity: sensor.sbcp_playground_sensor
+                    name: Positive sensor
+                  - entity: sensor.sbcp_playground_target
+                    name: Dynamic target sensor
+              - type: entities
+                title: Baseline Sensors B
+                show_header_toggle: false
+                entities:
+                  - entity: sensor.sbcp_playground_baseline
+                    name: Dynamic baseline sensor
+                  - entity: sensor.sbcp_stress_01
+                    name: Stress 01
+                  - entity: sensor.sbcp_stress_07
+                    name: Stress 07
+                  - entity: sensor.sbcp_stress_12
+                    name: Stress 12
+
+      - type: markdown
+        content: |
+          ## Animated Semantic Fill Lab
+          Select a semantic fill mode and interval profile to stress animated baseline rendering with dynamic value, dynamic target, and dynamic baseline on the same card.
+
+      - type: vertical-stack
+        cards:
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: very_small
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 49
+                  color: '#06b6d4'
+                - pos: 50
+                  color: '#f59e0b'
+                - pos: 51
+                  color: '#dc2626'
+                - pos: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: irregular
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#1d4ed8'
+                - pos: 8
+                  color: '#06b6d4'
+                - pos: 37
+                  color: '#22c55e'
+                - pos: 79
+                  color: '#f59e0b'
+                - pos: 93
+                  color: '#dc2626'
+                - pos: 100
+                  color: '#7f1d1d'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: even
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 33
+                  color: '#06b6d4'
+                - pos: 66
+                  color: '#f59e0b'
+                - pos: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: full_width
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#0ea5e9'
+                - pos: 100
+                  color: '#ef4444'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: very_small
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity
+              severity:
+                - from: 0
+                  to: 49
+                  color: '#2563eb'
+                - from: 49
+                  to: 50
+                  color: '#06b6d4'
+                - from: 50
+                  to: 51
+                  color: '#f59e0b'
+                - from: 51
+                  to: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: irregular
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity
+              severity:
+                - from: 0
+                  to: 8
+                  color: '#2563eb'
+                - from: 8
+                  to: 37
+                  color: '#06b6d4'
+                - from: 37
+                  to: 79
+                  color: '#22c55e'
+                - from: 79
+                  to: 93
+                  color: '#f59e0b'
+                - from: 93
+                  to: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: even
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity
+              severity:
+                - from: 0
+                  to: 25
+                  color: '#2563eb'
+                - from: 25
+                  to: 50
+                  color: '#06b6d4'
+                - from: 50
+                  to: 75
+                  color: '#f59e0b'
+                - from: 75
+                  to: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: full_width
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity
+              severity:
+                - from: 0
+                  to: 100
+                  color: '#f59e0b'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity_gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: very_small
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity_gradient
+              severity:
+                - from: 0
+                  to: 49
+                  color: '#2563eb'
+                - from: 49
+                  to: 50
+                  color: '#06b6d4'
+                - from: 50
+                  to: 51
+                  color: '#f59e0b'
+                - from: 51
+                  to: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity_gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: irregular
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity_gradient
+              severity:
+                - from: 0
+                  to: 8
+                  color: '#2563eb'
+                - from: 8
+                  to: 37
+                  color: '#06b6d4'
+                - from: 37
+                  to: 79
+                  color: '#22c55e'
+                - from: 79
+                  to: 93
+                  color: '#f59e0b'
+                - from: 93
+                  to: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity_gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: even
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity_gradient
+              severity:
+                - from: 0
+                  to: 25
+                  color: '#2563eb'
+                - from: 25
+                  to: 50
+                  color: '#06b6d4'
+                - from: 50
+                  to: 75
+                  color: '#f59e0b'
+                - from: 75
+                  to: 100
+                  color: '#dc2626'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+          - type: conditional
+            conditions:
+              - entity: input_select.sbcp_baseline_semantic_mode
+                state: severity_gradient
+              - entity: input_select.sbcp_baseline_interval_profile
+                state: full_width
+            card:
+              type: custom:sensor-bar-card-plus
+              title: Animated semantic lab
+              color_mode: severity_gradient
+              severity:
+                - from: 0
+                  to: 100
+                  color: '#f59e0b'
+              label_position: left
+              label_width: 168
+              animated: true
+              show_peak: true
+              show_target_label: true
+              target_entity: sensor.sbcp_playground_target
+              target_color: '#111827'
+              above_target_color: '#dc2626'
+              min_entity: sensor.sbcp_playground_min
+              max_entity: sensor.sbcp_playground_max
+              entities:
+                - entity: sensor.sbcp_playground_sensor
+                  name: Dynamic current
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
+                - entity: sensor.sbcp_playground_negative
+                  name: Inverted companion
+                  baseline:
+                    at:
+                      entity: sensor.sbcp_playground_baseline
+                      value: 0
 
       # Geometry-first validation. These cards prove that baseline fill still
       # originates from the configured neutral point when it is not centered.
@@ -1531,10 +2115,10 @@ views:
                     entity: sensor.sbcp_missing_baseline
                     value: 15
               - entity: sensor.sbcp_playground_sensor
-                name: Dynamic baseline from target
+                name: Dynamic baseline from helper
                 baseline:
                   at:
-                    entity: sensor.sbcp_playground_target
+                    entity: sensor.sbcp_playground_baseline
                     value: 15
 
       # Baseline color overrides and the supported inherited color modes should
@@ -1639,7 +2223,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             severity:
               - from: 0
                 to: 25
@@ -1665,7 +2252,10 @@ views:
             label_width: 170
             min: -120
             max: 120
-            baseline: 0
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 0
             severity:
               - from: 0
                 to: 25
@@ -1746,13 +2336,16 @@ views:
               - entity: sensor.sbcp_playground_sensor
                 name: Positive row
           - type: custom:sensor-bar-card-plus
-            title: Dynamic target_entity on 75% baseline
+            title: Dynamic target_entity on helper-driven baseline
             color_mode: gradient
             label_position: left
             label_width: 170
             min: -140
             max: 140
-            baseline: 70
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 70
             target_entity: sensor.sbcp_playground_target
             target_color: '#0f766e'
             show_target_label: true
@@ -1761,13 +2354,16 @@ views:
               - entity: sensor.sbcp_playground_sensor
                 name: Dynamic target
           - type: custom:sensor-bar-card-plus
-            title: Peak and target overlap on off-center baseline
+            title: Peak and target overlap on helper-driven baseline
             color_mode: gradient
             label_position: left
             label_width: 170
             min: -140
             max: 140
-            baseline: 70
+            baseline:
+              at:
+                entity: sensor.sbcp_playground_baseline
+                value: 70
             target_entity: sensor.sbcp_playground_target
             target_color: '#0f766e'
             show_target_label: true

@@ -307,6 +307,25 @@ const scenarios = [
     },
   },
   {
+    name: 'normal-above-target',
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Normal above target',
+      color_mode: 'gradient',
+      gradient_stops: gradientStops,
+      label_position: 'left',
+      label_width: 170,
+      animated: false,
+      min: 0,
+      max: 120,
+      target: 60,
+      target_color: '#111827',
+      show_target_label: true,
+      above_target_color: '#dc2626',
+      entities: [{ entity: 'sensor.main_positive', name: 'No baseline target overlay' }],
+    },
+  },
+  {
     name: 'baseline-peak',
     config: {
       type: 'custom:sensor-bar-card-plus',
@@ -467,6 +486,26 @@ const scenarios = [
       entities: [{ entity: 'sensor.main_positive', name: 'Compact left label baseline row' }],
     },
   },
+  {
+    name: 'very-small-interval',
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Very small interval',
+      color_mode: 'severity_gradient',
+      severity,
+      label_position: 'left',
+      label_width: 170,
+      animated: false,
+      min: -100,
+      max: 100,
+      baseline: { at: 0 },
+      entities: [{ entity: 'sensor.tiny_positive', name: 'Tiny above baseline' }],
+    },
+    states: {
+      ...baseStates,
+      'sensor.tiny_positive': sensor(1, { friendly_name: 'Tiny positive' }),
+    },
+  },
 ];
 
 for (const scenario of scenarios) {
@@ -514,3 +553,90 @@ test('visual regression: baseline-severity-mid-transition', async ({ page }) => 
 
   await expect(mount).toHaveScreenshot('baseline-severity-mid-transition.png');
 });
+
+test('visual regression: normal-above-target-mid-transition-downward', async ({ page }) => {
+  const config = {
+    type: 'custom:sensor-bar-card-plus',
+    title: 'Normal above target transition',
+    color_mode: 'gradient',
+    gradient_stops: gradientStops,
+    label_position: 'left',
+    label_width: 170,
+    animated: true,
+    min: 0,
+    max: 120,
+    target: 60,
+    target_color: '#111827',
+    show_target_label: true,
+    above_target_color: '#dc2626',
+    entities: [{ entity: 'sensor.transitioning', name: 'Transitioning above target' }],
+  };
+
+  const mount = await render(page, {
+    config,
+    states: {
+      'sensor.transitioning': sensor(95, { friendly_name: 'Transitioning above target', icon: 'mdi:swap-horizontal' }),
+    },
+  });
+
+  await page.evaluate(async () => {
+    const card = document.querySelector('sensor-bar-card-plus');
+    card.hass = {
+      states: {
+        'sensor.transitioning': window.__sbcpCreateState(30, {
+          friendly_name: 'Transitioning above target',
+          icon: 'mdi:swap-horizontal',
+          unit_of_measurement: 'W',
+        }),
+      },
+    };
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
+
+  await expect(mount).toHaveScreenshot('normal-above-target-mid-transition-downward.png');
+});
+
+for (const [name, colorMode] of [
+  ['baseline-gradient-mid-transition', 'gradient'],
+  ['baseline-severity-gradient-mid-transition', 'severity_gradient'],
+]) {
+  test(`visual regression: ${name}`, async ({ page }) => {
+    const config = {
+      type: 'custom:sensor-bar-card-plus',
+      title: name,
+      color_mode: colorMode,
+      gradient_stops: colorMode === 'gradient' ? gradientStops : undefined,
+      severity: colorMode === 'severity_gradient' ? severity : undefined,
+      label_position: 'left',
+      label_width: 170,
+      animated: true,
+      min: -120,
+      max: 120,
+      baseline: { at: 0 },
+      entities: [{ entity: 'sensor.transitioning', name: 'Transitioning semantic fill' }],
+    };
+
+    const mount = await render(page, {
+      config,
+      states: {
+        'sensor.transitioning': sensor(-95, { friendly_name: 'Transitioning semantic fill', icon: 'mdi:swap-horizontal' }),
+      },
+    });
+
+    await page.evaluate(async () => {
+      const card = document.querySelector('sensor-bar-card-plus');
+      card.hass = {
+        states: {
+          'sensor.transitioning': window.__sbcpCreateState(95, {
+            friendly_name: 'Transitioning semantic fill',
+            icon: 'mdi:swap-horizontal',
+            unit_of_measurement: 'W',
+          }),
+        },
+      };
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
+
+    await expect(mount).toHaveScreenshot(`${name}.png`);
+  });
+}

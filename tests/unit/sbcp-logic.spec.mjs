@@ -193,27 +193,66 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getNormalizedPercent(50, 50)).toMatchObject({ start: 50, end: 50, hidden: true });
   });
 
-  it('anchors global baseline backgrounds with projected full-scale geometry', () => {
+  it('anchors full-scale paint with pixel-based projection', () => {
+    const card = createCard();
+
+    expect(card._getPaintProjectionPx(400, 25, 75)).toMatchObject({
+      startPx: 100,
+      endPx: 300,
+      widthPx: 200,
+      leftPx: -100,
+      trackWidthPx: 400,
+    });
+    expect(card._getPaintProjectionPx(400, 0, 50)).toMatchObject({
+      startPx: 0,
+      endPx: 200,
+      widthPx: 200,
+      leftPx: 0,
+      trackWidthPx: 400,
+    });
+    expect(card._getPaintProjectionPx(400, 50, 100)).toMatchObject({
+      startPx: 200,
+      endPx: 400,
+      widthPx: 200,
+      leftPx: -200,
+      trackWidthPx: 400,
+    });
+  });
+
+  it('integrates above-target color into the full-width paint layer regardless of current value', () => {
     const card = createCard();
     const ecfg = card.normalizeCardConfig({
-      color_mode: 'severity_gradient',
-      baseline: { at: 0 },
-      severity: [
-        { from: 0, to: 50, color: '#ef4444' },
-        { from: 50, to: 100, color: '#22c55e' },
+      color_mode: 'gradient',
+      gradient_stops: [
+        { pos: 0, color: '#2563eb' },
+        { pos: 100, color: '#dc2626' },
       ],
+      above_target_color: '#ef4444',
+      min: -100,
+      max: 100,
+      baseline: { at: 0 },
+      target: 60,
       entities: [{ entity: 'sensor.row' }],
     }).entities[0];
 
-    expect(card._getAnchoredGlobalScaleProjection(25, 75)).toMatchObject({
-      widthPct: 200,
-      leftPct: -50,
-    });
+    const targetPct = card._toScalePct(60, -100, 100);
+    const baselinePct = card._toScalePct(0, -100, 100);
+    const paintStyleAbove = card._getFullScalePaintStyle(90, ecfg, '#dc2626', targetPct, baselinePct);
+    const paintStyleBelow = card._getFullScalePaintStyle(20, ecfg, '#2563eb', targetPct, baselinePct);
 
-    const innerStyle = card._getAnchoredGlobalScaleInnerStyle(25, 75, ecfg, '#22c55e');
-    expect(innerStyle).toContain('left:-50%');
-    expect(innerStyle).toContain('width:200%');
-    expect(innerStyle).toContain('linear-gradient');
+    expect(paintStyleAbove).toContain('#ef4444');
+    expect(paintStyleAbove).toContain(`transparent ${targetPct}%`);
+    expect(paintStyleBelow).toContain('#ef4444');
+    expect(paintStyleBelow).toContain(`transparent ${targetPct}%`);
+  });
+
+  it('keeps very small reveal intervals projected against the full scale', () => {
+    const card = createCard();
+    const projection = card._getPaintProjectionPx(400, 49, 50);
+
+    expect(projection.widthPx).toBeCloseTo(4, 5);
+    expect(projection.leftPx).toBeCloseTo(-196, 5);
+    expect(projection.trackWidthPx).toBe(400);
   });
 
   it('formats numeric displays with decimal precision', () => {

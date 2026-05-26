@@ -39,6 +39,42 @@ input_number:
     initial: 65
     unit_of_measurement: W
 
+  sbcp_baseline_value:
+    name: SBCP Baseline Value
+    min: -5000
+    max: 10000
+    step: 0.1
+    mode: box
+    initial: 0
+    unit_of_measurement: W
+
+  sbcp_current_quick:
+    name: SBCP Current Quick Slider
+    min: -100
+    max: 100
+    step: 0.1
+    mode: slider
+    initial: 42.7
+    unit_of_measurement: W
+
+  sbcp_target_quick:
+    name: SBCP Target Quick Slider
+    min: -100
+    max: 100
+    step: 0.1
+    mode: slider
+    initial: 65
+    unit_of_measurement: W
+
+  sbcp_baseline_quick:
+    name: SBCP Baseline Quick Slider
+    min: -100
+    max: 100
+    step: 0.1
+    mode: slider
+    initial: 0
+    unit_of_measurement: W
+
   sbcp_bar_height:
     name: SBCP Bar Height
     min: 24
@@ -146,7 +182,25 @@ input_select:
     options:
       - current_value
       - target_value
+      - baseline_value
     initial: current_value
+
+  sbcp_baseline_semantic_mode:
+    name: SBCP Baseline Semantic Mode
+    options:
+      - gradient
+      - severity
+      - severity_gradient
+    initial: gradient
+
+  sbcp_baseline_interval_profile:
+    name: SBCP Baseline Interval Profile
+    options:
+      - very_small
+      - irregular
+      - even
+      - full_width
+    initial: even
 
 input_text:
   sbcp_label:
@@ -563,7 +617,125 @@ sensor:
           {% set night_bias = 1 - daylight %}
           {{ (185 + 160 * night_bias + 22 * sin((p + 35) * pi / 180) + 10 * sin((p * 2 - 15) * pi / 180)) | round(1) }}
 
+template:
+  - sensor:
+      - name: SBCP Playground Baseline
+        default_entity_id: sensor.sbcp_playground_baseline
+        unit_of_measurement: W
+        icon: mdi:vector-line
+        state: "{{ states('input_number.sbcp_baseline_value') | float(0) }}"
+
 automation:
+  - id: sbcp_quick_slider_sync
+    alias: SBCP Quick Slider Sync
+    description: Keep quick sliders and numeric helper values aligned where safe.
+    trigger:
+      - platform: state
+        entity_id: input_number.sbcp_current_quick
+        id: current_quick
+      - platform: state
+        entity_id: input_number.sbcp_target_quick
+        id: target_quick
+      - platform: state
+        entity_id: input_number.sbcp_baseline_quick
+        id: baseline_quick
+      - platform: state
+        entity_id: input_number.sbcp_current_value
+        id: current_value
+      - platform: state
+        entity_id: input_number.sbcp_target_value
+        id: target_value
+      - platform: state
+        entity_id: input_number.sbcp_baseline_value
+        id: baseline_value
+    action:
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: current_quick
+              - condition: template
+                value_template: >-
+                  {% set numeric = states('input_number.sbcp_current_value') | float(0) %}
+                  {% set quick = states('input_number.sbcp_current_quick') | float(0) %}
+                  {{ (numeric - quick) | abs > 0.01 }}
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_current_value
+                data:
+                  value: "{{ states('input_number.sbcp_current_quick') | float(0) }}"
+          - conditions:
+              - condition: trigger
+                id: target_quick
+              - condition: template
+                value_template: >-
+                  {% set numeric = states('input_number.sbcp_target_value') | float(0) %}
+                  {% set quick = states('input_number.sbcp_target_quick') | float(0) %}
+                  {{ (numeric - quick) | abs > 0.01 }}
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_target_value
+                data:
+                  value: "{{ states('input_number.sbcp_target_quick') | float(0) }}"
+          - conditions:
+              - condition: trigger
+                id: baseline_quick
+              - condition: template
+                value_template: >-
+                  {% set numeric = states('input_number.sbcp_baseline_value') | float(0) %}
+                  {% set quick = states('input_number.sbcp_baseline_quick') | float(0) %}
+                  {{ (numeric - quick) | abs > 0.01 }}
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_baseline_value
+                data:
+                  value: "{{ states('input_number.sbcp_baseline_quick') | float(0) }}"
+          - conditions:
+              - condition: trigger
+                id: current_value
+              - condition: template
+                value_template: >-
+                  {% set value = states('input_number.sbcp_current_value') | float(0) %}
+                  {% set quick = states('input_number.sbcp_current_quick') | float(0) %}
+                  {{ value >= -100 and value <= 100 and (value - quick) | abs > 0.01 }}
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_current_quick
+                data:
+                  value: "{{ states('input_number.sbcp_current_value') | float(0) }}"
+          - conditions:
+              - condition: trigger
+                id: target_value
+              - condition: template
+                value_template: >-
+                  {% set value = states('input_number.sbcp_target_value') | float(0) %}
+                  {% set quick = states('input_number.sbcp_target_quick') | float(0) %}
+                  {{ value >= -100 and value <= 100 and (value - quick) | abs > 0.01 }}
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_target_quick
+                data:
+                  value: "{{ states('input_number.sbcp_target_value') | float(0) }}"
+          - conditions:
+              - condition: trigger
+                id: baseline_value
+              - condition: template
+                value_template: >-
+                  {% set value = states('input_number.sbcp_baseline_value') | float(0) %}
+                  {% set quick = states('input_number.sbcp_baseline_quick') | float(0) %}
+                  {{ value >= -100 and value <= 100 and (value - quick) | abs > 0.01 }}
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_baseline_quick
+                data:
+                  value: "{{ states('input_number.sbcp_baseline_value') | float(0) }}"
+    mode: queued
+
   - id: sbcp_wave_driver
     alias: SBCP Wave Driver
     description: Drive the selected playground helper from a selectable waveform.
@@ -602,6 +774,16 @@ automation:
               - service: input_number.set_value
                 target:
                   entity_id: input_number.sbcp_target_value
+                data:
+                  value: "{{ wave_value }}"
+          - conditions:
+              - condition: state
+                entity_id: input_select.sbcp_wave_target
+                state: baseline_value
+            sequence:
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.sbcp_baseline_value
                 data:
                   value: "{{ wave_value }}"
         default:
