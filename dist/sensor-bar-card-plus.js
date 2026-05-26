@@ -223,9 +223,9 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.peak_marker = this.normalizePeakMarkerConfig(entityConfig, cardConfig);
 
     // Keep flat aliases so current rendering code and public YAML stay stable.
-    normalizedEntity.min = normalizedEntity.scale.min.fallback;
+    normalizedEntity.min = normalizedEntity.scale.min.value;
     normalizedEntity.min_entity = normalizedEntity.scale.min.entity;
-    normalizedEntity.max = normalizedEntity.scale.max.fallback;
+    normalizedEntity.max = normalizedEntity.scale.max.value;
     normalizedEntity.max_entity = normalizedEntity.scale.max.entity;
     normalizedEntity.height = normalizedEntity.layout.height;
     normalizedEntity.label_position = normalizedEntity.layout.label_position;
@@ -238,7 +238,7 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.above_target_color = normalizedEntity.bar.above_target_color;
     normalizedEntity.decimal = normalizedEntity.formatting.decimal;
     normalizedEntity.unit = normalizedEntity.formatting.unit;
-    normalizedEntity.target = normalizedEntity.target_marker.source.fallback;
+    normalizedEntity.target = normalizedEntity.target_marker.source.value;
     normalizedEntity.target_entity = normalizedEntity.target_marker.source.entity;
     normalizedEntity.target_color = normalizedEntity.target_marker.color;
     normalizedEntity.show_target_label = normalizedEntity.target_marker.show_label;
@@ -248,14 +248,13 @@ class SensorBarCard extends HTMLElement {
     return normalizedEntity;
   }
 
-  // Internal resolvable shape used to preserve today's flat `value + *_entity`
-  // model while giving future work one consistent place to look up dynamic
-  // versus fallback-backed values.
-  normalizeResolvableValue(value, entityValue, fallbackValue) {
+  // Internal resolvable shape preserves today's flat `value + *_entity`
+  // behavior while aligning with the canonical model where `value` doubles
+  // as the static default when `entity` does not resolve.
+  normalizeResolvableValue(value, entityValue) {
     return {
       value: value ?? null,
       entity: entityValue ?? null,
-      fallback: fallbackValue ?? value ?? null,
     };
   }
 
@@ -264,12 +263,12 @@ class SensorBarCard extends HTMLElement {
   }
 
   normalizeStructuredResolvableValue(input, inheritedResolvable = null, defaultValue = null) {
-    const inherited = inheritedResolvable ?? this.normalizeResolvableValue(defaultValue, null, defaultValue);
+    const inherited = inheritedResolvable ?? this.normalizeResolvableValue(defaultValue, null);
     if (input === undefined) {
       return { ...inherited };
     }
     if (input === null) {
-      return this.normalizeResolvableValue(null, null, null);
+      return this.normalizeResolvableValue(null, null);
     }
     if (typeof input === 'object' && !Array.isArray(input)) {
       const value = input.value ?? null;
@@ -277,17 +276,15 @@ class SensorBarCard extends HTMLElement {
       return {
         value,
         entity,
-        fallback: value ?? null,
       };
     }
     if (this._looksLikeEntityId(input)) {
       return {
-        value: inherited.value ?? null,
+        value: inherited.value ?? defaultValue ?? null,
         entity: input,
-        fallback: inherited.fallback ?? inherited.value ?? null,
       };
     }
-    return this.normalizeResolvableValue(input, null, input);
+    return this.normalizeResolvableValue(input, null);
   }
 
   normalizeBaselineDirectionConfig(input, inheritedDirection = null) {
@@ -312,7 +309,7 @@ class SensorBarCard extends HTMLElement {
     const cardBaseline = cardConfig?.baseline;
     const rawBaseline = entityConfig?.baseline;
     const inherited = {
-      at: cardBaseline?.at ? { ...cardBaseline.at } : this.normalizeResolvableValue(null, null, null),
+      at: cardBaseline?.at ? { ...cardBaseline.at } : this.normalizeResolvableValue(null, null),
       above: this.normalizeBaselineDirectionConfig(undefined, cardBaseline?.above),
       below: this.normalizeBaselineDirectionConfig(undefined, cardBaseline?.below),
     };
@@ -323,7 +320,7 @@ class SensorBarCard extends HTMLElement {
 
     if (rawBaseline === null) {
       return {
-        at: this.normalizeResolvableValue(null, null, null),
+        at: this.normalizeResolvableValue(null, null),
         above: { color: null },
         below: { color: null },
       };
@@ -347,9 +344,9 @@ class SensorBarCard extends HTMLElement {
   normalizeScaleBound(entityConfig, cardConfig, key, defaultValue) {
     const cardScale = cardConfig?.scale;
     const entityKey = `${key}_entity`;
-    const fallback = entityConfig[key] ?? cardScale?.[key]?.fallback ?? cardConfig?.[key] ?? defaultValue;
+    const value = entityConfig[key] ?? cardScale?.[key]?.value ?? cardConfig?.[key] ?? defaultValue;
     const entity = entityConfig[entityKey] ?? cardScale?.[key]?.entity ?? cardConfig?.[entityKey] ?? null;
-    return this.normalizeResolvableValue(fallback, entity, fallback);
+    return this.normalizeResolvableValue(value, entity);
   }
 
   normalizeScaleConfig(entityConfig, cardConfig) {
@@ -390,10 +387,10 @@ class SensorBarCard extends HTMLElement {
 
   normalizeTargetMarkerConfig(entityConfig, cardConfig) {
     const cardTarget = cardConfig?.target_marker;
-    const fallback = entityConfig.target ?? cardTarget?.source?.fallback ?? cardConfig?.target ?? null;
+    const value = entityConfig.target ?? cardTarget?.source?.value ?? cardConfig?.target ?? null;
     const entity = entityConfig.target_entity ?? cardTarget?.source?.entity ?? cardConfig?.target_entity ?? null;
     return {
-      source: this.normalizeResolvableValue(fallback, entity, fallback),
+      source: this.normalizeResolvableValue(value, entity),
       color: entityConfig.target_color ?? cardTarget?.color ?? cardConfig?.target_color ?? '#888',
       show_label: entityConfig.show_target_label ?? cardTarget?.show_label ?? cardConfig?.show_target_label ?? false,
     };
@@ -515,7 +512,7 @@ class SensorBarCard extends HTMLElement {
 
   _getNormalizedResolvableNumericValue(resolvable) {
     if (!resolvable) return null;
-    return this._getNumericValue(resolvable.fallback ?? resolvable.value, resolvable.entity);
+    return this._getNumericValue(resolvable.value, resolvable.entity);
   }
 
   _hexToRgb(color) {

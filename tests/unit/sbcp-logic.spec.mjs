@@ -11,7 +11,7 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cfg.entities).toHaveLength(1);
     expect(cfg.entities[0].entity).toBe('sensor.one');
-    expect(cfg.baseline.at.fallback).toBe(0);
+    expect(cfg.baseline.at.value).toBe(0);
     expect(cfg.bar.color_mode).toBe('severity');
     expect(cfg.layout.label_position).toBe('left');
   });
@@ -27,9 +27,9 @@ describe('Sensor Bar Card Plus logic', () => {
       ],
     });
 
-    expect(cfg.entities[0].scale.min.fallback).toBe(0);
-    expect(cfg.entities[0].scale.max.fallback).toBe(500);
-    expect(cfg.entities[0].baseline.at.fallback).toBe(75);
+    expect(cfg.entities[0].scale.min.value).toBe(0);
+    expect(cfg.entities[0].scale.max.value).toBe(500);
+    expect(cfg.entities[0].baseline.at.value).toBe(75);
   });
 
   it('preserves min_entity and max_entity fallback behavior', () => {
@@ -84,7 +84,7 @@ describe('Sensor Bar Card Plus logic', () => {
       entities: [{ entity: 'sensor.row' }],
     });
 
-    expect(cfg.baseline.at).toMatchObject({ value: 5, entity: null, fallback: 5 });
+    expect(cfg.baseline.at).toMatchObject({ value: 5, entity: null });
   });
 
   it('supports baseline entity-string shorthand', () => {
@@ -94,7 +94,7 @@ describe('Sensor Bar Card Plus logic', () => {
       entities: [{ entity: 'sensor.row' }],
     });
 
-    expect(cfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline', fallback: null });
+    expect(cfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline' });
   });
 
   it('supports baseline.at shorthand and baseline.at entity shorthand', () => {
@@ -108,8 +108,8 @@ describe('Sensor Bar Card Plus logic', () => {
       entities: [{ entity: 'sensor.row' }],
     });
 
-    expect(numericCfg.baseline.at).toMatchObject({ value: 0, entity: null, fallback: 0 });
-    expect(entityCfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline', fallback: null });
+    expect(numericCfg.baseline.at).toMatchObject({ value: 0, entity: null });
+    expect(entityCfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline' });
   });
 
   it('preserves baseline.at.entity plus baseline.at.value fallback behavior', () => {
