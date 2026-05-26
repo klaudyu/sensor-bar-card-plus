@@ -88,7 +88,7 @@ The repository includes a full demo playground and a dedicated screenshot board:
 
 Use them to validate color modes, markers, dynamic scales, text states, edge cases, and responsive behavior.
 
-## Testing
+## Development / Testing
 
 Install the dev dependencies and Playwright browser once:
 
@@ -116,6 +116,8 @@ npm run test:visual:update
 ```
 
 `npm test` runs the unit suite first and then the visual regression suite.
+
+The visual regression suite covers baseline rendering, severity modes, target and peak markers, compact layouts, and clipping or rounded-edge regressions.
 
 ## Color Modes
 
@@ -398,6 +400,99 @@ entities:
 
 Peak and target markers can occupy the same position without becoming ambiguous because they live on opposite bar edges. That makes them suitable for shared-threshold visualizations and future multi-reference extensions.
 
+## Baseline Fill Origin
+
+<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
+
+Use `baseline` when the fill should start from a neutral point instead of always starting at `min`.
+
+- `baseline` sets the fill origin on the configured `min` to `max` scale
+- gradients and severity modes still represent the full global `min` to `max` scale
+- directional above/below colors are optional overrides on top of that global scale
+
+This is useful for charge/discharge, import/export, or any metric where movement above and below a neutral value should read differently.
+
+### Centered zero baseline
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Grid Flow
+color_mode: gradient
+min: -3000
+max: 3000
+baseline: 0
+entities:
+  - entity: sensor.grid_power
+    name: Grid
+```
+
+### Off-center baseline
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Off-center baseline
+color_mode: severity_gradient
+min: -2000
+max: 5000
+baseline:
+  at: 500
+entities:
+  - entity: sensor.net_power
+    name: Net Power
+```
+
+### Above-baseline color only
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Battery Bias
+color_mode: gradient
+min: -3200
+max: 3200
+baseline:
+  at: 0
+  above: '#34d399'
+entities:
+  - entity: sensor.home_battery_power
+    name: Battery
+```
+
+### Above and below baseline colors
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Bidirectional Override
+color_mode: gradient
+min: -3200
+max: 3200
+baseline:
+  at: 0
+  above: '#34d399'
+  below: '#ef4444'
+entities:
+  - entity: sensor.home_battery_power
+    name: Battery
+```
+
+### Dynamic baseline
+
+If both an entity and a static `value` are set under `baseline.at`, the entity takes precedence. If that entity is unavailable or non-numeric, the static `value` is used as fallback.
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Dynamic baseline
+color_mode: gradient
+min: -3000
+max: 3000
+baseline:
+  at:
+    entity: sensor.dynamic_baseline
+    value: 0
+entities:
+  - entity: sensor.grid_power
+    name: Grid
+```
+
 ## Dynamic Min / Max / Target Entities
 
 <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
@@ -652,6 +747,7 @@ All options can be set globally at card level and overridden per entity.
 | `min_entity` | string | - | Dynamic minimum entity | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
 | `max` | number | `100` | Maximum scale value | - |
 | `max_entity` | string | - | Dynamic maximum entity | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
+| `baseline` | number, string, object | - | Fill origin config. Supports `baseline: 0`, `baseline: sensor.dynamic_baseline`, or a structured object with `at`, `above`, and `below`. | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
 | `height` | number | `38` | Bar height in pixels | - |
 | `label_width` | number | `100` | Fixed label width for `left` mode | - |
 | `decimal` | number | auto | Decimal places | - |

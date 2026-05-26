@@ -23,9 +23,10 @@
  *   target_color: '#4a9eff'        # colour of the target marker (default grey)
  *   above_target_color: '#F44336' # optional color for filled bar section beyond the target
  *   baseline: 0                    # optional neutral point for bidirectional fill
- *   baseline_entity: sensor.my_baseline_sensor # optional entity providing the baseline value
- *   above_baseline_color: '#34d399' # optional fill color override above baseline
- *   below_baseline_color: '#ef4444' # optional fill color override below baseline
+ *   baseline:
+ *     at: sensor.my_baseline_sensor
+ *     above: '#34d399'
+ *     below: '#ef4444'
  *   decimal: 1                     # decimal places for displayed value (null = use raw value)
  *   min: 0                        # minimum value
  *   min_entity: sensor.my_min_sensor         # optional entity providing the minimum value
@@ -161,9 +162,6 @@ class SensorBarCard extends HTMLElement {
       show_target_label: false,
       above_target_color: null, 
       baseline: null,
-      baseline_entity: null,
-      above_baseline_color: null,
-      below_baseline_color: null,
       decimal: null,
       gradient_stops: null,
       min: 0,
@@ -196,6 +194,7 @@ class SensorBarCard extends HTMLElement {
     normalizedCard.layout = this.normalizeLayoutConfig(baseConfig, null);
     normalizedCard.scale = this.normalizeScaleConfig(baseConfig, null);
     normalizedCard.bar = this.normalizeBarConfig(baseConfig, null);
+    normalizedCard.baseline = this.normalizeBaselineConfig(baseConfig, null);
     normalizedCard.formatting = this.normalizeFormattingConfig(baseConfig, null);
     normalizedCard.target_marker = this.normalizeTargetMarkerConfig(baseConfig, null);
     normalizedCard.peak_marker = this.normalizePeakMarkerConfig(baseConfig, null);
@@ -218,6 +217,7 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.layout = this.normalizeLayoutConfig(entityConfig, cardConfig);
     normalizedEntity.scale = this.normalizeScaleConfig(entityConfig, cardConfig);
     normalizedEntity.bar = this.normalizeBarConfig(entityConfig, cardConfig);
+    normalizedEntity.baseline = this.normalizeBaselineConfig(entityConfig, cardConfig);
     normalizedEntity.formatting = this.normalizeFormattingConfig(entityConfig, cardConfig);
     normalizedEntity.target_marker = this.normalizeTargetMarkerConfig(entityConfig, cardConfig);
     normalizedEntity.peak_marker = this.normalizePeakMarkerConfig(entityConfig, cardConfig);
@@ -227,8 +227,6 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.min_entity = normalizedEntity.scale.min.entity;
     normalizedEntity.max = normalizedEntity.scale.max.fallback;
     normalizedEntity.max_entity = normalizedEntity.scale.max.entity;
-    normalizedEntity.baseline = normalizedEntity.scale.baseline.fallback;
-    normalizedEntity.baseline_entity = normalizedEntity.scale.baseline.entity;
     normalizedEntity.height = normalizedEntity.layout.height;
     normalizedEntity.label_position = normalizedEntity.layout.label_position;
     normalizedEntity.label_width = normalizedEntity.layout.label_width;
@@ -238,8 +236,6 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.severity = normalizedEntity.bar.severity;
     normalizedEntity.animated = normalizedEntity.bar.animated;
     normalizedEntity.above_target_color = normalizedEntity.bar.above_target_color;
-    normalizedEntity.above_baseline_color = normalizedEntity.bar.above_baseline_color;
-    normalizedEntity.below_baseline_color = normalizedEntity.bar.below_baseline_color;
     normalizedEntity.decimal = normalizedEntity.formatting.decimal;
     normalizedEntity.unit = normalizedEntity.formatting.unit;
     normalizedEntity.target = normalizedEntity.target_marker.source.fallback;
@@ -263,6 +259,91 @@ class SensorBarCard extends HTMLElement {
     };
   }
 
+  _looksLikeEntityId(value) {
+    return typeof value === 'string' && /^[a-z0-9_]+\.[a-z0-9_]+$/i.test(value.trim());
+  }
+
+  normalizeStructuredResolvableValue(input, inheritedResolvable = null, defaultValue = null) {
+    const inherited = inheritedResolvable ?? this.normalizeResolvableValue(defaultValue, null, defaultValue);
+    if (input === undefined) {
+      return { ...inherited };
+    }
+    if (input === null) {
+      return this.normalizeResolvableValue(null, null, null);
+    }
+    if (typeof input === 'object' && !Array.isArray(input)) {
+      const value = input.value ?? null;
+      const entity = input.entity ?? null;
+      return {
+        value,
+        entity,
+        fallback: value ?? null,
+      };
+    }
+    if (this._looksLikeEntityId(input)) {
+      return {
+        value: inherited.value ?? null,
+        entity: input,
+        fallback: inherited.fallback ?? inherited.value ?? null,
+      };
+    }
+    return this.normalizeResolvableValue(input, null, input);
+  }
+
+  normalizeBaselineDirectionConfig(input, inheritedDirection = null) {
+    const inherited = inheritedDirection ?? { color: null };
+    if (input === undefined) {
+      return { ...inherited };
+    }
+    if (input === null) {
+      return { color: null };
+    }
+    if (typeof input === 'object' && !Array.isArray(input)) {
+      return {
+        color: input.color ?? null,
+      };
+    }
+    return {
+      color: input,
+    };
+  }
+
+  normalizeBaselineConfig(entityConfig, cardConfig) {
+    const cardBaseline = cardConfig?.baseline;
+    const rawBaseline = entityConfig?.baseline;
+    const inherited = {
+      at: cardBaseline?.at ? { ...cardBaseline.at } : this.normalizeResolvableValue(null, null, null),
+      above: this.normalizeBaselineDirectionConfig(undefined, cardBaseline?.above),
+      below: this.normalizeBaselineDirectionConfig(undefined, cardBaseline?.below),
+    };
+
+    if (rawBaseline === undefined) {
+      return inherited;
+    }
+
+    if (rawBaseline === null) {
+      return {
+        at: this.normalizeResolvableValue(null, null, null),
+        above: { color: null },
+        below: { color: null },
+      };
+    }
+
+    if (typeof rawBaseline !== 'object' || Array.isArray(rawBaseline)) {
+      return {
+        at: this.normalizeStructuredResolvableValue(rawBaseline, inherited.at, null),
+        above: inherited.above,
+        below: inherited.below,
+      };
+    }
+
+    return {
+      at: this.normalizeStructuredResolvableValue(rawBaseline.at, inherited.at, null),
+      above: this.normalizeBaselineDirectionConfig(rawBaseline.above, inherited.above),
+      below: this.normalizeBaselineDirectionConfig(rawBaseline.below, inherited.below),
+    };
+  }
+
   normalizeScaleBound(entityConfig, cardConfig, key, defaultValue) {
     const cardScale = cardConfig?.scale;
     const entityKey = `${key}_entity`;
@@ -275,7 +356,6 @@ class SensorBarCard extends HTMLElement {
     return {
       min: this.normalizeScaleBound(entityConfig, cardConfig, 'min', 0),
       max: this.normalizeScaleBound(entityConfig, cardConfig, 'max', 100),
-      baseline: this.normalizeScaleBound(entityConfig, cardConfig, 'baseline', null),
     };
   }
 
@@ -288,8 +368,6 @@ class SensorBarCard extends HTMLElement {
       severity: entityConfig.severity ?? cardBar?.severity ?? cardConfig?.severity ?? null,
       animated: entityConfig.animated ?? cardBar?.animated ?? cardConfig?.animated ?? true,
       above_target_color: entityConfig.above_target_color ?? cardBar?.above_target_color ?? cardConfig?.above_target_color ?? null,
-      above_baseline_color: entityConfig.above_baseline_color ?? cardBar?.above_baseline_color ?? cardConfig?.above_baseline_color ?? null,
-      below_baseline_color: entityConfig.below_baseline_color ?? cardBar?.below_baseline_color ?? cardConfig?.below_baseline_color ?? null,
     };
   }
 
@@ -362,7 +440,7 @@ class SensorBarCard extends HTMLElement {
         entityCfg.entity,
         ecfg.scale?.min?.entity,
         ecfg.scale?.max?.entity,
-        ecfg.scale?.baseline?.entity,
+        ecfg.baseline?.at?.entity,
         ecfg.target_marker?.source?.entity
       ].filter(Boolean);
       
@@ -698,6 +776,12 @@ class SensorBarCard extends HTMLElement {
     return Math.min(100, Math.max(0, ((value - safeMin) / range) * 100));
   }
 
+  _resolveBaselinePct(ecfg, safeMin, safeMax) {
+    const baselineValue = this._getNormalizedResolvableNumericValue(ecfg.baseline?.at);
+    if (!Number.isFinite(baselineValue)) return null;
+    return this._toScalePct(baselineValue, safeMin, safeMax);
+  }
+
   _formatNumericDisplay(rawVal, decimal = null) {
     if (!Number.isFinite(rawVal)) return String(rawVal);
     if (decimal !== null) {
@@ -750,7 +834,7 @@ class SensorBarCard extends HTMLElement {
   _getBaselineFillStyle(pct, h, ecfg, color, baselinePct = null) {
     const geometry = this._getNormalizedPercent(pct, baselinePct);
     if (!geometry.usesBaseline) return this._getScaleStyle(color, ecfg);
-    const overrideColor = geometry.positive ? ecfg.bar.above_baseline_color : ecfg.bar.below_baseline_color;
+    const overrideColor = geometry.positive ? ecfg.baseline?.above?.color : ecfg.baseline?.below?.color;
     return this._getSegmentStyle(geometry.start, geometry.end, h, ecfg, color, overrideColor, geometry.positive);
   }
 
@@ -994,13 +1078,17 @@ class SensorBarCard extends HTMLElement {
           position: absolute;
           inset: 0;
           border-radius: inherit;
+          transition: left 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1);
           z-index: 1;
+        }
+        .bar-scale.no-anim {
+          transition: none;
         }
         .bar-above-target {
           position: absolute;
           top: 0;
           right: 0;
-          transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
+          transition: left 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1);
           z-index: 2;
         }
         .bar-above-target.no-anim {
@@ -1645,12 +1733,17 @@ class SensorBarCard extends HTMLElement {
     return `<span class="inside-value-text ${unitModeClass}"><span class="inside-number">${display}</span><span class="inside-unit">${cleanUnit}</span></span>`;
   }
 
-  _buildRow(entityCfg, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor, baselinePct = null) {
+  _buildRow(entityCfg, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor) {
     const ecfg = this._resolve(entityCfg);
     const layout = ecfg.layout;
     const bar = ecfg.bar;
     const targetMarkerCfg = ecfg.target_marker;
     const peakMarkerCfg = ecfg.peak_marker;
+    const minValue = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
+    const maxValue = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
+    const safeMin = Number.isFinite(minValue) ? minValue : 0;
+    const safeMax = Number.isFinite(maxValue) ? maxValue : 100;
+    const baselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
     const lp   = layout.label_position;
     const h    = layout.height;
     const name = ecfg.name
@@ -1710,7 +1803,7 @@ class SensorBarCard extends HTMLElement {
             ${leftLabel}
             <div class="bar-wrap">
               <div class="bar-track" style="height:${h}px;">
-                <div class="bar-scale" style="${usesBaseline ? this._getBaselineFillStyle(pct, h, ecfg, color, baselinePct) : this._getScaleStyle(color, ecfg)}"></div>
+                <div class="bar-scale${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? this._getBaselineFillStyle(pct, h, ecfg, color, baselinePct) : this._getScaleStyle(color, ecfg)}"></div>
                 <div class="bar-above-target${bar.animated ? '' : ' no-anim'}" style="${usesBaseline ? this._getAboveTargetSegmentStyle(pct, h, ecfg, targetPct, baselinePct) : this._getAboveTargetOverlayStyle(pct, h, ecfg, targetPct)}"></div>
                 <div class="bar-fill${bar.animated ? '' : ' no-anim'}"
                   style="${usesBaseline ? `display:none;left:0;height:${h}px;` : this._getMaskStyle(pct, h)}"></div>
@@ -1747,7 +1840,6 @@ class SensorBarCard extends HTMLElement {
         const unit      = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
         const minVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
         const maxVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
-        const baselineVal = this._getNormalizedResolvableNumericValue(ecfg.scale.baseline);
         const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
         const safeMin   = Number.isFinite(minVal) ? minVal : 0;
         const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
@@ -1763,10 +1855,6 @@ class SensorBarCard extends HTMLElement {
         if (targetVal !== null) {
           targetPct = this._toScalePct(targetVal, safeMin, safeMax);
         }
-        let baselinePct = null;
-        if (baselineVal !== null) {
-          baselinePct = this._toScalePct(baselineVal, safeMin, safeMax);
-        }
         let targetDisplay = null;
         if (targetVal !== null) {
           targetDisplay = this._formatDisplayWithUnit(targetVal.toLocaleString(), unit);
@@ -1777,7 +1865,7 @@ class SensorBarCard extends HTMLElement {
           peakPct     = pct;
           peakDisplay = display;
         }
-        html += this._buildRow(entityCfg, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color, baselinePct);
+        html += this._buildRow(entityCfg, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color);
       }
       rowsEl.innerHTML = html;
       this._rendered = true;
@@ -1806,7 +1894,6 @@ class SensorBarCard extends HTMLElement {
       const unit    = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
       const minVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
       const maxVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
-      const baselineVal = this._getNormalizedResolvableNumericValue(ecfg.scale.baseline);
       const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
       const safeMin   = Number.isFinite(minVal) ? minVal : 0;
       const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
@@ -1827,18 +1914,16 @@ class SensorBarCard extends HTMLElement {
       const aboveTarget = row.querySelector('.bar-above-target');
       const scale = row.querySelector('.bar-scale');
       let liveTargetPct = null;
-      let liveBaselinePct = null;
       if (targetVal !== null) {
         liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
       }
-      if (baselineVal !== null) {
-        liveBaselinePct = this._toScalePct(baselineVal, safeMin, safeMax);
-      }
+      const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
 
       if (scale) {
         scale.style.cssText = Number.isFinite(liveBaselinePct)
           ? this._getBaselineFillStyle(pct, ecfg.layout.height, ecfg, color, liveBaselinePct)
           : this._getScaleStyle(color, ecfg);
+        scale.className = `bar-scale${ecfg.bar.animated ? '' : ' no-anim'}`;
       }
       if (aboveTarget) {
         aboveTarget.style.cssText = Number.isFinite(liveBaselinePct)

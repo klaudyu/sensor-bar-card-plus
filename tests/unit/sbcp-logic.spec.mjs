@@ -11,7 +11,7 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cfg.entities).toHaveLength(1);
     expect(cfg.entities[0].entity).toBe('sensor.one');
-    expect(cfg.scale.baseline.fallback).toBe(0);
+    expect(cfg.baseline.at.fallback).toBe(0);
     expect(cfg.bar.color_mode).toBe('severity');
     expect(cfg.layout.label_position).toBe('left');
   });
@@ -23,13 +23,13 @@ describe('Sensor Bar Card Plus logic', () => {
       max: 100,
       baseline: 10,
       entities: [
-        { entity: 'sensor.row', max: 500, baseline: 75 },
+        { entity: 'sensor.row', max: 500, baseline: { at: 75 } },
       ],
     });
 
     expect(cfg.entities[0].scale.min.fallback).toBe(0);
     expect(cfg.entities[0].scale.max.fallback).toBe(500);
-    expect(cfg.entities[0].scale.baseline.fallback).toBe(75);
+    expect(cfg.entities[0].baseline.at.fallback).toBe(75);
   });
 
   it('preserves min_entity and max_entity fallback behavior', () => {
@@ -77,23 +77,87 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getNormalizedResolvableNumericValue(row.target_marker.source)).toBe(50);
   });
 
-  it('preserves baseline and baseline_entity fallback behavior', () => {
+  it('supports baseline number shorthand', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      baseline: 5,
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.baseline.at).toMatchObject({ value: 5, entity: null, fallback: 5 });
+  });
+
+  it('supports baseline entity-string shorthand', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      baseline: 'sensor.dynamic_baseline',
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline', fallback: null });
+  });
+
+  it('supports baseline.at shorthand and baseline.at entity shorthand', () => {
+    const card = createCard();
+    const numericCfg = card.normalizeCardConfig({
+      baseline: { at: 0 },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const entityCfg = card.normalizeCardConfig({
+      baseline: { at: 'sensor.dynamic_baseline' },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(numericCfg.baseline.at).toMatchObject({ value: 0, entity: null, fallback: 0 });
+    expect(entityCfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline', fallback: null });
+  });
+
+  it('preserves baseline.at.entity plus baseline.at.value fallback behavior', () => {
     const card = createCard();
     card._hass.states = {
       'sensor.dynamic_baseline': { state: '15' },
     };
 
     const cfg = card.normalizeCardConfig({
-      baseline: 5,
-      baseline_entity: 'sensor.dynamic_baseline',
+      baseline: {
+        at: {
+          entity: 'sensor.dynamic_baseline',
+          value: 5,
+        },
+      },
       entities: [{ entity: 'sensor.row' }],
     });
     const row = cfg.entities[0];
 
-    expect(card._getNormalizedResolvableNumericValue(row.scale.baseline)).toBe(15);
+    expect(card._getNormalizedResolvableNumericValue(row.baseline.at)).toBe(15);
 
     delete card._hass.states['sensor.dynamic_baseline'];
-    expect(card._getNormalizedResolvableNumericValue(row.scale.baseline)).toBe(5);
+    expect(card._getNormalizedResolvableNumericValue(row.baseline.at)).toBe(5);
+  });
+
+  it('supports baseline direction color shorthand and expanded color objects', () => {
+    const card = createCard();
+    const shorthandCfg = card.normalizeCardConfig({
+      baseline: {
+        at: 0,
+        above: '#34d399',
+        below: '#ef4444',
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const expandedCfg = card.normalizeCardConfig({
+      baseline: {
+        at: 0,
+        above: { color: '#34d399' },
+        below: { color: '#ef4444' },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(shorthandCfg.baseline.above.color).toBe('#34d399');
+    expect(shorthandCfg.baseline.below.color).toBe('#ef4444');
+    expect(expandedCfg.baseline.above.color).toBe('#34d399');
+    expect(expandedCfg.baseline.below.color).toBe('#ef4444');
   });
 
   it('converts scale values to percent and clamps out-of-range values', () => {
