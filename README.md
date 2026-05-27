@@ -15,18 +15,16 @@ It is built for dashboards where the visual context should follow live Home Assi
 
 ## Highlights
 
-- <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> **Dynamic min / max / target entities** for data-driven scales and references
-- 📈 **Target and peak markers** with optional target value labels
-- 🎨 **Severity gradient and severity-based coloring** with `gradient`, `severity`, `single`, and <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> `severity_gradient`
-- <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> **Above-target color** for visually separating the portion beyond a live or fixed threshold
+- 📈 **Dynamic min / max / target entities** for data-driven scales and references
+- ⚖️ **Baseline fill origin** for bidirectional flows such as charge/discharge and import/export (NEW)
+- ✏️ **Target and peak markers** with optional target value labels
+- 🌈 **Severity gradient and severity-based coloring** with `gradient`, `severity`, `single`, and `severity_gradient`
+- 🎯 **Above-target color** for visually separating the portion beyond a live or fixed threshold
 - 📍 **Inline / inside / above / left label placement** with `left`, `above`, `inside`, and `off`
-- <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> **Responsive label and marker layout** for tighter dashboard spaces
+- 🏷️ **Responsive label and marker layout** for tighter dashboard spaces
 - 🔧 **Per-entity overrides** for nearly every card option
-- ✨ **Smooth animation** with stable color geometry
+- 🎞️ **Smooth semantic animations** for gradients, severity bands, and threshold overlays
 - 🖱️ **Native Home Assistant more-info dialog** on click
-
-
-<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> badges in this README mark features that are specific to Sensor Bar Card Plus.
 
 ## Installation
 
@@ -89,6 +87,7 @@ The repository includes a full demo playground and a dedicated screenshot board:
 Use them to validate color modes, markers, dynamic scales, text states, edge cases, and responsive behavior.
 
 ## Development / Testing
+(NEW)
 
 Install the dev dependencies and Playwright browser once:
 
@@ -179,7 +178,7 @@ entities:
     max: 100
 ```
 
-### `severity_gradient` <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
+### `severity_gradient` 
 
 `severity_gradient` uses the same `severity:` definition, but blends smoothly between the configured colors instead of painting hard bands.
 
@@ -337,7 +336,7 @@ The target marker sits on the bottom edge of the bar. The peak marker sits on th
 
 ![Dynamic target and above-target color](images/above-target-small.gif)
 
-### Above-target color <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
+### Above-target color 
 
 Use `above_target_color` when you want the filled section beyond the target to stand out as a different state. The marker, target label, and color split animate together so the threshold remains readable while the target changes.
 
@@ -357,7 +356,7 @@ entities:
     max: 100
 ```
 
-### Target value label <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
+### Target value label
 
 Set `show_target_label: true` to render the numeric target below the marker. The label is clamped so it stays inside the track area near the edges and follows dynamic target changes smoothly.
 
@@ -400,17 +399,47 @@ entities:
 
 Peak and target markers can occupy the same position without becoming ambiguous because they live on opposite bar edges. That makes them suitable for shared-threshold visualizations and future multi-reference extensions.
 
-## Baseline Fill Origin
-
-<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
+## Baseline Fill Origin 
+(NEW))
 
 Use `baseline` when the fill should start from a neutral point instead of always starting at `min`.
 
-- `baseline` sets the fill origin on the configured `min` to `max` scale
-- gradients and severity modes still represent the full global `min` to `max` scale
-- directional above/below colors are optional overrides on top of that global scale
+- `baseline` defines the fill origin on the configured `min` to `max` scale
+- gradients and severity modes still represent the full global scale
+- baseline changes fill geometry, not the meaning of the scale
+- `baseline.above` and `baseline.below` are optional semantic overlays when you want each side to read differently
 
-This is useful for charge/discharge, import/export, or any metric where movement above and below a neutral value should read differently.
+This is useful for batteries, charge and discharge, import and export, neutral operating points, and any bidirectional flow where movement on either side of a reference value should read clearly at a glance.
+
+![Baseline fill origin](images/baseline-fill-origin.png)
+
+### Structured baseline configuration
+
+These forms are equivalent:
+
+```yaml
+baseline: 0
+```
+
+```yaml
+baseline:
+  at:
+    value: 0
+```
+
+And these forms are equivalent:
+
+```yaml
+baseline: sensor.dynamic_baseline
+```
+
+```yaml
+baseline:
+  at:
+    entity: sensor.dynamic_baseline
+```
+
+Advanced baseline behavior is grouped under `baseline:` so related options stay together, the config remains extensible, and the YAML does not drift into flat one-off parameters over time.
 
 ### Centered zero baseline
 
@@ -441,7 +470,13 @@ entities:
     name: Net Power
 ```
 
-### Above-baseline color only
+### Baseline colors and overrides
+
+The base semantic scale still spans the full bar. Optional above and below colors sit on top of that scale when you want the two directions to carry distinct meaning.
+
+![Baseline colors and overrides](images/baseline-colors-overrides.png)
+
+#### Above-baseline color only
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -457,7 +492,7 @@ entities:
     name: Battery
 ```
 
-### Above and below baseline colors
+#### Above and below baseline colors
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -473,6 +508,34 @@ entities:
   - entity: sensor.home_battery_power
     name: Battery
 ```
+
+### Target and baseline interaction
+
+Targets stay on the same global scale, so threshold markers, `above_target_color`, and baseline geometry remain easy to read together.
+
+![Baseline target interaction](images/baseline-target-interaction.png)
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Target And Baseline Interaction
+color_mode: severity_gradient
+min: -100
+max: 100
+show_target_label: true
+above_target_color: '#fb7185'
+baseline:
+  at: 0
+entities:
+  - entity: sensor.power_flow
+    name: Target above baseline
+    target: 28
+```
+
+### Animated semantic baseline
+
+Animated baseline rows keep the semantic color scale stable while the visible interval moves. That makes baseline crossing, threshold transitions, and bidirectional motion much easier to read.
+
+![Animated semantic baseline](images/baseline-animated-semantic.gif)
 
 ### Dynamic baseline
 
@@ -493,9 +556,13 @@ entities:
     name: Grid
 ```
 
-## Dynamic Min / Max / Target Entities
+### Compact baseline layouts
 
-<img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20">
+Baseline also works well in denser dashboard layouts where you still want bidirectional meaning without giving up readability.
+
+![Compact baseline showcase](images/baseline-compact-showcase.png)
+
+## Dynamic Min / Max / Target Entities
 
 You can source `min`, `max`, and `target` from other entities instead of hardcoding them in the card config.
 
@@ -726,32 +793,32 @@ All options can be set globally at card level and overridden per entity.
 
 ### Card Options
 
-| Option | Type | Default | Description | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
-|---|---|---|---|---|
-| `title` | string | - | Optional title above the card | - |
-| `entities` | list | required | Entities to render | - |
-| `label_position` | string | `left` | `left`, `above`, `inside`, `off` | - |
-| `color_mode` | string | `severity` | `gradient`, `severity`, `severity_gradient`, `single` | - |
-| `color` | string | `#4a9eff` | Used by `single` mode | - |
-| `gradient_stops` | list | built-in default | Used by `gradient` | - |
-| `severity` | list | built-in default | Used by `severity` and `severity_gradient` | - |
-| `animated` | boolean | `true` | Animate value changes | - |
-| `show_peak` | boolean | `false` | Show peak marker | - |
-| `peak_color` | string | `#888` | Peak marker color | - |
-| `target` | number | - | Fixed target value | - |
-| `target_entity` | string | - | Dynamic target value entity | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
-| `target_color` | string | `#888` | Target marker color | - |
-| `show_target_label` | boolean | `false` | Show value under target marker | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
-| `above_target_color` | string | - | Fill color beyond the target | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
-| `min` | number | `0` | Minimum scale value | - |
-| `min_entity` | string | - | Dynamic minimum entity | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
-| `max` | number | `100` | Maximum scale value | - |
-| `max_entity` | string | - | Dynamic maximum entity | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
-| `baseline` | number, string, object | - | Fill origin config. Supports `baseline: 0`, `baseline: sensor.dynamic_baseline`, or a structured object with `at`, `above`, and `below`. | <img src="images/plus-rainbow-badge.svg" alt="PLUS" height="20"> |
-| `height` | number | `38` | Bar height in pixels | - |
-| `label_width` | number | `100` | Fixed label width for `left` mode | - |
-| `decimal` | number | auto | Decimal places | - |
-| `unit` | string | entity unit | Unit override | - |
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `title` | string | - | Optional title above the card |
+| `entities` | list | required | Entities to render |
+| `label_position` | string | `left` | `left`, `above`, `inside`, `off` |
+| `color_mode` | string | `severity` | `gradient`, `severity`, `severity_gradient`, `single` |
+| `color` | string | `#4a9eff` | Used by `single` mode |
+| `gradient_stops` | list | built-in default | Used by `gradient` |
+| `severity` | list | built-in default | Used by `severity` and `severity_gradient` |
+| `animated` | boolean | `true` | Animate value changes |
+| `show_peak` | boolean | `false` | Show peak marker |
+| `peak_color` | string | `#888` | Peak marker color |
+| `target` | number | - | Fixed target value |
+| `target_entity` | string | - | Dynamic target value entity |
+| `target_color` | string | `#888` | Target marker color |
+| `show_target_label` | boolean | `false` | Show value under target 
+| `above_target_color` | string | - | Fill color beyond the target |
+| `min` | number | `0` | Minimum scale value |
+| `min_entity` | string | - | Dynamic minimum entity |
+| `max` | number | `100` | Maximum scale value |
+| `max_entity` | string | - | Dynamic maximum entity |
+| `baseline` | number, string, object | - | Fill origin config. New in this release. Supports `baseline: 0`, `baseline: sensor.dynamic_baseline`, or a structured object with `at`, `above`, and `below`. |
+| `height` | number | `38` | Bar height in pixels |
+| `label_width` | number | `100` | Fixed label width for `left` mode |
+| `decimal` | number | auto | Decimal places |
+| `unit` | string | entity unit | Unit override |
 
 ### Entity Options
 
@@ -784,10 +851,6 @@ This project uses its own resource path and card type so both cards can coexist 
 - this resource path: `/local/sensor-bar-card-plus.js`
 
 It is not a drop-in replacement for the original card.
-
-If you want to support the original author directly:
-
-<https://buymeacoffee.com/tommysharpnz>
 
 ## What This Project Adds
 
