@@ -442,8 +442,9 @@ class SensorBarCard extends HTMLElement {
       ].filter(Boolean);
       
       for (const ent of entitiesToWatch) {
-        if (!oldHass.states[ent] || !newHass.states[ent]) continue;
-        if (oldHass.states[ent] !== newHass.states[ent]) {
+        const oldState = oldHass.states[ent] ?? null;
+        const newState = newHass.states[ent] ?? null;
+        if (oldState !== newState) {
           return true;
         }
       }
@@ -1730,6 +1731,89 @@ class SensorBarCard extends HTMLElement {
       </div>`;
   }
 
+  _patchRow(row, entityCfg, stateObj) {
+    if (!row || !stateObj) return;
+
+    const ecfg = this._resolve(entityCfg);
+    const rawVal = parseFloat(stateObj.state);
+    const unit = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
+    const minVal = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
+    const maxVal = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
+    const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
+    const safeMin = Number.isFinite(minVal) ? minVal : 0;
+    const safeMax = Number.isFinite(maxVal) ? maxVal : 100;
+    const isNumericState = Number.isFinite(rawVal);
+    const pct = Number.isFinite(rawVal)
+      ? this._toScalePct(rawVal, safeMin, safeMax)
+      : 0;
+    const color = this._getColor(pct, ecfg);
+    const display = isNaN(rawVal) ? stateObj.state : this._formatNumericDisplay(rawVal, ecfg.formatting.decimal);
+    const displayUnit = isNumericState ? unit : '';
+
+    const paintLayer = row.querySelector('.bar-paint-layer');
+    let liveTargetPct = null;
+    if (targetVal !== null) {
+      liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
+    }
+    const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
+    const fillState = this._getFillRenderState(pct, ecfg.layout.height, ecfg, color, liveTargetPct, liveBaselinePct);
+
+    if (paintLayer) {
+      paintLayer.style.cssText = `${fillState.paintStyle}${fillState.revealStyle}`;
+      paintLayer.className = `bar-paint-layer${ecfg.bar.animated ? '' : ' no-anim'}`;
+    }
+
+    const valueEl = row.querySelector('.value-right');
+    if (valueEl) {
+      valueEl.dataset.display = this._encodeDataAttr(display);
+      valueEl.dataset.unit = this._encodeDataAttr(displayUnit);
+      valueEl.dataset.hideUnit = 'false';
+      valueEl.innerHTML = this._formatRightValueMarkup(display, displayUnit, false);
+    }
+    const innerLabel = row.querySelector('.bar-inner-label');
+    if (innerLabel) {
+      const valueSpan = innerLabel.querySelector('.inside-value');
+      if (valueSpan) valueSpan.innerHTML = this._formatInsideValueMarkup(display, displayUnit);
+    }
+    const aboveLabel = row.querySelector('.above-bar-label');
+    if (aboveLabel) {
+      aboveLabel.innerHTML = `<span class="above-bar-label-name">${ecfg.name || stateObj.attributes?.friendly_name || entityCfg.entity}</span>${this._formatAboveValueMarkup(display, displayUnit)}`;
+    }
+
+    if (ecfg.peak_marker.show && !isNaN(rawVal)) {
+      const key = entityCfg.entity;
+      if (this._peaks[key] === undefined || rawVal > this._peaks[key]) {
+        this._peaks[key] = rawVal;
+      }
+      const peakVal = this._peaks[key];
+      const peakPct = this._toScalePct(peakVal, safeMin, safeMax);
+      const peakEl = row.querySelector('.peak-marker');
+      if (peakEl) peakEl.style.left = `${peakPct}%`;
+    }
+
+    if (targetVal !== null) {
+      const targetPct = this._toScalePct(targetVal, safeMin, safeMax);
+      const targetEl = row.querySelector('.target-marker');
+      if (targetEl) {
+        targetEl.style.display = '';
+        targetEl.style.left = `${targetPct}%`;
+      }
+
+      const targetLabelEl = row.querySelector('.target-value-label');
+      if (targetLabelEl) {
+        targetLabelEl.textContent = this._formatDisplayWithUnit(targetVal.toLocaleString(), unit);
+        targetLabelEl.style.left = `${targetPct}%`;
+        targetLabelEl.style.visibility = 'hidden';
+      }
+    } else {
+      const targetEl = row.querySelector('.target-marker');
+      if (targetEl) targetEl.style.display = 'none';
+
+      const targetLabelEl = row.querySelector('.target-value-label');
+      if (targetLabelEl) targetLabelEl.style.visibility = 'hidden';
+    }
+  }
+
   _update() {
     if (!this._hass || !this._config) return;
     const rowsEl = this.shadowRoot.querySelector('.rows');
@@ -1780,10 +1864,19 @@ class SensorBarCard extends HTMLElement {
       }
       rowsEl.innerHTML = html;
       this._rendered = true;
-      this._runPostLayoutPasses(rowsEl.querySelectorAll('.row[data-entity]'));
+
+      const builtRows = rowsEl.querySelectorAll('.row[data-entity]');
+      builtRows.forEach((row, idx) => {
+        const entityCfg = entities[idx];
+        const stateObj = entityCfg ? this._hass.states[entityCfg.entity] : null;
+        if (entityCfg && stateObj) {
+          this._patchRow(row, entityCfg, stateObj);
+        }
+      });
+      this._runPostLayoutPasses(builtRows);
       
       // Attach click handlers
-      rowsEl.querySelectorAll('.row[data-entity]').forEach(row => {
+      builtRows.forEach(row => {
         row.addEventListener('click', () => {
           const entityId = row.dataset.entity;
           const event = new CustomEvent('hass-more-info', { composed: true, detail: { entityId } });
@@ -1800,91 +1893,9 @@ class SensorBarCard extends HTMLElement {
       const stateObj = this._hass.states[entityCfg.entity];
       if (!stateObj) { rowIdx++; continue; }
 
-      const ecfg    = this._resolve(entityCfg);
-      const rawVal  = parseFloat(stateObj.state);
-      const unit    = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
-      const minVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
-      const maxVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
-      const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
-      const safeMin   = Number.isFinite(minVal) ? minVal : 0;
-      const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
-      const isNumericState = Number.isFinite(rawVal);
-      const pct = Number.isFinite(rawVal)
-        ? this._toScalePct(rawVal, safeMin, safeMax)
-        : 0;      
-      const color   = this._getColor(pct, ecfg);
-      const display = isNaN(rawVal) ? stateObj.state : this._formatNumericDisplay(rawVal, ecfg.formatting.decimal);
-      const displayUnit = isNumericState ? unit : '';
-
       const row = rows[rowIdx];
       if (!row) { rowIdx++; continue; }
-
-      // Update fill paint and animated masks in-place.
-      const paintLayer = row.querySelector('.bar-paint-layer');
-      let liveTargetPct = null;
-      if (targetVal !== null) {
-        liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
-      }
-      const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
-      const fillState = this._getFillRenderState(pct, ecfg.layout.height, ecfg, color, liveTargetPct, liveBaselinePct);
-
-      if (paintLayer) {
-        paintLayer.style.cssText = `${fillState.paintStyle}${fillState.revealStyle}`;
-        paintLayer.className = `bar-paint-layer${ecfg.bar.animated ? '' : ' no-anim'}`;
-      }
-
-      // Update displayed value
-      const valueEl = row.querySelector('.value-right');
-      if (valueEl) {
-        valueEl.dataset.display = this._encodeDataAttr(display);
-        valueEl.dataset.unit = this._encodeDataAttr(displayUnit);
-        valueEl.dataset.hideUnit = 'false';
-        valueEl.innerHTML = this._formatRightValueMarkup(display, displayUnit, false);
-      }
-      const innerLabel = row.querySelector('.bar-inner-label');
-      if (innerLabel) {
-        const valueSpan = innerLabel.querySelector('.inside-value');
-        if (valueSpan) valueSpan.innerHTML = this._formatInsideValueMarkup(display, displayUnit);
-      }
-      const aboveLabel = row.querySelector('.above-bar-label');
-      if (aboveLabel) {
-        aboveLabel.innerHTML = `<span class="above-bar-label-name">${ecfg.name || stateObj.attributes?.friendly_name || entityCfg.entity}</span>${this._formatAboveValueMarkup(display, displayUnit)}`;
-      }
-
-      // Update peak marker position
-      if (ecfg.peak_marker.show && !isNaN(rawVal)) {
-        const key = entityCfg.entity;
-        if (this._peaks[key] === undefined || rawVal > this._peaks[key]) {
-          this._peaks[key] = rawVal;
-        }
-        const peakVal = this._peaks[key];
-        const peakPct = this._toScalePct(peakVal, safeMin, safeMax);
-        const peakEl  = row.querySelector('.peak-marker');
-        if (peakEl) peakEl.style.left = `${peakPct}%`;
-      }
-      // Update target marker position (for dynamic target_entity)
-      if (targetVal !== null) {
-        const targetPct = this._toScalePct(targetVal, safeMin, safeMax);
-        const targetEl  = row.querySelector('.target-marker');
-        if (targetEl) {
-          targetEl.style.display = '';
-          targetEl.style.left = `${targetPct}%`;
-        }
-        
-        const targetLabelEl = row.querySelector('.target-value-label');
-        if (targetLabelEl) {
-          targetLabelEl.textContent = this._formatDisplayWithUnit(targetVal.toLocaleString(), unit);
-          targetLabelEl.style.left = `${targetPct}%`;
-          targetLabelEl.style.visibility = 'hidden';
-        }
-      }
-      else {
-        const targetEl = row.querySelector('.target-marker');
-        if (targetEl) targetEl.style.display = 'none';
-        
-        const targetLabelEl = row.querySelector('.target-value-label');
-        if (targetLabelEl) targetLabelEl.style.visibility = 'hidden';
-      }
+      this._patchRow(row, entityCfg, stateObj);
       rowIdx++;
     }
     this._runPostLayoutPasses(rows);

@@ -135,6 +135,28 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getNormalizedResolvableNumericValue(row.baseline.at)).toBe(5);
   });
 
+  it('triggers an update when a watched baseline entity appears after first render', () => {
+    const card = createCard();
+    card._config = card.normalizeCardConfig({
+      baseline: 'sensor.dynamic_baseline',
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    const oldHass = {
+      states: {
+        'sensor.row': { state: '10', attributes: {} },
+      },
+    };
+    const newHass = {
+      states: {
+        'sensor.row': { state: '10', attributes: {} },
+        'sensor.dynamic_baseline': { state: '15', attributes: {} },
+      },
+    };
+
+    expect(card._shouldUpdate(oldHass, newHass)).toBe(true);
+  });
+
   it('supports baseline direction color shorthand and expanded color objects', () => {
     const card = createCard();
     const shorthandCfg = card.normalizeCardConfig({
