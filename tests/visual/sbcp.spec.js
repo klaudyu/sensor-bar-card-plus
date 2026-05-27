@@ -18,6 +18,7 @@ function sensor(state, {
 const baseStates = {
   'sensor.main_positive': sensor(95, { friendly_name: 'Main positive' }),
   'sensor.main_negative': sensor(-95, { friendly_name: 'Main negative', icon: 'mdi:minus-circle-outline' }),
+  'sensor.full_width': sensor(120, { friendly_name: 'Full width' }),
   'sensor.target_dynamic': sensor(60, { friendly_name: 'Dynamic target', icon: 'mdi:bullseye-arrow' }),
   'sensor.baseline_dynamic': sensor(25, { friendly_name: 'Dynamic baseline', icon: 'mdi:vector-line' }),
   'sensor.textual': {
@@ -65,6 +66,21 @@ const scenarios = [
       min: 0,
       max: 120,
       entities: [{ entity: 'sensor.main_positive', name: 'No baseline' }],
+    },
+  },
+  {
+    name: 'full-width-fill',
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Full width fill',
+      color_mode: 'gradient',
+      gradient_stops: gradientStops,
+      label_position: 'left',
+      label_width: 170,
+      animated: false,
+      min: 0,
+      max: 120,
+      entities: [{ entity: 'sensor.full_width', name: 'Full width value' }],
     },
   },
   {

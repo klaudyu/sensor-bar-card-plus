@@ -193,30 +193,32 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getNormalizedPercent(50, 50)).toMatchObject({ start: 50, end: 50, hidden: true });
   });
 
-  it('anchors full-scale paint with pixel-based projection', () => {
+  it('distinguishes value endpoints from baseline endpoints', () => {
     const card = createCard();
 
-    expect(card._getPaintProjectionPx(400, 25, 75)).toMatchObject({
-      startPx: 100,
-      endPx: 300,
-      widthPx: 200,
-      leftPx: -100,
-      trackWidthPx: 400,
+    expect(card._getEndpointSemantics(card._getNormalizedPercent(80, null))).toMatchObject({
+      left: 'scale',
+      right: 'value',
     });
-    expect(card._getPaintProjectionPx(400, 0, 50)).toMatchObject({
-      startPx: 0,
-      endPx: 200,
-      widthPx: 200,
-      leftPx: 0,
-      trackWidthPx: 400,
+    expect(card._getEndpointSemantics(card._getNormalizedPercent(80, 50))).toMatchObject({
+      left: 'baseline',
+      right: 'value',
     });
-    expect(card._getPaintProjectionPx(400, 50, 100)).toMatchObject({
-      startPx: 200,
-      endPx: 400,
-      widthPx: 200,
-      leftPx: -200,
-      trackWidthPx: 400,
+    expect(card._getEndpointSemantics(card._getNormalizedPercent(20, 50))).toMatchObject({
+      left: 'value',
+      right: 'baseline',
     });
+  });
+
+  it('builds a single reveal shape with semantic endpoint radii', () => {
+    const card = createCard();
+    const normalReveal = card._getRevealShapeStyle(card._getNormalizedPercent(75, null), 38);
+    const baselinePositiveReveal = card._getRevealShapeStyle(card._getNormalizedPercent(75, 25), 38);
+    const baselineNegativeReveal = card._getRevealShapeStyle(card._getNormalizedPercent(25, 75), 38);
+
+    expect(normalReveal).toContain('clip-path:inset(0 25% 0 0% round 6px 6px 6px 6px)');
+    expect(baselinePositiveReveal).toContain('clip-path:inset(0 25% 0 25% round 0 6px 6px 0)');
+    expect(baselineNegativeReveal).toContain('clip-path:inset(0 25% 0 25% round 6px 0 0 6px)');
   });
 
   it('integrates above-target color into the full-width paint layer regardless of current value', () => {
@@ -237,8 +239,8 @@ describe('Sensor Bar Card Plus logic', () => {
 
     const targetPct = card._toScalePct(60, -100, 100);
     const baselinePct = card._toScalePct(0, -100, 100);
-    const paintStyleAbove = card._getFullScalePaintStyle(90, ecfg, '#dc2626', targetPct, baselinePct);
-    const paintStyleBelow = card._getFullScalePaintStyle(20, ecfg, '#2563eb', targetPct, baselinePct);
+    const paintStyleAbove = card._getFullScalePaintStyle(ecfg, '#dc2626', targetPct, baselinePct);
+    const paintStyleBelow = card._getFullScalePaintStyle(ecfg, '#2563eb', targetPct, baselinePct);
 
     expect(paintStyleAbove).toContain('#ef4444');
     expect(paintStyleAbove).toContain(`transparent ${targetPct}%`);
@@ -246,13 +248,11 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(paintStyleBelow).toContain(`transparent ${targetPct}%`);
   });
 
-  it('keeps very small reveal intervals projected against the full scale', () => {
+  it('keeps very small reveal intervals as tiny clipped windows on full-width paint', () => {
     const card = createCard();
-    const projection = card._getPaintProjectionPx(400, 49, 50);
+    const reveal = card._getRevealShapeStyle({ start: 49, end: 50, hidden: false, usesBaseline: true, positive: true }, 38);
 
-    expect(projection.widthPx).toBeCloseTo(4, 5);
-    expect(projection.leftPx).toBeCloseTo(-196, 5);
-    expect(projection.trackWidthPx).toBe(400);
+    expect(reveal).toContain('clip-path:inset(0 50% 0 49%');
   });
 
   it('formats numeric displays with decimal precision', () => {

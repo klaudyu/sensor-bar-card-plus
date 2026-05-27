@@ -493,44 +493,6 @@ class SensorBarCard extends HTMLElement {
     label.style.visibility = 'visible';
   }
 
-  _computeLiveFillState(entityCfg) {
-    const stateObj = this._hass?.states?.[entityCfg.entity];
-    if (!stateObj) return null;
-
-    const ecfg = this._resolve(entityCfg);
-    const rawVal = parseFloat(stateObj.state);
-    const minVal = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
-    const maxVal = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
-    const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
-    const safeMin = Number.isFinite(minVal) ? minVal : 0;
-    const safeMax = Number.isFinite(maxVal) ? maxVal : 100;
-    const pct = Number.isFinite(rawVal)
-      ? this._toScalePct(rawVal, safeMin, safeMax)
-      : 0;
-    const color = this._getColor(pct, ecfg);
-    const targetPct = targetVal !== null
-      ? this._toScalePct(targetVal, safeMin, safeMax)
-      : null;
-    const baselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
-
-    return this._getFillRenderState(pct, ecfg.layout.height, ecfg, color, targetPct, baselinePct);
-  }
-
-  _applyRowFillProjection(row, fillState = null) {
-    const scaleInner = row?.querySelector('.bar-scale-inner');
-    const track = row?.querySelector('.bar-track');
-    if (!scaleInner || !track) return;
-
-    const resolvedFillState = fillState || this._computeLiveFillState(this._config?.entities?.[parseInt(row.dataset.rowIndex, 10)]);
-    if (!resolvedFillState) {
-      scaleInner.style.cssText = 'display:none;left:0px;width:0px;height:100%;visibility:hidden;';
-      return;
-    }
-
-    const trackWidthPx = track.getBoundingClientRect().width;
-    scaleInner.style.cssText = this._getProjectedPaintStylePx(trackWidthPx, resolvedFillState);
-  }
-  
   _getEntityNumericValue(entityId) {
     if (!entityId || !this._hass?.states?.[entityId]) return null;
     const raw = this._hass.states[entityId].state;
@@ -782,24 +744,25 @@ class SensorBarCard extends HTMLElement {
     };
   }
 
-  _getIntervalRadiusStyle(startPct, endPct, positive = true) {
-    const left = Math.min(100, Math.max(0, startPct));
-    const right = Math.min(100, Math.max(0, endPct));
-    if (left <= 0 && right >= 100) return 'border-radius:6px;';
-    if (left <= 0) return 'border-radius:6px 0 0 6px;';
-    if (right >= 100) return 'border-radius:0 6px 6px 0;';
-    return positive ? 'border-radius:0 6px 6px 0;' : 'border-radius:6px 0 0 6px;';
+  _getEndpointSemantics(geometry) {
+    if (!geometry?.usesBaseline) {
+      return {
+        left: 'scale',
+        right: 'value',
+      };
+    }
+
+    return geometry.positive
+      ? { left: 'baseline', right: 'value' }
+      : { left: 'value', right: 'baseline' };
   }
 
-  _getRevealWindowStyle(startPct, endPct, h, positive = true) {
-    const left = Math.min(100, Math.max(0, startPct));
-    const right = Math.min(100, Math.max(0, endPct));
-    const width = Math.max(0, right - left);
-    if (width <= 0) {
-      return `display:none;left:0;width:0;height:${h}px;`;
-    }
-    const radius = this._getIntervalRadiusStyle(left, right, positive);
-    return `display:block;top:0;left:${left}%;width:${width}%;height:${h}px;right:auto;bottom:auto;overflow:hidden;${radius}`;
+  _getRevealCornerRadii(geometry) {
+    const endpoints = this._getEndpointSemantics(geometry);
+    const isRounded = (endpointType) => endpointType === 'value' || endpointType === 'range' || endpointType === 'scale';
+    const leftRadius = isRounded(endpoints.left) ? '6px' : '0';
+    const rightRadius = isRounded(endpoints.right) ? '6px' : '0';
+    return `${leftRadius} ${rightRadius} ${rightRadius} ${leftRadius}`;
   }
 
   _getAboveTargetOverlayInterval(targetPct = null) {
@@ -808,7 +771,7 @@ class SensorBarCard extends HTMLElement {
     return { start: clampedTarget, end: 100 };
   }
 
-  _getFullScalePaintStyle(pct, ecfg, color, targetPct = null, baselinePct = null) {
+  _getFullScalePaintStyle(ecfg, color, targetPct = null, baselinePct = null) {
     const layers = [];
     const basePaint = this._getBasePaintGradient(color, ecfg);
     const clampedBaseline = Number.isFinite(baselinePct)
@@ -833,43 +796,33 @@ class SensorBarCard extends HTMLElement {
     }
 
     if (basePaint) layers.push(basePaint);
-    if (!layers.length) return 'display:none;left:0;width:0;height:100%;';
+    if (!layers.length) return 'display:none;';
 
-    return `display:block;top:0;height:100%;background-image:${layers.join(',')};background-repeat:no-repeat;background-size:100% 100%;`;
+    return `display:block;inset:0;background-image:${layers.join(',')};background-repeat:no-repeat;background-size:100% 100%;`;
   }
 
-  _getPaintProjectionPx(trackWidthPx, startPct, endPct) {
-    if (!Number.isFinite(trackWidthPx) || trackWidthPx <= 0) return null;
-    const start = Math.min(100, Math.max(0, startPct));
-    const end = Math.min(100, Math.max(0, endPct));
-    const startPx = (start / 100) * trackWidthPx;
-    const endPx = (end / 100) * trackWidthPx;
-    const widthPx = Math.max(0, endPx - startPx);
-    if (widthPx <= 0) return null;
-    return {
-      startPx,
-      endPx,
-      widthPx,
-      leftPx: startPx === 0 ? 0 : -startPx,
-      trackWidthPx,
-    };
-  }
+  _getRevealShapeStyle(geometry, h) {
+    const start = Math.min(100, Math.max(0, geometry?.start ?? 0));
+    const end = Math.min(100, Math.max(0, geometry?.end ?? 0));
 
-  _getProjectedPaintStylePx(trackWidthPx, fillState) {
-    if (!fillState?.paintBaseStyle) return 'display:none;left:0px;width:0px;height:100%;visibility:hidden;';
-    const projection = this._getPaintProjectionPx(trackWidthPx, fillState.geometry.start, fillState.geometry.end);
-    if (!projection) {
-      return `${fillState.paintBaseStyle}left:0px;width:0px;visibility:hidden;`;
+    if (geometry?.hidden) {
+      return `display:none;height:${h}px;clip-path:inset(0 100% 0 0 round 0);`;
     }
-    return `${fillState.paintBaseStyle}left:${projection.leftPx}px;width:${projection.trackWidthPx}px;visibility:visible;`;
+
+    const topInset = '0';
+    const rightInset = `${Math.max(0, 100 - end)}%`;
+    const bottomInset = '0';
+    const leftInset = `${start}%`;
+    const radii = this._getRevealCornerRadii(geometry);
+    return `display:block;height:${h}px;clip-path:inset(${topInset} ${rightInset} ${bottomInset} ${leftInset} round ${radii});`;
   }
 
   _getFillRenderState(pct, h, ecfg, color, targetPct = null, baselinePct = null) {
     const geometry = this._getNormalizedPercent(pct, baselinePct);
     return {
       geometry,
-      windowStyle: this._getRevealWindowStyle(geometry.start, geometry.end, h, geometry.positive),
-      paintBaseStyle: `${this._getFullScalePaintStyle(pct, ecfg, color, targetPct, baselinePct)}left:0px;width:0px;visibility:hidden;`,
+      paintStyle: this._getFullScalePaintStyle(ecfg, color, targetPct, baselinePct),
+      revealStyle: this._getRevealShapeStyle(geometry, h),
     };
   }
 
@@ -1056,22 +1009,14 @@ class SensorBarCard extends HTMLElement {
           background: var(--secondary-background-color, #e8e8e8);
           overflow: hidden;
         }
-        .bar-scale {
+        .bar-paint-layer {
           position: absolute;
           inset: 0;
-          border-radius: inherit;
-          transition: left 0.6s cubic-bezier(0.4,0,0.2,1), width 0.6s cubic-bezier(0.4,0,0.2,1);
+          transition: clip-path 0.6s cubic-bezier(0.4,0,0.2,1);
           z-index: 1;
         }
-        .bar-scale.no-anim {
+        .bar-paint-layer.no-anim {
           transition: none;
-        }
-        .bar-scale-inner {
-          position: absolute;
-          top: 0;
-          left: 0;
-          height: 100%;
-          z-index: 2;
         }
 
         .bar-inner-label {
@@ -1581,7 +1526,6 @@ class SensorBarCard extends HTMLElement {
         this._applyValueVisibility();
         const targetRows = rows || this.shadowRoot?.querySelectorAll('.row[data-entity]') || [];
         targetRows.forEach(row => {
-          this._applyRowFillProjection(row);
           this._positionTargetLabel(row);
         });
       });
@@ -1703,7 +1647,7 @@ class SensorBarCard extends HTMLElement {
     return `<span class="inside-value-text ${unitModeClass}"><span class="inside-number">${display}</span><span class="inside-unit">${cleanUnit}</span></span>`;
   }
 
-  _buildRow(entityCfg, rowIndex, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor) {
+  _buildRow(entityCfg, stateDisplay, unit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, peakColor, targetColor) {
     const ecfg = this._resolve(entityCfg);
     const layout = ecfg.layout;
     const bar = ecfg.bar;
@@ -1765,7 +1709,7 @@ class SensorBarCard extends HTMLElement {
       : '';    
       
     return `
-      <div class="row" data-entity="${entityCfg.entity}" data-row-index="${rowIndex}">
+      <div class="row" data-entity="${entityCfg.entity}">
         <div class="row-stack">
           ${aboveLabel}
           <div class="main-line ${lp}-mode" style="height:${h}px;">
@@ -1773,9 +1717,7 @@ class SensorBarCard extends HTMLElement {
             ${leftLabel}
             <div class="bar-wrap">
               <div class="bar-track" style="height:${h}px;">
-                <div class="bar-scale${bar.animated ? '' : ' no-anim'}" style="${fillState.windowStyle}">
-                  <div class="bar-scale-inner" style="${fillState.paintBaseStyle}"></div>
-                </div>
+                <div class="bar-paint-layer${bar.animated ? '' : ' no-anim'}" style="${fillState.paintStyle}${fillState.revealStyle}"></div>
                 ${innerLabel}
                 ${peakMarker}
                 ${targetMarker}
@@ -1834,7 +1776,7 @@ class SensorBarCard extends HTMLElement {
           peakPct     = pct;
           peakDisplay = display;
         }
-        html += this._buildRow(entityCfg, entityIndex, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color);
+        html += this._buildRow(entityCfg, display, displayUnit, pct, color, peakPct, peakDisplay, targetPct, targetDisplay, ecfg.peak_marker.color, ecfg.target_marker.color);
       }
       rowsEl.innerHTML = html;
       this._rendered = true;
@@ -1877,9 +1819,8 @@ class SensorBarCard extends HTMLElement {
       const row = rows[rowIdx];
       if (!row) { rowIdx++; continue; }
 
-      // Update bar fill width and colour in-place — this is what triggers the CSS transition
-      const scale = row.querySelector('.bar-scale');
-      const scaleInner = row.querySelector('.bar-scale-inner');
+      // Update fill paint and animated masks in-place.
+      const paintLayer = row.querySelector('.bar-paint-layer');
       let liveTargetPct = null;
       if (targetVal !== null) {
         liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
@@ -1887,13 +1828,9 @@ class SensorBarCard extends HTMLElement {
       const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
       const fillState = this._getFillRenderState(pct, ecfg.layout.height, ecfg, color, liveTargetPct, liveBaselinePct);
 
-      if (scale) {
-        scale.style.cssText = fillState.windowStyle;
-        scale.className = `bar-scale${ecfg.bar.animated ? '' : ' no-anim'}`;
-      }
-      if (scaleInner) {
-        scaleInner.style.cssText = fillState.paintBaseStyle;
-        this._applyRowFillProjection(row, fillState);
+      if (paintLayer) {
+        paintLayer.style.cssText = `${fillState.paintStyle}${fillState.revealStyle}`;
+        paintLayer.className = `bar-paint-layer${ecfg.bar.animated ? '' : ' no-anim'}`;
       }
 
       // Update displayed value
