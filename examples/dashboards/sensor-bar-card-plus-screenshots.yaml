@@ -1573,6 +1573,14 @@ views:
     icon: mdi:movie-open-star
     badges: []
     cards:
+      - type: entities
+        title: Hero Showcase Controls
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.sbcp_hero_showcase_enabled
+            name: Animate Hero Showcase
+          - entity: input_number.sbcp_hero_phase
+            name: Hero Phase
       # Primary promo surface for GIFs, embeds, and screenshots.
       # Causal telemetry model:
       # - daylight drives solar
@@ -1621,6 +1629,11 @@ views:
                 icon: mdi:solar-power
                 min: 0
                 max: 5500
+                target: 2000
+                target_color: '#bfdbfe'
+                show_target_label: true
+                show_peak: true
+                peak_color: '#fde68a'
                 color_mode: gradient
                 gradient_stops:
                   - pos: 0
@@ -1634,25 +1647,34 @@ views:
                   - pos: 100
                     color: '#fb923c'
               # Battery is computed from solar minus house load, so the 0 W
-              # target marker anchors the neutral point between discharge/charge.
+              # baseline anchors the neutral point between discharge and charge.
               - entity: sensor.sbcp_hero_battery
                 name: Home Battery Power
                 icon: mdi:home-battery-outline
                 min: -3200
                 max: 3200
-                target: 0
-                target_color: '#f59e0b'
-                show_target_label: true
-                above_target_color: '#34d399'
-                color_mode: single
-                color: '#f59e0b'
+                baseline:
+                  at: 0
+                color_mode: gradient
+                gradient_stops:
+                  - pos: 0
+                    color: '#ef4444'
+                  - pos: 18.75
+                    color: '#ef4444'
+                  - pos: 42.1875
+                    color: '#f97316'
+                  - pos: 50
+                    color: '#2563eb'
+                  - pos: 100
+                    color: '#22c55e'
               - entity: sensor.sbcp_hero_consumption
                 name: House Consumption
                 icon: mdi:home-lightning-bolt
                 min: 0
                 max: 2600
-                target: 2100
+                target: 1800
                 target_color: '#cbd5e1'
+                show_target_label: false
                 above_target_color: '#ef4444'
                 color_mode: gradient
                 gradient_stops:
