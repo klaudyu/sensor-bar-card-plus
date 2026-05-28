@@ -656,3 +656,78 @@ for (const [name, colorMode] of [
     await expect(mount).toHaveScreenshot(`${name}.png`);
   });
 }
+
+test('ha-card wrapper stays stable across config and hass updates', async ({ page }) => {
+  await page.goto('/tests/visual/fixtures/harness.html');
+
+  const result = await page.evaluate(async ({ states, gradientStops }) => {
+    const card = await window.__sbcpRenderCard({
+      width: 720,
+      states,
+      config: {
+        type: 'custom:sensor-bar-card-plus',
+        title: 'Card mod stability',
+        color_mode: 'gradient',
+        gradient_stops: gradientStops,
+        label_position: 'left',
+        label_width: 170,
+        animated: true,
+        min: -120,
+        max: 120,
+        baseline: { at: 0 },
+        card_mod: {
+          style: {
+            '.': 'ha-card { background-color: rgba(200,169,110,0.12) !important; }',
+          },
+        },
+        entities: [{ entity: 'sensor.main_positive', name: 'Stable wrapper' }],
+      },
+    });
+
+    const initialHaCard = card.shadowRoot.querySelector('ha-card');
+
+    card.setConfig({
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Card mod stability updated',
+      color_mode: 'gradient',
+      gradient_stops: gradientStops,
+      label_position: 'left',
+      label_width: 170,
+      animated: true,
+      min: -120,
+      max: 120,
+      baseline: { at: 0 },
+      card_mod: {
+        style: `
+          ha-card {
+            background-color: rgba(200,169,110,0.12) !important;
+          }
+        `,
+      },
+      entities: [{ entity: 'sensor.main_positive', name: 'Stable wrapper' }],
+    });
+
+    card.hass = {
+      states: {
+        ...states,
+        'sensor.main_positive': window.__sbcpCreateState(40, {
+          friendly_name: 'Main positive',
+          icon: 'mdi:flash',
+          unit_of_measurement: 'W',
+        }),
+      },
+    };
+
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    return {
+      sameHaCard: initialHaCard === card.shadowRoot.querySelector('ha-card'),
+      haCardCount: card.shadowRoot.querySelectorAll('ha-card').length,
+      preservedCardModString: typeof card._config.card_mod?.style === 'string',
+    };
+  }, { states: baseStates, gradientStops });
+
+  expect(result.sameHaCard).toBe(true);
+  expect(result.haCardCount).toBe(1);
+  expect(result.preservedCardModString).toBe(true);
+});

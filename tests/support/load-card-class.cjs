@@ -3,7 +3,7 @@ const path = require('path');
 const vm = require('vm');
 
 function loadCardClass() {
-  const filePath = path.resolve(__dirname, '../../dist/sensor-bar-card-plus.js');
+  const filePath = path.resolve(__dirname, '../../src/sensor-bar-card-plus.js');
   const source = fs.readFileSync(filePath, 'utf8');
 
   const registry = new Map();
@@ -11,6 +11,11 @@ function loadCardClass() {
     console,
     setTimeout,
     clearTimeout,
+    requestAnimationFrame: (cb) => {
+      cb();
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
     ResizeObserver: class {
       observe() {}
       disconnect() {}

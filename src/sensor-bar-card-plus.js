@@ -129,11 +129,20 @@ class SensorBarCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    this._baseDomReady = false;
     this._config = {};
     this._hass = null;
     this._peaks = {};
     this._rendered = false;
     this._resizeObserver = null;
+    this._densityPassScheduled = false;
+    this._densityPassFrame = null;
+    this._densityPassRetries = 0;
+    this._ensureBaseDom();
+  }
+
+  connectedCallback() {
+    this._schedulePostLayoutDensityPass();
   }
 
   setConfig(config) {
@@ -827,13 +836,26 @@ class SensorBarCard extends HTMLElement {
     };
   }
 
-  _render() {
-    const cfg = this._config;
+  _ensureBaseDom() {
+    if (this._baseDomReady) return;
+    if (this.shadowRoot.querySelector('ha-card')) {
+      this._baseDomReady = true;
+      return;
+    }
 
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; font-family: 'Segoe UI', system-ui, sans-serif; }
 
+        ha-card {
+          display: block;
+          background: var(--card-background-color, #fff);
+          border-radius: 12px;
+          box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.08));
+          overflow: hidden;
+          padding: 16px;
+          box-sizing: border-box;
+        }
         .card {
           --sbcp-main-gap: 8px;
           --sbcp-icon-width: 28px;
@@ -845,10 +867,7 @@ class SensorBarCard extends HTMLElement {
           --sbcp-inline-label-padding-x: 8px;
           --sbcp-inline-label-padding-y: 2px;
           --sbcp-inline-label-font-size: 12px;
-          background: var(--card-background-color, #fff);
-          border-radius: 12px;
-          padding: 16px;
-          box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.08));
+          min-width: 0;
         }
         .card[data-compact="compact"] {
           --sbcp-main-gap: 6px;
@@ -1336,41 +1355,114 @@ class SensorBarCard extends HTMLElement {
 
       <ha-card>
         <div class="card">
-          ${cfg.title ? `<div class="card-title">${cfg.title}</div>` : ''}
+          <div class="card-title" style="display:none;"></div>
           <div class="rows"></div>
           <div class="measure-layer"></div>
         </div>
       </ha-card>
     `;
-    
-    if (this._resizeObserver) {
-      this._resizeObserver.disconnect();
+    this._baseDomReady = true;
+  }
+
+  _render() {
+    const cfg = this._config;
+    this._ensureBaseDom();
+
+    const titleEl = this.shadowRoot.querySelector('.card-title');
+    if (titleEl) {
+      if (cfg.title) {
+        titleEl.textContent = cfg.title;
+        titleEl.style.display = '';
+      } else {
+        titleEl.textContent = '';
+        titleEl.style.display = 'none';
+      }
     }
-    
-    this._resizeObserver = new ResizeObserver(() => {
+
+    if (!this._resizeObserver) {
+      this._resizeObserver = new ResizeObserver(() => {
+        this._applyCompactTier();
+        this._runPostLayoutPasses();
+      });
+    }
+
+    const surface = this.shadowRoot.querySelector('ha-card');
+    const card = this.shadowRoot.querySelector('.card');
+    if (surface && card) {
+      this._applyCompactTier();
+      this._resizeObserver.observe(surface);
+    }
+    this._update();
+    this._schedulePostLayoutDensityPass();
+  }
+
+  _isReliableWidth(width, minWidth = 16) {
+    return Number.isFinite(width) && width >= minWidth;
+  }
+
+  _classifyCompactTier(width, currentTier = 'normal') {
+    if (!this._isReliableWidth(width)) return currentTier || 'normal';
+    if (width < 180) return 'compressed';
+    if (width < 220) return 'dense';
+    if (width < 280) return 'tight';
+    if (width < 360) return 'compact';
+    return 'normal';
+  }
+
+  _classifyLeftDensity(width, currentDensity = 'normal') {
+    if (!this._isReliableWidth(width)) return currentDensity || 'normal';
+    if (width < 170) return 'compressed';
+    if (width < 210) return 'dense';
+    if (width < 255) return 'tight';
+    if (width < 320) return 'compact';
+    return 'normal';
+  }
+
+  _classifyRowDensity(width, currentDensity = 'normal') {
+    if (!this._isReliableWidth(width)) return currentDensity || 'normal';
+    if (width < 150) return 'compressed';
+    if (width < 190) return 'dense';
+    if (width < 245) return 'tight';
+    if (width < 300) return 'compact';
+    return 'normal';
+  }
+
+  _schedulePostLayoutDensityPass() {
+    if (this._densityPassScheduled || !this.isConnected) return;
+    this._densityPassScheduled = true;
+    this._densityPassFrame = requestAnimationFrame(() => {
+      this._densityPassScheduled = false;
+      this._densityPassFrame = null;
+      if (!this.isConnected) return;
+
+      const surface = this.shadowRoot?.querySelector('ha-card');
+      const width = surface?.getBoundingClientRect().width ?? 0;
+      if (!this._isReliableWidth(width)) {
+        if (this._densityPassRetries < 4) {
+          this._densityPassRetries += 1;
+          this._schedulePostLayoutDensityPass();
+        }
+        return;
+      }
+
+      this._densityPassRetries = 0;
       this._applyCompactTier();
       this._runPostLayoutPasses();
     });
-    
-    const card = this.shadowRoot.querySelector('.card');
-    if (card) {
-      this._applyCompactTier();
-      this._resizeObserver.observe(card);
-    }
-    this._update();
   }
 
   _applyCompactTier() {
     if (!this.shadowRoot) return;
+    const surface = this.shadowRoot.querySelector('ha-card');
     const card = this.shadowRoot.querySelector('.card');
-    if (!card) return;
-    const width = card.getBoundingClientRect().width;
-    let tier = 'normal';
-    if (width < 180) tier = 'compressed';
-    else if (width < 220) tier = 'dense';
-    else if (width < 280) tier = 'tight';
-    else if (width < 360) tier = 'compact';
-    card.dataset.compact = tier;
+    if (!surface || !card) return;
+    const width = surface.getBoundingClientRect().width;
+    if (!this._isReliableWidth(width)) {
+      this._schedulePostLayoutDensityPass();
+      if (!card.dataset.compact) card.dataset.compact = 'normal';
+      return;
+    }
+    card.dataset.compact = this._classifyCompactTier(width, card.dataset.compact);
   }
 
   _applyLeftModeDensity() {
@@ -1378,11 +1470,13 @@ class SensorBarCard extends HTMLElement {
     const densities = ['normal', 'compact', 'tight', 'dense', 'compressed'];
     this.shadowRoot.querySelectorAll('.main-line.left-mode').forEach(mainLine => {
       const width = mainLine.getBoundingClientRect().width;
-      let density = 'normal';
-      if (width < 170) density = 'compressed';
-      else if (width < 210) density = 'dense';
-      else if (width < 255) density = 'tight';
-      else if (width < 320) density = 'compact';
+      if (!this._isReliableWidth(width)) {
+        this._schedulePostLayoutDensityPass();
+        if (!mainLine.dataset.leftDensity) mainLine.dataset.leftDensity = 'normal';
+        return;
+      }
+
+      let density = this._classifyLeftDensity(width, mainLine.dataset.leftDensity);
 
       const labelText = mainLine.querySelector('.label-left-text');
       const fullLabelWidth = labelText ? labelText.scrollWidth : Number.POSITIVE_INFINITY;
@@ -1429,12 +1523,12 @@ class SensorBarCard extends HTMLElement {
     if (!this.shadowRoot) return;
     this.shadowRoot.querySelectorAll('.main-line').forEach(mainLine => {
       const width = mainLine.getBoundingClientRect().width;
-      let density = 'normal';
-      if (width < 150) density = 'compressed';
-      else if (width < 190) density = 'dense';
-      else if (width < 245) density = 'tight';
-      else if (width < 300) density = 'compact';
-      mainLine.dataset.rowDensity = density;
+      if (!this._isReliableWidth(width)) {
+        this._schedulePostLayoutDensityPass();
+        if (!mainLine.dataset.rowDensity) mainLine.dataset.rowDensity = 'normal';
+        return;
+      }
+      mainLine.dataset.rowDensity = this._classifyRowDensity(width, mainLine.dataset.rowDensity);
     });
   }
 
@@ -1902,6 +1996,12 @@ class SensorBarCard extends HTMLElement {
   }
   
   disconnectedCallback() {
+    if (this._densityPassFrame !== null) {
+      cancelAnimationFrame(this._densityPassFrame);
+      this._densityPassFrame = null;
+    }
+    this._densityPassScheduled = false;
+    this._densityPassRetries = 0;
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
       this._resizeObserver = null;

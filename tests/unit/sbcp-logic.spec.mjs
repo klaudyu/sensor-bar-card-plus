@@ -16,6 +16,24 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(cfg.layout.label_position).toBe('left');
   });
 
+  it('preserves unknown config keys such as card_mod', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      entity: 'sensor.one',
+      card_mod: {
+        style: {
+          '.': 'ha-card { background: red; }',
+        },
+      },
+    });
+
+    expect(cfg.card_mod).toEqual({
+      style: {
+        '.': 'ha-card { background: red; }',
+      },
+    });
+  });
+
   it('merges per-entity scale overrides over card defaults', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -195,6 +213,42 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(card._toScalePct(25, 25, 25)).toBe(0);
     expect(card._toScalePct(30, 25, 25)).toBe(100);
+  });
+
+  it('does not classify unreliable widths as compressed density', () => {
+    const card = createCard();
+
+    expect(card._classifyCompactTier(0, 'normal')).toBe('normal');
+    expect(card._classifyRowDensity(0, 'normal')).toBe('normal');
+    expect(card._classifyLeftDensity(0, 'dense')).toBe('dense');
+  });
+
+  it('recalculates density correctly once a real width is available', () => {
+    const card = createCard();
+
+    expect(card._classifyRowDensity(0, 'normal')).toBe('normal');
+    expect(card._classifyRowDensity(240, 'normal')).toBe('tight');
+    expect(card._classifyLeftDensity(240, 'normal')).toBe('tight');
+    expect(card._classifyCompactTier(240, 'normal')).toBe('tight');
+  });
+
+  it('still applies compressed density for genuinely narrow widths', () => {
+    const card = createCard();
+
+    expect(card._classifyRowDensity(120, 'normal')).toBe('compressed');
+    expect(card._classifyLeftDensity(120, 'normal')).toBe('compressed');
+    expect(card._classifyCompactTier(120, 'normal')).toBe('compressed');
+  });
+
+  it('keeps density scheduling state per instance', () => {
+    const cardA = createCard();
+    const cardB = createCard();
+
+    cardA._densityPassScheduled = true;
+    cardA._densityPassRetries = 2;
+
+    expect(cardB._densityPassScheduled).toBe(false);
+    expect(cardB._densityPassRetries).toBe(0);
   });
 
   it('calculates baseline intervals at min, center, max, 10%, and 75%', () => {

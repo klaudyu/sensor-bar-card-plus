@@ -191,6 +191,17 @@ views:
           ## Interactive Playground
           These cards respond directly to the active helper settings and are intended to be the main debugging and screenshot surface.
 
+      - type: custom:sensor-bar-card-plus
+        entity: sensor.sbcp_playground_sensor
+        card_mod:
+          style: |
+            ha-card {
+              background: red !important;
+              border: 6px solid yellow !important;
+              border-radius: 24px !important;
+              padding: 16px !important;
+            }
+
       - type: vertical-stack
         cards:
           - type: markdown
