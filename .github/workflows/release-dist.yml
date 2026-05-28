@@ -24,6 +24,10 @@ jobs:
           mkdir -p dist
           cp src/sensor-bar-card-plus.js dist/sensor-bar-card-plus.js
 
+      - name: Verify dist is up to date
+        run: |
+          diff -u src/sensor-bar-card-plus.js dist/sensor-bar-card-plus.js
+
       - name: Upload release asset
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2

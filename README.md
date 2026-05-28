@@ -1,8 +1,10 @@
 # Sensor Bar Card Plus
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration) 
-[![GitHub release](https://img.shields.io/github/release/cdelaet/sensor-bar-card-plus.svg)](https://github.com/cdelaet/sensor-bar-card-plus/releases) 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/cdelaet/sensor-bar-card-plus)](https://github.com/cdelaet/sensor-bar-card-plus/releases)
+[![Validate](https://github.com/cdelaet/sensor-bar-card-plus/actions/workflows/validate.yml/badge.svg)](https://github.com/cdelaet/sensor-bar-card-plus/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/cdelaet/sensor-bar-card-plus/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/cdelaet/sensor-bar-card-plus?style=social)](https://github.com/cdelaet/sensor-bar-card-plus)
 
 A modern sensor visualization card for Home Assistant dashboards, with dynamic min/max/target sources, flexible bar rendering, severity-aware coloring, target and peak markers, and compact information-dense layouts.
 
@@ -882,7 +884,7 @@ Issues and pull requests are welcome.
 
 Recommended workflow:
 
-1. Make changes in `dist/sensor-bar-card-plus.js`
+1. Make changes in `src/sensor-bar-card-plus.js`
 2. Verify behavior in the demo playground and screenshot board
 3. Update screenshots or README examples if the user-facing behavior changed
 4. Open a pull request with a concise explanation of the change
