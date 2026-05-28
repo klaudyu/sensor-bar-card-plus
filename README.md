@@ -806,10 +806,10 @@ All options can be set globally at card level and overridden per entity.
 | `severity` | list | built-in default | Used by `severity` and `severity_gradient` |
 | `animated` | boolean | `true` | Animate value changes |
 | `show_peak` | boolean | `false` | Show peak marker |
-| `peak_color` | string | `#888` | Peak marker color |
+| `peak_color` | string | `#888888` | Peak marker color |
 | `target` | number | - | Fixed target value |
 | `target_entity` | string | - | Dynamic target value entity |
-| `target_color` | string | `#888` | Target marker color |
+| `target_color` | string | `#888888` | Target marker color |
 | `show_target_label` | boolean | `false` | Show value under target 
 | `above_target_color` | string | - | Fill color beyond the target |
 | `min` | number | `0` | Minimum scale value |
