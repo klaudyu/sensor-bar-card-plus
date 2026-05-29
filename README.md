@@ -499,7 +499,7 @@ baseline: 0
 ```yaml
 baseline:
   at:
-    value: 0
+    fixed: 0
 ```
 
 And these forms are equivalent:
@@ -614,7 +614,7 @@ Animated baseline rows keep the semantic color scale stable while the visible in
 
 ### Dynamic baseline
 
-If both an entity and a static `value` are set under `baseline.at`, the entity takes precedence. If that entity is unavailable or non-numeric, the static `value` is used as fallback.
+If both an `entity` and a `fixed` value are set under `baseline.at`, the entity takes precedence. If that entity is unavailable or non-numeric, the `fixed` value is used as fallback.
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -625,7 +625,7 @@ max: 3000
 baseline:
   at:
     entity: sensor.dynamic_baseline
-    value: 0
+    fixed: 0
 entities:
   - entity: sensor.grid_power
     name: Grid
