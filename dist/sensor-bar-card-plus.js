@@ -398,9 +398,19 @@ class SensorBarCard extends HTMLElement {
 
   normalizeScaleBound(entityConfig, cardConfig, key, defaultValue) {
     const cardScale = cardConfig?.scale;
+    const entityScale = entityConfig?.scale;
     const entityKey = `${key}_entity`;
-    const value = entityConfig[key] ?? cardScale?.[key]?.fixed ?? cardScale?.[key]?.value ?? cardConfig?.[key] ?? defaultValue;
-    const entity = entityConfig[entityKey] ?? cardScale?.[key]?.entity ?? cardConfig?.[entityKey] ?? null;
+    const inherited = this.normalizeResolvableValue(
+      cardScale?.[key]?.fixed ?? cardScale?.[key]?.value ?? cardConfig?.[key] ?? defaultValue,
+      cardScale?.[key]?.entity ?? cardConfig?.[entityKey] ?? null
+    );
+
+    if (entityScale?.[key] !== undefined) {
+      return this.normalizeStructuredResolvableValue(entityScale[key], inherited, defaultValue);
+    }
+
+    const value = entityConfig[key] ?? inherited.fixed ?? defaultValue;
+    const entity = entityConfig[entityKey] ?? inherited.entity ?? null;
     return this.normalizeResolvableValue(value, entity);
   }
 
@@ -413,74 +423,110 @@ class SensorBarCard extends HTMLElement {
 
   normalizeBarConfig(entityConfig, cardConfig) {
     const cardBar = cardConfig?.bar;
-    const structuredSegments = entityConfig.bar?.segments ?? null;
-    const topLevelSegments = entityConfig.segments ?? null;
-    const legacySeverity = entityConfig.severity ?? null;
+    const entityBar = entityConfig?.bar;
+    const entityStructuredSegments = entityBar?.segments;
+    const entityTopLevelSegments = entityConfig.segments;
+    const entityLegacySeverity = entityConfig.severity;
+    const cardStructuredSegments = cardBar?.segments ?? null;
+    const cardTopLevelSegments = cardConfig?.segments ?? null;
+    const cardLegacySeverity = cardConfig?.severity ?? null;
     let segments = null;
     let segment_space = cardBar?.segment_space ?? 'percent';
 
-    if (structuredSegments !== null) {
-      segments = this.normalizeGaugeSegments(structuredSegments);
+    if (entityStructuredSegments !== undefined && entityStructuredSegments !== null) {
+      segments = this.normalizeGaugeSegments(entityStructuredSegments);
       segment_space = 'scale';
-    } else if (topLevelSegments !== null) {
-      segments = this.normalizeGaugeSegments(topLevelSegments);
+    } else if (entityTopLevelSegments !== undefined && entityTopLevelSegments !== null) {
+      segments = this.normalizeGaugeSegments(entityTopLevelSegments);
       segment_space = 'scale';
-    } else if (legacySeverity !== null) {
-      segments = this.normalizeSeverityToSegments(legacySeverity);
+    } else if (entityLegacySeverity !== undefined && entityLegacySeverity !== null) {
+      segments = this.normalizeSeverityToSegments(entityLegacySeverity);
       segment_space = 'percent';
-    } else if (Array.isArray(cardBar?.segments)) {
-      segments = cardBar.segments.map((segment) => ({ ...segment }));
-      segment_space = cardBar.segment_space ?? 'percent';
+    } else if (cardStructuredSegments !== null && cardStructuredSegments !== undefined) {
+      segments = cardStructuredSegments.map((segment) => ({ ...segment }));
+      segment_space = cardBar?.segment_space ?? 'percent';
+    } else if (cardTopLevelSegments !== null && cardTopLevelSegments !== undefined) {
+      segments = this.normalizeGaugeSegments(cardTopLevelSegments);
+      segment_space = 'scale';
+    } else if (cardLegacySeverity !== null && cardLegacySeverity !== undefined) {
+      segments = this.normalizeSeverityToSegments(cardLegacySeverity);
+      segment_space = 'percent';
     }
 
+    const structuredAboveTargetColor = entityConfig?.target && typeof entityConfig.target === 'object' && !Array.isArray(entityConfig.target)
+      ? entityConfig.target.when_exceeded?.fill_color
+      : undefined;
+    const inheritedStructuredAboveTargetColor = cardConfig?.target && typeof cardConfig.target === 'object' && !Array.isArray(cardConfig.target)
+      ? cardConfig.target.when_exceeded?.fill_color
+      : undefined;
+
     return {
-      color_mode: entityConfig.color_mode ?? cardBar?.color_mode ?? cardConfig?.color_mode ?? 'severity',
-      color: entityConfig.color ?? cardBar?.color ?? cardConfig?.color ?? '#4a9eff',
-      gradient_stops: entityConfig.gradient_stops ?? cardBar?.gradient_stops ?? cardConfig?.gradient_stops ?? null,
+      color_mode: entityBar?.color_mode ?? entityConfig.color_mode ?? cardBar?.color_mode ?? cardConfig?.color_mode ?? 'severity',
+      color: entityBar?.color ?? entityConfig.color ?? cardBar?.color ?? cardConfig?.color ?? '#4a9eff',
+      gradient_stops: entityBar?.gradient_stops ?? entityConfig.gradient_stops ?? cardBar?.gradient_stops ?? cardConfig?.gradient_stops ?? null,
       severity: segments,
       segments,
       segment_space,
-      animated: entityConfig.animated ?? cardBar?.animated ?? cardConfig?.animated ?? true,
-      above_target_color: entityConfig.above_target_color ?? cardBar?.above_target_color ?? cardConfig?.above_target_color ?? null,
+      animated: entityBar?.animated ?? entityConfig.animated ?? cardBar?.animated ?? cardConfig?.animated ?? true,
+      above_target_color: structuredAboveTargetColor ?? entityConfig.above_target_color ?? cardBar?.above_target_color ?? inheritedStructuredAboveTargetColor ?? cardConfig?.above_target_color ?? null,
     };
   }
 
   normalizeLayoutConfig(entityConfig, cardConfig) {
     const cardLayout = cardConfig?.layout;
+    const entityLayout = entityConfig?.layout;
+    const entityLabel = entityLayout?.label;
     const cardLabel = cardLayout?.label;
     return {
       label: {
-        position: entityConfig.label_position ?? cardLabel?.position ?? cardLayout?.label_position ?? cardConfig?.label_position ?? 'left',
-        width: entityConfig.label_width ?? cardLabel?.width ?? cardLayout?.label_width ?? cardConfig?.label_width ?? 100,
+        position: entityLabel?.position ?? entityConfig.label_position ?? cardLabel?.position ?? cardLayout?.label_position ?? cardConfig?.label_position ?? 'left',
+        width: entityLabel?.width ?? entityConfig.label_width ?? cardLabel?.width ?? cardLayout?.label_width ?? cardConfig?.label_width ?? 100,
       },
-      height: entityConfig.height ?? cardLayout?.height ?? cardConfig?.height ?? 38,
+      height: entityLayout?.height ?? entityConfig.height ?? cardLayout?.height ?? cardConfig?.height ?? 38,
     };
   }
 
   normalizeFormattingConfig(entityConfig, cardConfig) {
     const cardFormatting = cardConfig?.formatting;
+    const entityFormatting = entityConfig?.formatting;
     return {
-      decimal: entityConfig.decimal ?? cardFormatting?.decimal ?? cardConfig?.decimal ?? null,
-      unit: entityConfig.unit ?? cardFormatting?.unit ?? cardConfig?.unit ?? null,
+      decimal: entityFormatting?.decimal ?? entityConfig.decimal ?? cardFormatting?.decimal ?? cardConfig?.decimal ?? null,
+      unit: entityFormatting?.unit ?? entityConfig.unit ?? cardFormatting?.unit ?? cardConfig?.unit ?? null,
     };
   }
 
   normalizeTargetMarkerConfig(entityConfig, cardConfig) {
     const cardTarget = cardConfig?.target_marker;
-    const value = entityConfig.target ?? cardTarget?.source?.fixed ?? cardTarget?.source?.value ?? cardConfig?.target ?? null;
-    const entity = entityConfig.target_entity ?? cardTarget?.source?.entity ?? cardConfig?.target_entity ?? null;
+    const rawTarget = entityConfig?.target;
+    const inheritedTarget = cardTarget ?? {
+      source: this.normalizeResolvableValue(null, null),
+      color: cardConfig?.target_color ?? '#888',
+      show_label: cardConfig?.show_target_label ?? false,
+    };
+
+    if (rawTarget && typeof rawTarget === 'object' && !Array.isArray(rawTarget)) {
+      return {
+        source: this.normalizeStructuredResolvableValue(rawTarget.at, inheritedTarget.source, null),
+        color: rawTarget.color ?? entityConfig.target_color ?? inheritedTarget.color,
+        show_label: rawTarget.label?.show ?? entityConfig.show_target_label ?? inheritedTarget.show_label,
+      };
+    }
+
+    const value = entityConfig.target ?? inheritedTarget.source?.fixed ?? inheritedTarget.source?.value ?? cardConfig?.target ?? null;
+    const entity = entityConfig.target_entity ?? inheritedTarget.source?.entity ?? cardConfig?.target_entity ?? null;
     return {
       source: this.normalizeResolvableValue(value, entity),
-      color: entityConfig.target_color ?? cardTarget?.color ?? cardConfig?.target_color ?? '#888',
-      show_label: entityConfig.show_target_label ?? cardTarget?.show_label ?? cardConfig?.show_target_label ?? false,
+      color: entityConfig.target_color ?? inheritedTarget.color ?? cardConfig?.target_color ?? '#888',
+      show_label: entityConfig.show_target_label ?? inheritedTarget.show_label ?? cardConfig?.show_target_label ?? false,
     };
   }
 
   normalizePeakMarkerConfig(entityConfig, cardConfig) {
     const cardPeak = cardConfig?.peak_marker;
+    const entityPeak = entityConfig?.peak;
     return {
-      show: entityConfig.show_peak ?? cardPeak?.show ?? cardConfig?.show_peak ?? false,
-      color: entityConfig.peak_color ?? cardPeak?.color ?? cardConfig?.peak_color ?? '#888',
+      show: entityPeak?.enabled ?? entityConfig.show_peak ?? cardPeak?.show ?? cardConfig?.show_peak ?? false,
+      color: entityPeak?.color ?? entityConfig.peak_color ?? cardPeak?.color ?? cardConfig?.peak_color ?? '#888',
     };
   }
 

@@ -108,6 +108,129 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(html).not.toContain('999px');
   });
 
+  it('accepts structured layout input', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      layout: {
+        label: {
+          position: 'above',
+          width: 180,
+        },
+        height: 44,
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.layout).toEqual({
+      label: {
+        position: 'above',
+        width: 180,
+      },
+      height: 44,
+    });
+  });
+
+  it('accepts structured scale input with fixed values', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: 0 },
+        max: { fixed: 100 },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.scale.min).toEqual({ fixed: 0, entity: null });
+    expect(cfg.scale.max).toEqual({ fixed: 100, entity: null });
+  });
+
+  it('accepts structured scale input with entity plus fixed fallback', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { entity: 'sensor.dynamic_min', fixed: 0 },
+        max: { entity: 'sensor.dynamic_max', fixed: 100 },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.scale.min).toEqual({ fixed: 0, entity: 'sensor.dynamic_min' });
+    expect(cfg.scale.max).toEqual({ fixed: 100, entity: 'sensor.dynamic_max' });
+  });
+
+  it('accepts structured formatting input', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      formatting: {
+        decimal: 1,
+        unit: 'W',
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.formatting).toEqual({
+      decimal: 1,
+      unit: 'W',
+    });
+  });
+
+  it('accepts structured target input and normalizes to target_marker', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      target: {
+        at: {
+          entity: 'sensor.dynamic_target',
+          fixed: 2000,
+        },
+        color: '#888888',
+        label: {
+          show: true,
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.target_marker).toEqual({
+      source: {
+        fixed: 2000,
+        entity: 'sensor.dynamic_target',
+      },
+      color: '#888888',
+      show_label: true,
+    });
+  });
+
+  it('maps structured target when_exceeded.fill_color to above_target_color', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      target: {
+        at: { fixed: 65 },
+        when_exceeded: {
+          fill_color: '#dc2626',
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.above_target_color).toBe('#dc2626');
+  });
+
+  it('accepts structured peak input and normalizes to peak_marker', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      peak: {
+        enabled: true,
+        color: '#888888',
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.peak_marker).toEqual({
+      show: true,
+      color: '#888888',
+    });
+  });
+
   it('normalizes legacy severity arrays into the internal segment model', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -186,6 +309,34 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(cfg.bar.segment_space).toBe('scale');
   });
 
+  it('accepts structured bar settings for color_mode, color, gradient_stops, and animated', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      color_mode: 'single',
+      color: '#111111',
+      animated: false,
+      gradient_stops: [{ pos: 0, color: '#000000' }],
+      bar: {
+        color_mode: 'gradient',
+        color: '#4a9eff',
+        gradient_stops: [
+          { pos: 0, color: '#22c55e' },
+          { pos: 100, color: '#ef4444' },
+        ],
+        animated: true,
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.color_mode).toBe('gradient');
+    expect(cfg.bar.color).toBe('#4a9eff');
+    expect(cfg.bar.gradient_stops).toEqual([
+      { pos: 0, color: '#22c55e' },
+      { pos: 100, color: '#ef4444' },
+    ]);
+    expect(cfg.bar.animated).toBe(true);
+  });
+
   it('prefers bar.segments over top-level segments and severity', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -259,6 +410,252 @@ describe('Sensor Bar Card Plus logic', () => {
       { from: 0, to: 80, color: '#2563eb', label: null },
       { from: 80, to: null, color: '#ef4444', label: null },
     ]);
+  });
+
+  it('entity-level structured config overrides card-level structured config', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      layout: {
+        label: {
+          position: 'left',
+          width: 160,
+        },
+        height: 44,
+      },
+      scale: {
+        min: { fixed: 0 },
+        max: { fixed: 100 },
+      },
+      formatting: {
+        decimal: 1,
+        unit: 'W',
+      },
+      target: {
+        at: { fixed: 65 },
+        color: '#ffffff',
+        label: { show: true },
+      },
+      peak: {
+        enabled: true,
+        color: '#888888',
+      },
+      bar: {
+        color_mode: 'severity',
+        segments: [
+          { from: 0, color: '#22c55e' },
+          { from: 50, color: '#ef4444' },
+        ],
+        animated: true,
+      },
+      entities: [
+        {
+          entity: 'sensor.row',
+          layout: {
+            label: {
+              position: 'above',
+              width: 180,
+            },
+            height: 50,
+          },
+          scale: {
+            min: { fixed: -10 },
+            max: { fixed: 120 },
+          },
+          formatting: {
+            decimal: 2,
+            unit: 'kW',
+          },
+          target: {
+            at: { fixed: 80 },
+            color: '#ff00ff',
+            label: { show: false },
+          },
+          peak: {
+            enabled: false,
+            color: '#00ffff',
+          },
+          bar: {
+            color_mode: 'gradient',
+            animated: false,
+          },
+        },
+      ],
+    });
+
+    const row = cfg.entities[0];
+    expect(row.layout).toEqual({
+      label: {
+        position: 'above',
+        width: 180,
+      },
+      height: 50,
+    });
+    expect(row.scale.min).toEqual({ fixed: -10, entity: null });
+    expect(row.scale.max).toEqual({ fixed: 120, entity: null });
+    expect(row.formatting).toEqual({ decimal: 2, unit: 'kW' });
+    expect(row.target_marker).toEqual({
+      source: { fixed: 80, entity: null },
+      color: '#ff00ff',
+      show_label: false,
+    });
+    expect(row.peak_marker).toEqual({
+      show: false,
+      color: '#00ffff',
+    });
+    expect(row.bar.color_mode).toBe('gradient');
+    expect(row.bar.animated).toBe(false);
+  });
+
+  it('entity-level legacy flat config overrides card-level structured config', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      layout: {
+        label: {
+          position: 'above',
+          width: 180,
+        },
+        height: 44,
+      },
+      scale: {
+        min: { fixed: 10 },
+        max: { fixed: 100 },
+      },
+      formatting: {
+        decimal: 1,
+        unit: 'W',
+      },
+      target: {
+        at: { fixed: 65 },
+        color: '#ffffff',
+        label: { show: false },
+      },
+      peak: {
+        enabled: false,
+        color: '#888888',
+      },
+      bar: {
+        color_mode: 'gradient',
+        animated: false,
+      },
+      entities: [
+        {
+          entity: 'sensor.row',
+          label_position: 'left',
+          label_width: 140,
+          height: 40,
+          min: 0,
+          max: 120,
+          decimal: 3,
+          unit: 'kW',
+          target: 75,
+          target_color: '#ff0000',
+          show_target_label: true,
+          show_peak: true,
+          peak_color: '#00ff00',
+          color_mode: 'single',
+          animated: true,
+        },
+      ],
+    });
+
+    const row = cfg.entities[0];
+    expect(row.layout).toEqual({
+      label: {
+        position: 'left',
+        width: 140,
+      },
+      height: 40,
+    });
+    expect(row.scale.min).toEqual({ fixed: 0, entity: null });
+    expect(row.scale.max).toEqual({ fixed: 120, entity: null });
+    expect(row.formatting).toEqual({ decimal: 3, unit: 'kW' });
+    expect(row.target_marker).toEqual({
+      source: { fixed: 75, entity: null },
+      color: '#ff0000',
+      show_label: true,
+    });
+    expect(row.peak_marker).toEqual({
+      show: true,
+      color: '#00ff00',
+    });
+    expect(row.bar.color_mode).toBe('single');
+    expect(row.bar.animated).toBe(true);
+  });
+
+  it('entity-level structured config overrides card-level legacy flat config', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      label_position: 'left',
+      label_width: 140,
+      height: 40,
+      min: 0,
+      max: 120,
+      decimal: 1,
+      unit: 'W',
+      target: 65,
+      target_color: '#ffffff',
+      show_target_label: false,
+      show_peak: false,
+      peak_color: '#888888',
+      color_mode: 'single',
+      animated: true,
+      entities: [
+        {
+          entity: 'sensor.row',
+          layout: {
+            label: {
+              position: 'inside',
+              width: 200,
+            },
+            height: 50,
+          },
+          scale: {
+            min: { fixed: -10 },
+            max: { fixed: 200 },
+          },
+          formatting: {
+            decimal: 2,
+            unit: 'kW',
+          },
+          target: {
+            at: { fixed: 80 },
+            color: '#ff00ff',
+            label: { show: true },
+          },
+          peak: {
+            enabled: true,
+            color: '#00ffff',
+          },
+          bar: {
+            color_mode: 'gradient',
+            animated: false,
+          },
+        },
+      ],
+    });
+
+    const row = cfg.entities[0];
+    expect(row.layout).toEqual({
+      label: {
+        position: 'inside',
+        width: 200,
+      },
+      height: 50,
+    });
+    expect(row.scale.min).toEqual({ fixed: -10, entity: null });
+    expect(row.scale.max).toEqual({ fixed: 200, entity: null });
+    expect(row.formatting).toEqual({ decimal: 2, unit: 'kW' });
+    expect(row.target_marker).toEqual({
+      source: { fixed: 80, entity: null },
+      color: '#ff00ff',
+      show_label: true,
+    });
+    expect(row.peak_marker).toEqual({
+      show: true,
+      color: '#00ffff',
+    });
+    expect(row.bar.color_mode).toBe('gradient');
+    expect(row.bar.animated).toBe(false);
   });
 
   it('preserves min_entity and max_entity fallback behavior', () => {
@@ -634,6 +1031,89 @@ describe('Sensor Bar Card Plus logic', () => {
 
     delete card._hass.states['sensor.dynamic_value'];
     expect(card._getNormalizedResolvableNumericValue(resolvable)).toBe(50);
+  });
+
+  it('legacy and structured configs normalize to the same render-relevant structure', () => {
+    const card = createCard();
+    const legacy = card.normalizeCardConfig({
+      label_position: 'left',
+      label_width: 160,
+      height: 44,
+      min: 0,
+      max: 100,
+      color_mode: 'severity',
+      target: 65,
+      target_color: '#ffffff',
+      show_target_label: true,
+      above_target_color: '#dc2626',
+      show_peak: true,
+      peak_color: '#888888',
+      severity: [
+        { from: 0, to: 50, color: '#22c55e' },
+        { from: 50, to: 100, color: '#ef4444' },
+      ],
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const structured = card.normalizeCardConfig({
+      layout: {
+        label: {
+          position: 'left',
+          width: 160,
+        },
+        height: 44,
+      },
+      scale: {
+        min: {
+          fixed: 0,
+        },
+        max: {
+          fixed: 100,
+        },
+      },
+      bar: {
+        color_mode: 'severity',
+        segments: [
+          { from: 0, to: 50, color: '#22c55e' },
+          { from: 50, to: 100, color: '#ef4444' },
+        ],
+      },
+      target: {
+        at: {
+          fixed: 65,
+        },
+        color: '#ffffff',
+        label: {
+          show: true,
+        },
+        when_exceeded: {
+          fill_color: '#dc2626',
+        },
+      },
+      peak: {
+        enabled: true,
+        color: '#888888',
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const pickRenderRelevant = (cfg) => ({
+      layout: cfg.layout,
+      scale: cfg.scale,
+      bar: {
+        color_mode: cfg.bar.color_mode,
+        color: cfg.bar.color,
+        gradient_stops: cfg.bar.gradient_stops,
+        segments: card._getSegmentsForRendering(cfg, cfg.scale.min.fixed, cfg.scale.max.fixed),
+        animated: cfg.bar.animated,
+        above_target_color: cfg.bar.above_target_color,
+      },
+      formatting: cfg.formatting,
+      target_marker: cfg.target_marker,
+      peak_marker: cfg.peak_marker,
+    });
+
+    expect(pickRenderRelevant(structured)).toEqual(pickRenderRelevant(legacy));
   });
 
   it('infers missing segment end values from the next segment start', () => {
