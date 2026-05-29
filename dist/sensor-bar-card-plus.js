@@ -259,18 +259,44 @@ class SensorBarCard extends HTMLElement {
 
   // Internal resolvable shape preserves today's flat `value + *_entity`
   // behavior while canonicalizing the normalized form to `fixed + entity`.
-  normalizeResolvableValue(value, entityValue) {
-    return {
+  normalizeResolvableValue(value, entityValue, percentValue = null) {
+    const normalized = {
       fixed: value ?? null,
       entity: entityValue ?? null,
     };
+    if (Number.isFinite(percentValue)) {
+      normalized.percent = percentValue;
+    }
+    return normalized;
   }
 
   _looksLikeEntityId(value) {
     return typeof value === 'string' && /^[a-z0-9_]+\.[a-z0-9_]+$/i.test(value.trim());
   }
 
-  normalizeStructuredResolvableValue(input, inheritedResolvable = null, defaultValue = null) {
+  _parsePercentLiteral(value) {
+    if (typeof value !== 'string') return null;
+    const match = value.match(/^\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*%\s*$/);
+    if (!match) return null;
+    const percent = parseFloat(match[1]);
+    return Number.isFinite(percent) ? percent : null;
+  }
+
+  _getFiniteNumber(value) {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const num = Number(trimmed);
+      return Number.isFinite(num) ? num : null;
+    }
+    return null;
+  }
+
+  normalizeStructuredResolvableValue(input, inheritedResolvable = null, defaultValue = null, options = {}) {
+    const { allowPercent = false } = options;
     const inherited = inheritedResolvable ?? this.normalizeResolvableValue(defaultValue, null);
     if (input === undefined) {
       return { ...inherited };
@@ -281,16 +307,21 @@ class SensorBarCard extends HTMLElement {
     if (typeof input === 'object' && !Array.isArray(input)) {
       const value = input.fixed ?? input.value ?? null;
       const entity = input.entity ?? null;
-      return {
-        fixed: value,
-        entity,
-      };
+      const percent = allowPercent ? this._getFiniteNumber(input.percent) : null;
+      return this.normalizeResolvableValue(value, entity, percent);
     }
     if (this._looksLikeEntityId(input)) {
-      return {
-        fixed: inherited.fixed ?? defaultValue ?? null,
-        entity: input,
-      };
+      return this.normalizeResolvableValue(
+        inherited.fixed ?? defaultValue ?? null,
+        input,
+        inherited.percent ?? null
+      );
+    }
+    if (allowPercent) {
+      const percent = this._parsePercentLiteral(input);
+      if (Number.isFinite(percent)) {
+        return this.normalizeResolvableValue(null, null, percent);
+      }
     }
     return this.normalizeResolvableValue(input, null);
   }
@@ -343,7 +374,7 @@ class SensorBarCard extends HTMLElement {
     }
 
     return {
-      at: this.normalizeStructuredResolvableValue(rawBaseline.at, inherited.at, null),
+      at: this.normalizeStructuredResolvableValue(rawBaseline.at, inherited.at, null, { allowPercent: true }),
       above: this.normalizeBaselineDirectionConfig(rawBaseline.above, inherited.above),
       below: this.normalizeBaselineDirectionConfig(rawBaseline.below, inherited.below),
     };
@@ -382,18 +413,41 @@ class SensorBarCard extends HTMLElement {
     return this.inferSegmentEndValues(segments, 100);
   }
 
+  _hasResolvableMagnitude(resolvable) {
+    return !!resolvable && (
+      Number.isFinite(this._getFiniteNumber(resolvable.fixed))
+      || Number.isFinite(resolvable.percent)
+    );
+  }
+
   normalizeGaugeSegments(input) {
     if (!Array.isArray(input)) return null;
     const segments = input
-      .filter((segment) => Number.isFinite(segment?.from) && segment?.color)
-      .map((segment) => ({
-        from: segment.from,
-        to: Number.isFinite(segment?.to) ? segment.to : null,
-        color: segment.color,
-        label: segment.label ?? null,
-      }));
+      .map((segment) => {
+        const from = this.normalizeStructuredResolvableValue(segment?.from, null, null, { allowPercent: true });
+        const to = segment?.to === undefined
+          ? null
+          : this.normalizeStructuredResolvableValue(segment.to, null, null, { allowPercent: true });
 
-    return this.inferSegmentEndValues(segments, null);
+        if (!this._hasResolvableMagnitude(from) || !segment?.color) {
+          return null;
+        }
+
+        return {
+          from,
+          to,
+          color: segment.color,
+          label: segment.label ?? null,
+        };
+      })
+      .filter(Boolean);
+
+    return segments.map((segment, index) => ({
+      from: { ...segment.from },
+      to: segment.to ? { ...segment.to } : (index < segments.length - 1 ? { ...segments[index + 1].from } : null),
+      color: segment.color,
+      label: segment.label ?? null,
+    }));
   }
 
   normalizeScaleBound(entityConfig, cardConfig, key, defaultValue) {
@@ -498,6 +552,9 @@ class SensorBarCard extends HTMLElement {
   normalizeTargetMarkerConfig(entityConfig, cardConfig) {
     const cardTarget = cardConfig?.target_marker;
     const rawTarget = entityConfig?.target;
+    const legacyCardTarget = cardConfig?.target && typeof cardConfig.target === 'object' && !Array.isArray(cardConfig.target)
+      ? null
+      : cardConfig?.target ?? null;
     const inheritedTarget = cardTarget ?? {
       source: this.normalizeResolvableValue(null, null),
       color: cardConfig?.target_color ?? '#888',
@@ -506,16 +563,19 @@ class SensorBarCard extends HTMLElement {
 
     if (rawTarget && typeof rawTarget === 'object' && !Array.isArray(rawTarget)) {
       return {
-        source: this.normalizeStructuredResolvableValue(rawTarget.at, inheritedTarget.source, null),
+        source: this.normalizeStructuredResolvableValue(rawTarget.at, inheritedTarget.source, null, { allowPercent: true }),
         color: rawTarget.color ?? entityConfig.target_color ?? inheritedTarget.color,
         show_label: rawTarget.label?.show ?? entityConfig.show_target_label ?? inheritedTarget.show_label,
       };
     }
 
-    const value = entityConfig.target ?? inheritedTarget.source?.fixed ?? inheritedTarget.source?.value ?? cardConfig?.target ?? null;
+    const value = entityConfig.target ?? inheritedTarget.source?.fixed ?? inheritedTarget.source?.value ?? legacyCardTarget;
     const entity = entityConfig.target_entity ?? inheritedTarget.source?.entity ?? cardConfig?.target_entity ?? null;
+    const percent = entityConfig.target === undefined && entityConfig.target_entity === undefined
+      ? inheritedTarget.source?.percent ?? null
+      : null;
     return {
-      source: this.normalizeResolvableValue(value, entity),
+      source: this.normalizeResolvableValue(value, entity, percent),
       color: entityConfig.target_color ?? inheritedTarget.color ?? cardConfig?.target_color ?? '#888',
       show_label: entityConfig.show_target_label ?? inheritedTarget.show_label ?? cardConfig?.show_target_label ?? false,
     };
@@ -637,9 +697,26 @@ class SensorBarCard extends HTMLElement {
     return Number.isFinite(num) ? num : null;
   }
 
-  _getNormalizedResolvableNumericValue(resolvable) {
+  _resolvePercentValue(percent, minValue, maxValue) {
+    if (!Number.isFinite(percent)) return null;
+    const safeMin = Number.isFinite(minValue) ? minValue : 0;
+    const safeMax = Number.isFinite(maxValue) ? maxValue : 100;
+    return safeMin + ((percent / 100) * (safeMax - safeMin));
+  }
+
+  _getNormalizedResolvableNumericValue(resolvable, minValue = null, maxValue = null) {
     if (!resolvable) return null;
-    return this._getNumericValue(resolvable.fixed ?? resolvable.value, resolvable.entity);
+    const entityValue = this._getEntityNumericValue(resolvable.entity);
+    if (entityValue !== null) return entityValue;
+
+    const fixedValue = this._getNumericValue(resolvable.fixed ?? resolvable.value, null);
+    if (fixedValue !== null) return fixedValue;
+
+    if (Number.isFinite(resolvable.percent)) {
+      return this._resolvePercentValue(resolvable.percent, minValue, maxValue);
+    }
+
+    return null;
   }
 
   _hexToRgb(color) {
@@ -699,28 +776,49 @@ class SensorBarCard extends HTMLElement {
     }
     return `linear-gradient(to right, ${stops.join(', ')})`;
   }
+
+  _resolveSegmentBoundaryPct(boundary, minValue, maxValue) {
+    if (boundary === null || boundary === undefined) return null;
+
+    if (typeof boundary === 'object' && !Array.isArray(boundary)) {
+      const fixed = this._getFiniteNumber(boundary.fixed);
+      if (Number.isFinite(fixed)) {
+        return this._toScalePct(fixed, minValue, maxValue);
+      }
+      if (Number.isFinite(boundary.percent)) {
+        return boundary.percent;
+      }
+      return null;
+    }
+
+    const percent = this._parsePercentLiteral(boundary);
+    if (Number.isFinite(percent)) {
+      return percent;
+    }
+
+    const fixed = this._getFiniteNumber(boundary);
+    return Number.isFinite(fixed) ? this._toScalePct(fixed, minValue, maxValue) : null;
+  }
   
   _getSegmentsForRendering(ecfg, minValue = 0, maxValue = 100) {
     const safeMin = Number.isFinite(minValue) ? minValue : 0;
     const safeMax = Number.isFinite(maxValue) ? maxValue : 100;
     const rawSegments = Array.isArray(ecfg.bar?.segments) ? ecfg.bar.segments : [];
-    const inferredSegments = this.inferSegmentEndValues(
-      rawSegments,
-      ecfg.bar?.segment_space === 'scale' ? safeMax : 100
-    );
+    if (ecfg.bar?.segment_space === 'scale') {
+      const resolvedSegments = rawSegments
+        .map((segment) => ({
+          from: this._resolveSegmentBoundaryPct(segment.from, safeMin, safeMax),
+          to: this._resolveSegmentBoundaryPct(segment.to, safeMin, safeMax),
+          color: segment.color,
+          label: segment.label ?? null,
+        }))
+        .filter((segment) => Number.isFinite(segment.from) && segment.color);
 
-    return inferredSegments
-      .map((segment) => {
-        if (ecfg.bar?.segment_space === 'scale') {
-          return {
-            from: this._toScalePct(segment.from, safeMin, safeMax),
-            to: this._toScalePct(segment.to, safeMin, safeMax),
-            color: segment.color,
-            label: segment.label ?? null,
-          };
-        }
-        return { ...segment };
-      })
+      return this.inferSegmentEndValues(resolvedSegments, 100)
+        .filter((segment) => Number.isFinite(segment.from) && Number.isFinite(segment.to) && segment.color);
+    }
+
+    return this.inferSegmentEndValues(rawSegments, 100)
       .filter((segment) => Number.isFinite(segment.from) && Number.isFinite(segment.to) && segment.color);
   }
 
@@ -858,7 +956,7 @@ class SensorBarCard extends HTMLElement {
   }
 
   _resolveBaselinePct(ecfg, safeMin, safeMax) {
-    const baselineValue = this._getNormalizedResolvableNumericValue(ecfg.baseline?.at);
+    const baselineValue = this._getNormalizedResolvableNumericValue(ecfg.baseline?.at, safeMin, safeMax);
     if (!Number.isFinite(baselineValue)) return null;
     return this._toScalePct(baselineValue, safeMin, safeMax);
   }
@@ -1972,9 +2070,9 @@ class SensorBarCard extends HTMLElement {
     const unit = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
     const minVal = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
     const maxVal = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
-    const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
     const safeMin = Number.isFinite(minVal) ? minVal : 0;
     const safeMax = Number.isFinite(maxVal) ? maxVal : 100;
+    const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source, safeMin, safeMax);
     const isNumericState = Number.isFinite(rawVal);
     const pct = Number.isFinite(rawVal)
       ? this._toScalePct(rawVal, safeMin, safeMax)
@@ -2069,9 +2167,9 @@ class SensorBarCard extends HTMLElement {
         const unit      = ecfg.formatting.unit ?? stateObj.attributes?.unit_of_measurement ?? '';
         const minVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.min);
         const maxVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
-        const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source);
         const safeMin   = Number.isFinite(minVal) ? minVal : 0;
         const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
+        const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source, safeMin, safeMax);
         const isNumericState = Number.isFinite(rawVal);
         const pct = Number.isFinite(rawVal)
           ? this._toScalePct(rawVal, safeMin, safeMax)

@@ -1,0 +1,431 @@
+title: Sensor Bar Card Plus Heritage
+views:
+  - title: Heritage
+    path: heritage
+    type: sections
+    max_columns: 2
+    icon: mdi:compare-horizontal
+    badges: []
+    sections:
+      - type: grid
+        title: Legacy Configuration
+        cards:
+          - type: markdown
+            content: |
+              Legacy flat YAML examples. Each card should match the corresponding structured card in the next section.
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Basic Single Color
+            color_mode: single
+            color: '#2563eb'
+            label_position: left
+            label_width: 160
+            min: 0
+            max: 100
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Severity
+            color_mode: severity
+            severity:
+              - from: 0
+                to: 30
+                color: '#22c55e'
+              - from: 30
+                to: 70
+                color: '#facc15'
+              - from: 70
+                to: 100
+                color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Severity Gradient
+            color_mode: severity_gradient
+            severity:
+              - from: 0
+                to: 30
+                color: '#22c55e'
+              - from: 30
+                to: 70
+                color: '#facc15'
+              - from: 70
+                to: 100
+                color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Custom Gradient
+            color_mode: gradient
+            gradient_stops:
+              - pos: 0
+                color: '#2563eb'
+              - pos: 50
+                color: '#06b6d4'
+              - pos: 100
+                color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Target Marker And Label
+            color_mode: single
+            color: '#2563eb'
+            target: 65
+            target_color: '#ffffff'
+            show_target_label: true
+            above_target_color: '#dc2626'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Dynamic Min Max Target
+            color_mode: gradient
+            gradient_stops:
+              - pos: 0
+                color: '#2563eb'
+              - pos: 50
+                color: '#06b6d4'
+              - pos: 100
+                color: '#ef4444'
+            min_entity: sensor.sbcp_playground_min
+            max_entity: sensor.sbcp_playground_max
+            target_entity: sensor.sbcp_playground_target
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Peak Marker
+            color_mode: gradient
+            gradient_stops:
+              - pos: 0
+                color: '#2563eb'
+              - pos: 50
+                color: '#06b6d4'
+              - pos: 100
+                color: '#ef4444'
+            show_peak: true
+            peak_color: '#888888'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Baseline
+            color_mode: gradient
+            gradient_stops:
+              - pos: 0
+                color: '#2563eb'
+              - pos: 50
+                color: '#06b6d4'
+              - pos: 100
+                color: '#ef4444'
+            min: -100
+            max: 100
+            baseline: 0
+            entities:
+              - entity: sensor.sbcp_playground_negative
+                name: Negative flow
+              - entity: sensor.sbcp_playground_sensor
+                name: Positive flow
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Baseline Above Below Colors
+            color_mode: gradient
+            gradient_stops:
+              - pos: 0
+                color: '#2563eb'
+              - pos: 50
+                color: '#06b6d4'
+              - pos: 100
+                color: '#ef4444'
+            min: -100
+            max: 100
+            baseline:
+              at: 0
+              above: '#34d399'
+              below: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_negative
+                name: Negative flow
+              - entity: sensor.sbcp_playground_sensor
+                name: Positive flow
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Formatting
+            color_mode: single
+            color: '#2563eb'
+            decimal: 1
+            unit: W
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Legacy - Per-Entity Overrides
+            color_mode: severity
+            min: 0
+            max: 100
+            label_position: left
+            label_width: 150
+            severity:
+              - from: 0
+                to: 30
+                color: '#22c55e'
+              - from: 30
+                to: 70
+                color: '#facc15'
+              - from: 70
+                to: 100
+                color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Shared defaults
+              - entity: sensor.sbcp_playground_sensor
+                name: Legacy override row
+                label_width: 190
+                max: 160
+
+      - type: grid
+        title: Structured Configuration
+        cards:
+          - type: markdown
+            content: |
+              Structured configuration examples. Each card should match the corresponding legacy card in the previous section.
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Basic Single Color
+            bar:
+              color_mode: single
+              color: '#2563eb'
+            layout:
+              label:
+                position: left
+                width: 160
+            scale:
+              min:
+                fixed: 0
+              max:
+                fixed: 100
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Severity
+            bar:
+              color_mode: severity
+              segments:
+                - from: 0
+                  to: 30
+                  color: '#22c55e'
+                - from: 30
+                  to: 70
+                  color: '#facc15'
+                - from: 70
+                  to: 100
+                  color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Severity Gradient
+            bar:
+              color_mode: severity_gradient
+              segments:
+                - from: 0
+                  to: 30
+                  color: '#22c55e'
+                - from: 30
+                  to: 70
+                  color: '#facc15'
+                - from: 70
+                  to: 100
+                  color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Custom Gradient
+            bar:
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 50
+                  color: '#06b6d4'
+                - pos: 100
+                  color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Target Marker And Label
+            bar:
+              color_mode: single
+              color: '#2563eb'
+            target:
+              at:
+                fixed: 65
+              color: '#ffffff'
+              label:
+                show: true
+              when_exceeded:
+                fill_color: '#dc2626'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Dynamic Min Max Target
+            bar:
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 50
+                  color: '#06b6d4'
+                - pos: 100
+                  color: '#ef4444'
+            scale:
+              min:
+                entity: sensor.sbcp_playground_min
+              max:
+                entity: sensor.sbcp_playground_max
+            target:
+              at:
+                entity: sensor.sbcp_playground_target
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Peak Marker
+            bar:
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 50
+                  color: '#06b6d4'
+                - pos: 100
+                  color: '#ef4444'
+            peak:
+              enabled: true
+              color: '#888888'
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Baseline
+            bar:
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 50
+                  color: '#06b6d4'
+                - pos: 100
+                  color: '#ef4444'
+            scale:
+              min:
+                fixed: -100
+              max:
+                fixed: 100
+            baseline:
+              at:
+                fixed: 0
+            entities:
+              - entity: sensor.sbcp_playground_negative
+                name: Negative flow
+              - entity: sensor.sbcp_playground_sensor
+                name: Positive flow
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Baseline Above Below Colors
+            bar:
+              color_mode: gradient
+              gradient_stops:
+                - pos: 0
+                  color: '#2563eb'
+                - pos: 50
+                  color: '#06b6d4'
+                - pos: 100
+                  color: '#ef4444'
+            scale:
+              min:
+                fixed: -100
+              max:
+                fixed: 100
+            baseline:
+              at:
+                fixed: 0
+              above:
+                color: '#34d399'
+              below:
+                color: '#ef4444'
+            entities:
+              - entity: sensor.sbcp_playground_negative
+                name: Negative flow
+              - entity: sensor.sbcp_playground_sensor
+                name: Positive flow
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Formatting
+            bar:
+              color_mode: single
+              color: '#2563eb'
+            formatting:
+              decimal: 1
+              unit: W
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Sensor
+
+          - type: custom:sensor-bar-card-plus
+            title: Structured - Per-Entity Overrides
+            bar:
+              color_mode: severity
+              segments:
+                - from: 0%
+                  to: 30%
+                  color: '#22c55e'
+                - from: 30%
+                  to: 70%
+                  color: '#facc15'
+                - from: 70%
+                  to: 100%
+                  color: '#ef4444'
+            scale:
+              min:
+                fixed: 0
+              max:
+                fixed: 100
+            layout:
+              label:
+                position: left
+                width: 150
+            entities:
+              - entity: sensor.sbcp_playground_sensor
+                name: Shared defaults
+              - entity: sensor.sbcp_playground_sensor
+                name: Structured override row
+                layout:
+                  label:
+                    width: 190
+                scale:
+                  max:
+                    fixed: 160

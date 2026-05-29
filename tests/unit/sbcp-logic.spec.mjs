@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { createCard } from '../support/load-card-class.cjs';
 
 describe('Sensor Bar Card Plus logic', () => {
@@ -158,6 +159,24 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(cfg.scale.max).toEqual({ fixed: 100, entity: 'sensor.dynamic_max' });
   });
 
+  it('does not treat structured scale bounds as percent-space values', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: '50%',
+        max: '100%',
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.scale.min).toEqual({ fixed: '50%', entity: null });
+    expect(cfg.scale.max).toEqual({ fixed: '100%', entity: null });
+    expect(cfg.scale.min.percent).toBeUndefined();
+    expect(cfg.scale.max.percent).toBeUndefined();
+    expect(card._getNormalizedResolvableNumericValue(cfg.scale.min)).toBe(50);
+    expect(card._getNormalizedResolvableNumericValue(cfg.scale.max)).toBe(100);
+  });
+
   it('accepts structured formatting input', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -283,9 +302,9 @@ describe('Sensor Bar Card Plus logic', () => {
     });
 
     expect(cfg.bar.segments).toEqual([
-      { from: 0, to: 50, color: '#4CAF50', label: null },
-      { from: 50, to: 80, color: '#FF9800', label: null },
-      { from: 80, to: null, color: '#F44336', label: 'High' },
+      { from: { fixed: 0, entity: null }, to: { fixed: 50, entity: null }, color: '#4CAF50', label: null },
+      { from: { fixed: 50, entity: null }, to: { fixed: 80, entity: null }, color: '#FF9800', label: null },
+      { from: { fixed: 80, entity: null }, to: null, color: '#F44336', label: 'High' },
     ]);
     expect(cfg.bar.segment_space).toBe('scale');
   });
@@ -303,10 +322,53 @@ describe('Sensor Bar Card Plus logic', () => {
     });
 
     expect(cfg.bar.segments).toEqual([
-      { from: 0, to: 60, color: '#4CAF50', label: null },
-      { from: 60, to: null, color: '#F44336', label: null },
+      { from: { fixed: 0, entity: null }, to: { fixed: 60, entity: null }, color: '#4CAF50', label: null },
+      { from: { fixed: 60, entity: null }, to: null, color: '#F44336', label: null },
     ]);
     expect(cfg.bar.segment_space).toBe('scale');
+  });
+
+  it('parses percent literals with optional whitespace and decimals', () => {
+    const card = createCard();
+
+    expect(card._parsePercentLiteral('0%')).toBe(0);
+    expect(card._parsePercentLiteral('50%')).toBe(50);
+    expect(card._parsePercentLiteral('12.5%')).toBe(12.5);
+    expect(card._parsePercentLiteral('  75%  ')).toBe(75);
+  });
+
+  it('accepts structured bar.segments with percentage-string boundaries', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: {
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.segments).toEqual([
+      { from: { fixed: null, entity: null, percent: 0 }, to: { fixed: null, entity: null, percent: 50 }, color: '#22c55e', label: null },
+      { from: { fixed: null, entity: null, percent: 50 }, to: { fixed: null, entity: null, percent: 100 }, color: '#ef4444', label: null },
+    ]);
+  });
+
+  it('accepts top-level segments with percentage-string boundaries', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      segments: [
+        { from: '0%', color: '#22c55e' },
+        { from: '70%', color: '#ef4444' },
+      ],
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.segments).toEqual([
+      { from: { fixed: null, entity: null, percent: 0 }, to: { fixed: null, entity: null, percent: 70 }, color: '#22c55e', label: null },
+      { from: { fixed: null, entity: null, percent: 70 }, to: null, color: '#ef4444', label: null },
+    ]);
   });
 
   it('accepts structured bar settings for color_mode, color, gradient_stops, and animated', () => {
@@ -358,8 +420,8 @@ describe('Sensor Bar Card Plus logic', () => {
     });
 
     expect(cfg.bar.segments).toEqual([
-      { from: 0, to: 20, color: '#111111', label: null },
-      { from: 20, to: null, color: '#222222', label: null },
+      { from: { fixed: 0, entity: null }, to: { fixed: 20, entity: null }, color: '#111111', label: null },
+      { from: { fixed: 20, entity: null }, to: null, color: '#222222', label: null },
     ]);
   });
 
@@ -378,8 +440,8 @@ describe('Sensor Bar Card Plus logic', () => {
     });
 
     expect(cfg.bar.segments).toEqual([
-      { from: 0, to: 80, color: '#2563eb', label: null },
-      { from: 80, to: null, color: '#ef4444', label: null },
+      { from: { fixed: 0, entity: null }, to: { fixed: 80, entity: null }, color: '#2563eb', label: null },
+      { from: { fixed: 80, entity: null }, to: null, color: '#ef4444', label: null },
     ]);
     expect(cfg.bar.segment_space).toBe('scale');
   });
@@ -407,8 +469,8 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cfg.entities[0].bar.segments).toEqual(cfg.bar.segments);
     expect(cfg.entities[1].bar.segments).toEqual([
-      { from: 0, to: 80, color: '#2563eb', label: null },
-      { from: 80, to: null, color: '#ef4444', label: null },
+      { from: { fixed: 0, entity: null }, to: { fixed: 80, entity: null }, color: '#2563eb', label: null },
+      { from: { fixed: 80, entity: null }, to: null, color: '#ef4444', label: null },
     ]);
   });
 
@@ -703,6 +765,28 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getNormalizedResolvableNumericValue(row.target_marker.source)).toBe(50);
   });
 
+  it('resolves structured target percent values against the active scale', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: 0 },
+        max: { fixed: 200 },
+      },
+      target: {
+        at: '50%',
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const row = cfg.entities[0];
+
+    expect(row.target_marker.source).toEqual({
+      fixed: null,
+      entity: null,
+      percent: 50,
+    });
+    expect(card._getNormalizedResolvableNumericValue(row.target_marker.source, 0, 200)).toBe(100);
+  });
+
   it('supports baseline number shorthand', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -781,6 +865,31 @@ describe('Sensor Bar Card Plus logic', () => {
       fixed: 0,
       entity: 'sensor.dynamic_baseline',
     });
+  });
+
+  it('resolves structured baseline percent values against the active scale', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: -100 },
+        max: { fixed: 100 },
+      },
+      baseline: {
+        at: {
+          percent: 50,
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const row = cfg.entities[0];
+
+    expect(row.baseline.at).toEqual({
+      fixed: null,
+      entity: null,
+      percent: 50,
+    });
+    expect(card._getNormalizedResolvableNumericValue(row.baseline.at, -100, 100)).toBe(0);
+    expect(card._resolveBaselinePct(row, -100, 100)).toBe(50);
   });
 
   it('triggers an update when a watched baseline entity appears after first render', () => {
@@ -1148,5 +1257,66 @@ describe('Sensor Bar Card Plus logic', () => {
       { from: 28.57142857142857, to: 78.57142857142857, color: '#f59e0b', label: null },
       { from: 78.57142857142857, to: 100, color: '#ef4444', label: null },
     ]);
+  });
+
+  it('keeps numeric structured bar.segments in scale-space', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: 0 },
+        max: { fixed: 200 },
+      },
+      bar: {
+        segments: [
+          { from: 0, color: '#22c55e' },
+          { from: 100, color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(card._getSegmentsForRendering(cfg.entities[0], 0, 200)).toEqual([
+      { from: 0, to: 50, color: '#22c55e', label: null },
+      { from: 50, to: 100, color: '#ef4444', label: null },
+    ]);
+  });
+
+  it('renders percent-based structured segments in the same space as legacy severity', () => {
+    const card = createCard();
+    const legacy = card.normalizeCardConfig({
+      max: 160,
+      severity: [
+        { from: 0, to: 50, color: '#22c55e' },
+        { from: 50, to: 100, color: '#ef4444' },
+      ],
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+    const structured = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: 0 },
+        max: { fixed: 160 },
+      },
+      bar: {
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    expect(card._getSegmentsForRendering(structured, 0, 160)).toEqual(
+      card._getSegmentsForRendering(legacy, 0, 160)
+    );
+  });
+
+  it('validates the heritage dashboard YAML', () => {
+    const heritagePath = new URL('../../examples/dashboards/sensor-bar-card-plus-heritage.yaml', import.meta.url);
+
+    expect(() => {
+      execFileSync('ruby', ['-e', 'require "yaml"; YAML.load_file(ARGV[0])', heritagePath.pathname], {
+        stdio: 'pipe',
+      });
+    }).not.toThrow();
   });
 });
