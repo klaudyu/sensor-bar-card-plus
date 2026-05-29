@@ -11,9 +11,9 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cfg.entities).toHaveLength(1);
     expect(cfg.entities[0].entity).toBe('sensor.one');
-    expect(cfg.baseline.at.value).toBe(0);
+    expect(cfg.baseline.at.fixed).toBe(0);
     expect(cfg.bar.color_mode).toBe('severity');
-    expect(cfg.layout.label_position).toBe('left');
+    expect(cfg.layout.label.position).toBe('left');
   });
 
   it('preserves unknown config keys such as card_mod', () => {
@@ -45,9 +45,67 @@ describe('Sensor Bar Card Plus logic', () => {
       ],
     });
 
-    expect(cfg.entities[0].scale.min.value).toBe(0);
-    expect(cfg.entities[0].scale.max.value).toBe(500);
-    expect(cfg.entities[0].baseline.at.value).toBe(75);
+    expect(cfg.entities[0].scale.min.fixed).toBe(0);
+    expect(cfg.entities[0].scale.max.fixed).toBe(500);
+    expect(cfg.entities[0].baseline.at.fixed).toBe(75);
+  });
+
+  it('normalizes legacy layout fields into the nested layout shape', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      label_position: 'left',
+      label_width: 160,
+      height: 44,
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.layout).toEqual({
+      label: {
+        position: 'left',
+        width: 160,
+      },
+      height: 44,
+    });
+  });
+
+  it('rendering reads the nested layout shape', () => {
+    const card = createCard();
+    card._hass.states = {
+      'sensor.row': {
+        state: '42',
+        attributes: {
+          friendly_name: 'Row',
+          icon: 'mdi:flash',
+          unit_of_measurement: 'W',
+        },
+      },
+    };
+
+    const ecfg = card.normalizeCardConfig({
+      entities: [{ entity: 'sensor.row', label_width: 160 }],
+    }).entities[0];
+
+    ecfg.layout.label.width = 222;
+    ecfg.label_width = 999;
+
+    const html = card._buildRow(
+      ecfg,
+      '42',
+      'W',
+      50,
+      '#4a9eff',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(html).toContain('min(222px, var(--sbcp-left-label-share))');
+    expect(html).not.toContain('999px');
   });
 
   it('normalizes legacy severity arrays into the internal segment model', () => {
@@ -255,7 +313,7 @@ describe('Sensor Bar Card Plus logic', () => {
       entities: [{ entity: 'sensor.row' }],
     });
 
-    expect(cfg.baseline.at).toMatchObject({ value: 5, entity: null });
+    expect(cfg.baseline.at).toMatchObject({ fixed: 5, entity: null });
   });
 
   it('supports baseline entity-string shorthand', () => {
@@ -265,7 +323,7 @@ describe('Sensor Bar Card Plus logic', () => {
       entities: [{ entity: 'sensor.row' }],
     });
 
-    expect(cfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline' });
+    expect(cfg.baseline.at).toMatchObject({ fixed: null, entity: 'sensor.dynamic_baseline' });
   });
 
   it('supports baseline.at shorthand and baseline.at entity shorthand', () => {
@@ -279,11 +337,11 @@ describe('Sensor Bar Card Plus logic', () => {
       entities: [{ entity: 'sensor.row' }],
     });
 
-    expect(numericCfg.baseline.at).toMatchObject({ value: 0, entity: null });
-    expect(entityCfg.baseline.at).toMatchObject({ value: null, entity: 'sensor.dynamic_baseline' });
+    expect(numericCfg.baseline.at).toMatchObject({ fixed: 0, entity: null });
+    expect(entityCfg.baseline.at).toMatchObject({ fixed: null, entity: 'sensor.dynamic_baseline' });
   });
 
-  it('preserves baseline.at.entity plus baseline.at.value fallback behavior', () => {
+  it('normalizes baseline.at.value plus entity to baseline.at.fixed plus entity', () => {
     const card = createCard();
     card._hass.states = {
       'sensor.dynamic_baseline': { state: '15' },
@@ -300,10 +358,32 @@ describe('Sensor Bar Card Plus logic', () => {
     });
     const row = cfg.entities[0];
 
+    expect(row.baseline.at).toEqual({
+      fixed: 5,
+      entity: 'sensor.dynamic_baseline',
+    });
     expect(card._getNormalizedResolvableNumericValue(row.baseline.at)).toBe(15);
 
     delete card._hass.states['sensor.dynamic_baseline'];
     expect(card._getNormalizedResolvableNumericValue(row.baseline.at)).toBe(5);
+  });
+
+  it('accepts baseline.at.fixed directly', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      baseline: {
+        at: {
+          fixed: 0,
+          entity: 'sensor.dynamic_baseline',
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.entities[0].baseline.at).toEqual({
+      fixed: 0,
+      entity: 'sensor.dynamic_baseline',
+    });
   });
 
   it('triggers an update when a watched baseline entity appears after first render', () => {
@@ -507,6 +587,53 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(card._toScalePct(0, -2000, 5000)).toBeCloseTo(28.5714, 3);
     expect(card._toScalePct(3500, -2000, 5000)).toBeCloseTo(78.5714, 3);
+  });
+
+  it('normalizes legacy dynamic min and max to fixed plus entity', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      min: 50,
+      min_entity: 'sensor.dynamic_min',
+      max: 3000,
+      max_entity: 'sensor.dynamic_max',
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.scale.min).toEqual({ fixed: 50, entity: 'sensor.dynamic_min' });
+    expect(cfg.scale.max).toEqual({ fixed: 3000, entity: 'sensor.dynamic_max' });
+  });
+
+  it('normalizes legacy dynamic target to fixed plus entity', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      target: 2000,
+      target_entity: 'sensor.dynamic_target',
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.target_marker.source).toEqual({
+      fixed: 2000,
+      entity: 'sensor.dynamic_target',
+    });
+  });
+
+  it('runtime numeric resolution uses entity first and fixed fallback second', () => {
+    const card = createCard();
+    const resolvable = { fixed: 50, entity: 'sensor.dynamic_value' };
+
+    card._hass.states = {
+      'sensor.dynamic_value': { state: '77' },
+    };
+    expect(card._getNormalizedResolvableNumericValue(resolvable)).toBe(77);
+
+    card._hass.states['sensor.dynamic_value'] = { state: 'unknown' };
+    expect(card._getNormalizedResolvableNumericValue(resolvable)).toBe(50);
+
+    card._hass.states['sensor.dynamic_value'] = { state: '' };
+    expect(card._getNormalizedResolvableNumericValue(resolvable)).toBe(50);
+
+    delete card._hass.states['sensor.dynamic_value'];
+    expect(card._getNormalizedResolvableNumericValue(resolvable)).toBe(50);
   });
 
   it('infers missing segment end values from the next segment start', () => {

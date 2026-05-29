@@ -232,13 +232,13 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.peak_marker = this.normalizePeakMarkerConfig(entityConfig, cardConfig);
 
     // Keep flat aliases so current rendering code and public YAML stay stable.
-    normalizedEntity.min = normalizedEntity.scale.min.value;
+    normalizedEntity.min = normalizedEntity.scale.min.fixed;
     normalizedEntity.min_entity = normalizedEntity.scale.min.entity;
-    normalizedEntity.max = normalizedEntity.scale.max.value;
+    normalizedEntity.max = normalizedEntity.scale.max.fixed;
     normalizedEntity.max_entity = normalizedEntity.scale.max.entity;
     normalizedEntity.height = normalizedEntity.layout.height;
-    normalizedEntity.label_position = normalizedEntity.layout.label_position;
-    normalizedEntity.label_width = normalizedEntity.layout.label_width;
+    normalizedEntity.label_position = normalizedEntity.layout.label.position;
+    normalizedEntity.label_width = normalizedEntity.layout.label.width;
     normalizedEntity.color_mode = normalizedEntity.bar.color_mode;
     normalizedEntity.color = normalizedEntity.bar.color;
     normalizedEntity.gradient_stops = normalizedEntity.bar.gradient_stops;
@@ -247,7 +247,7 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.above_target_color = normalizedEntity.bar.above_target_color;
     normalizedEntity.decimal = normalizedEntity.formatting.decimal;
     normalizedEntity.unit = normalizedEntity.formatting.unit;
-    normalizedEntity.target = normalizedEntity.target_marker.source.value;
+    normalizedEntity.target = normalizedEntity.target_marker.source.fixed;
     normalizedEntity.target_entity = normalizedEntity.target_marker.source.entity;
     normalizedEntity.target_color = normalizedEntity.target_marker.color;
     normalizedEntity.show_target_label = normalizedEntity.target_marker.show_label;
@@ -258,11 +258,10 @@ class SensorBarCard extends HTMLElement {
   }
 
   // Internal resolvable shape preserves today's flat `value + *_entity`
-  // behavior while aligning with the canonical model where `value` doubles
-  // as the static default when `entity` does not resolve.
+  // behavior while canonicalizing the normalized form to `fixed + entity`.
   normalizeResolvableValue(value, entityValue) {
     return {
-      value: value ?? null,
+      fixed: value ?? null,
       entity: entityValue ?? null,
     };
   }
@@ -280,16 +279,16 @@ class SensorBarCard extends HTMLElement {
       return this.normalizeResolvableValue(null, null);
     }
     if (typeof input === 'object' && !Array.isArray(input)) {
-      const value = input.value ?? null;
+      const value = input.fixed ?? input.value ?? null;
       const entity = input.entity ?? null;
       return {
-        value,
+        fixed: value,
         entity,
       };
     }
     if (this._looksLikeEntityId(input)) {
       return {
-        value: inherited.value ?? defaultValue ?? null,
+        fixed: inherited.fixed ?? defaultValue ?? null,
         entity: input,
       };
     }
@@ -400,7 +399,7 @@ class SensorBarCard extends HTMLElement {
   normalizeScaleBound(entityConfig, cardConfig, key, defaultValue) {
     const cardScale = cardConfig?.scale;
     const entityKey = `${key}_entity`;
-    const value = entityConfig[key] ?? cardScale?.[key]?.value ?? cardConfig?.[key] ?? defaultValue;
+    const value = entityConfig[key] ?? cardScale?.[key]?.fixed ?? cardScale?.[key]?.value ?? cardConfig?.[key] ?? defaultValue;
     const entity = entityConfig[entityKey] ?? cardScale?.[key]?.entity ?? cardConfig?.[entityKey] ?? null;
     return this.normalizeResolvableValue(value, entity);
   }
@@ -448,9 +447,12 @@ class SensorBarCard extends HTMLElement {
 
   normalizeLayoutConfig(entityConfig, cardConfig) {
     const cardLayout = cardConfig?.layout;
+    const cardLabel = cardLayout?.label;
     return {
-      label_position: entityConfig.label_position ?? cardLayout?.label_position ?? cardConfig?.label_position ?? 'left',
-      label_width: entityConfig.label_width ?? cardLayout?.label_width ?? cardConfig?.label_width ?? 100,
+      label: {
+        position: entityConfig.label_position ?? cardLabel?.position ?? cardLayout?.label_position ?? cardConfig?.label_position ?? 'left',
+        width: entityConfig.label_width ?? cardLabel?.width ?? cardLayout?.label_width ?? cardConfig?.label_width ?? 100,
+      },
       height: entityConfig.height ?? cardLayout?.height ?? cardConfig?.height ?? 38,
     };
   }
@@ -465,7 +467,7 @@ class SensorBarCard extends HTMLElement {
 
   normalizeTargetMarkerConfig(entityConfig, cardConfig) {
     const cardTarget = cardConfig?.target_marker;
-    const value = entityConfig.target ?? cardTarget?.source?.value ?? cardConfig?.target ?? null;
+    const value = entityConfig.target ?? cardTarget?.source?.fixed ?? cardTarget?.source?.value ?? cardConfig?.target ?? null;
     const entity = entityConfig.target_entity ?? cardTarget?.source?.entity ?? cardConfig?.target_entity ?? null;
     return {
       source: this.normalizeResolvableValue(value, entity),
@@ -591,7 +593,7 @@ class SensorBarCard extends HTMLElement {
 
   _getNormalizedResolvableNumericValue(resolvable) {
     if (!resolvable) return null;
-    return this._getNumericValue(resolvable.value, resolvable.entity);
+    return this._getNumericValue(resolvable.fixed ?? resolvable.value, resolvable.entity);
   }
 
   _hexToRgb(color) {
@@ -1844,7 +1846,7 @@ class SensorBarCard extends HTMLElement {
     const safeMin = Number.isFinite(minValue) ? minValue : 0;
     const safeMax = Number.isFinite(maxValue) ? maxValue : 100;
     const baselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
-    const lp   = layout.label_position;
+    const lp   = layout.label.position;
     const h    = layout.height;
     const name = ecfg.name
       || this._hass?.states[entityCfg.entity]?.attributes?.friendly_name
@@ -1888,7 +1890,7 @@ class SensorBarCard extends HTMLElement {
       </div>` : '';
 
     const leftLabel  = lp === 'left'
-      ? `<div class="label-left" style="flex:0 1 min(${layout.label_width}px, var(--sbcp-left-label-share));max-width:min(${layout.label_width}px, var(--sbcp-left-label-share));height:${h}px;"><span class="label-left-text">${name}</span></div>`
+      ? `<div class="label-left" style="flex:0 1 min(${layout.label.width}px, var(--sbcp-left-label-share));max-width:min(${layout.label.width}px, var(--sbcp-left-label-share));height:${h}px;"><span class="label-left-text">${name}</span></div>`
       : '';
     const rightValue = lp !== 'inside' && lp !== 'above'
       ? `<div class="value-right" data-display="${this._encodeDataAttr(stateDisplay)}" data-unit="${this._encodeDataAttr(unit)}" data-hide-unit="false" style="height:${h}px;">${this._formatRightValueMarkup(stateDisplay, unit, false)}</div>`
