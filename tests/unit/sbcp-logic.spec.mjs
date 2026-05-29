@@ -1310,6 +1310,88 @@ describe('Sensor Bar Card Plus logic', () => {
     );
   });
 
+  it('renders baseline severity paint identically for legacy severity and structured percent segments', () => {
+    const card = createCard();
+    const min = -100;
+    const max = 100;
+    const baselinePct = card._toScalePct(0, min, max);
+    const legacy = card.normalizeCardConfig({
+      color_mode: 'severity',
+      baseline: 0,
+      severity: [
+        { from: 0, to: 50, color: '#22c55e' },
+        { from: 50, to: 100, color: '#ef4444' },
+      ],
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+    const structured = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: min },
+        max: { fixed: max },
+      },
+      baseline: {
+        at: { fixed: 0 },
+      },
+      bar: {
+        color_mode: 'severity',
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    expect(card._getSegmentsForRendering(structured, min, max)).toEqual(
+      card._getSegmentsForRendering(legacy, min, max)
+    );
+    expect(card._getFullScalePaintStyle(structured, '#000', null, baselinePct, min, max)).toBe(
+      card._getFullScalePaintStyle(legacy, '#000', null, baselinePct, min, max)
+    );
+  });
+
+  it('renders baseline severity_gradient paint identically for legacy severity and structured percent segments', () => {
+    const card = createCard();
+    const min = -100;
+    const max = 100;
+    const baselinePct = card._toScalePct(0, min, max);
+    const legacy = card.normalizeCardConfig({
+      color_mode: 'severity_gradient',
+      baseline: 0,
+      severity: [
+        { from: 0, to: 25, color: '#22c55e' },
+        { from: 25, to: 75, color: '#facc15' },
+        { from: 75, to: 100, color: '#ef4444' },
+      ],
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+    const structured = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: min },
+        max: { fixed: max },
+      },
+      baseline: {
+        at: { fixed: 0 },
+      },
+      bar: {
+        color_mode: 'severity_gradient',
+        segments: [
+          { from: '0%', to: '25%', color: '#22c55e' },
+          { from: '25%', to: '75%', color: '#facc15' },
+          { from: '75%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    expect(card._getSegmentsForRendering(structured, min, max)).toEqual(
+      card._getSegmentsForRendering(legacy, min, max)
+    );
+    expect(card._getFullScalePaintStyle(structured, '#000', null, baselinePct, min, max)).toBe(
+      card._getFullScalePaintStyle(legacy, '#000', null, baselinePct, min, max)
+    );
+  });
+
   it('validates the heritage dashboard YAML', () => {
     const heritagePath = new URL('../../examples/dashboards/sensor-bar-card-plus-heritage.yaml', import.meta.url);
 

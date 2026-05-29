@@ -799,12 +799,19 @@ class SensorBarCard extends HTMLElement {
     const fixed = this._getFiniteNumber(boundary);
     return Number.isFinite(fixed) ? this._toScalePct(fixed, minValue, maxValue) : null;
   }
+
+  _segmentsNeedBoundaryResolution(segments) {
+    return Array.isArray(segments) && segments.some((segment) => (
+      (segment?.from && typeof segment.from === 'object' && !Array.isArray(segment.from))
+      || (segment?.to && typeof segment.to === 'object' && !Array.isArray(segment.to))
+    ));
+  }
   
   _getSegmentsForRendering(ecfg, minValue = 0, maxValue = 100) {
     const safeMin = Number.isFinite(minValue) ? minValue : 0;
     const safeMax = Number.isFinite(maxValue) ? maxValue : 100;
     const rawSegments = Array.isArray(ecfg.bar?.segments) ? ecfg.bar.segments : [];
-    if (ecfg.bar?.segment_space === 'scale') {
+    if (ecfg.bar?.segment_space === 'scale' || this._segmentsNeedBoundaryResolution(rawSegments)) {
       const resolvedSegments = rawSegments
         .map((segment) => ({
           from: this._resolveSegmentBoundaryPct(segment.from, safeMin, safeMax),
