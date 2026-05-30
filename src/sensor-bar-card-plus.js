@@ -186,6 +186,7 @@ class SensorBarCard extends HTMLElement {
       ],
       ...rawConfig,
     };
+    baseConfig._height_explicit = rawConfig?.layout?.height !== undefined || rawConfig?.height !== undefined;
 
     // Normalise single entity shorthand to array
     if (baseConfig.entity && !baseConfig.entities) {
@@ -593,12 +594,20 @@ class SensorBarCard extends HTMLElement {
     const entityLayout = entityConfig?.layout;
     const entityLabel = entityLayout?.label;
     const cardLabel = cardLayout?.label;
+    const isCardLevelNormalization = !cardConfig;
+    const heightExplicit =
+      entityLayout?.height !== undefined
+      || entityConfig._height_explicit === true
+      || (!isCardLevelNormalization && entityConfig.height !== undefined)
+      || cardLayout?.height_explicit === true
+      || cardConfig?._height_explicit === true;
     return {
       label: {
         position: entityLabel?.position ?? entityConfig.label_position ?? cardLabel?.position ?? cardLayout?.label_position ?? cardConfig?.label_position ?? 'left',
         width: entityLabel?.width ?? entityConfig.label_width ?? cardLabel?.width ?? cardLayout?.label_width ?? cardConfig?.label_width ?? 100,
       },
       height: entityLayout?.height ?? entityConfig.height ?? cardLayout?.height ?? cardConfig?.height ?? 38,
+      height_explicit: heightExplicit,
     };
   }
 
@@ -1124,11 +1133,12 @@ class SensorBarCard extends HTMLElement {
   }
 
   _getRevealShapeStyle(geometry, h) {
+    const heightValue = typeof h === 'number' ? `${h}px` : h;
     const start = Math.min(100, Math.max(0, geometry?.start ?? 0));
     const end = Math.min(100, Math.max(0, geometry?.end ?? 0));
 
     if (geometry?.hidden) {
-      return `display:none;height:${h}px;clip-path:inset(0 100% 0 0 round 0);`;
+      return `display:none;height:${heightValue};clip-path:inset(0 100% 0 0 round 0);`;
     }
 
     const topInset = '0';
@@ -1136,7 +1146,7 @@ class SensorBarCard extends HTMLElement {
     const bottomInset = '0';
     const leftInset = `${start}%`;
     const radii = this._getRevealCornerRadii(geometry);
-    return `display:block;height:${h}px;clip-path:inset(${topInset} ${rightInset} ${bottomInset} ${leftInset} round ${radii});`;
+    return `display:block;height:${heightValue};clip-path:inset(${topInset} ${rightInset} ${bottomInset} ${leftInset} round ${radii});`;
   }
 
   _getFillRenderState(pct, h, ecfg, color, targetPct = null, baselinePct = null, minValue = 0, maxValue = 100) {
@@ -1172,9 +1182,9 @@ class SensorBarCard extends HTMLElement {
           --sbcp-main-gap: 8px;
           --sbcp-icon-width: 28px;
           --sbcp-above-gap: 10px;
-          --sbcp-left-label-share: 34%;
-          --sbcp-value-width: 62px;
-          --sbcp-bar-min-width: 48px;
+          --sbcp-left-label-share: 25%;
+          --sbcp-value-width: 60px;
+          --sbcp-bar-min-width: 56px;
           --sbcp-target-label-font-size: 12px;
           --sbcp-inline-label-padding-x: 8px;
           --sbcp-inline-label-padding-y: 2px;
@@ -1185,9 +1195,9 @@ class SensorBarCard extends HTMLElement {
           --sbcp-main-gap: 6px;
           --sbcp-icon-width: 26px;
           --sbcp-above-gap: 8px;
-          --sbcp-left-label-share: 28%;
-          --sbcp-value-width: 56px;
-          --sbcp-bar-min-width: 44px;
+          --sbcp-left-label-share: 22%;
+          --sbcp-value-width: 54px;
+          --sbcp-bar-min-width: 52px;
           --sbcp-target-label-font-size: 11px;
           --sbcp-inline-label-padding-x: 7px;
           --sbcp-inline-label-font-size: 11px;
@@ -1196,9 +1206,9 @@ class SensorBarCard extends HTMLElement {
           --sbcp-main-gap: 5px;
           --sbcp-icon-width: 24px;
           --sbcp-above-gap: 6px;
-          --sbcp-left-label-share: 24%;
-          --sbcp-value-width: 52px;
-          --sbcp-bar-min-width: 40px;
+          --sbcp-left-label-share: 19%;
+          --sbcp-value-width: 50px;
+          --sbcp-bar-min-width: 48px;
           --sbcp-target-label-font-size: 11px;
           --sbcp-inline-label-padding-x: 6px;
           --sbcp-inline-label-font-size: 11px;
@@ -1207,9 +1217,9 @@ class SensorBarCard extends HTMLElement {
           --sbcp-main-gap: 4px;
           --sbcp-icon-width: 23px;
           --sbcp-above-gap: 5px;
-          --sbcp-left-label-share: 20%;
-          --sbcp-value-width: 48px;
-          --sbcp-bar-min-width: 38px;
+          --sbcp-left-label-share: 16%;
+          --sbcp-value-width: 46px;
+          --sbcp-bar-min-width: 44px;
           --sbcp-target-label-font-size: 10px;
           --sbcp-inline-label-padding-x: 5px;
           --sbcp-inline-label-font-size: 10px;
@@ -1218,9 +1228,9 @@ class SensorBarCard extends HTMLElement {
           --sbcp-main-gap: 4px;
           --sbcp-icon-width: 22px;
           --sbcp-above-gap: 4px;
-          --sbcp-left-label-share: 18%;
-          --sbcp-value-width: 44px;
-          --sbcp-bar-min-width: 36px;
+          --sbcp-left-label-share: 14%;
+          --sbcp-value-width: 42px;
+          --sbcp-bar-min-width: 40px;
           --sbcp-target-label-font-size: 10px;
           --sbcp-inline-label-padding-x: 5px;
           --sbcp-inline-label-font-size: 10px;
@@ -1241,9 +1251,31 @@ class SensorBarCard extends HTMLElement {
         }
         .row:last-child { margin-bottom: 0; }
         .row-stack {
+          --sbcp-row-height: 38px;
           display: flex;
           flex-direction: column;
           gap: 2px;
+        }
+        .row-stack[data-top-value="true"] .main-line.left-mode .value-right {
+          display: none;
+        }
+        .top-right-value {
+          display: none;
+          align-self: flex-end;
+          align-items: center;
+          justify-content: flex-end;
+          max-width: 100%;
+          min-width: 0;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--primary-text-color, #333);
+          font-variant-numeric: tabular-nums;
+          text-align: right;
+          line-height: 1.1;
+          margin-bottom: 1px;
+        }
+        .top-right-value[data-active="true"] {
+          display: flex;
         }
         .row:hover .bar-track { filter: brightness(0.95); transition: filter 0.15s; }
         .main-line {
@@ -1262,40 +1294,40 @@ class SensorBarCard extends HTMLElement {
           gap: calc(var(--sbcp-main-gap) - 2px);
         }
         .main-line:not(.left-mode)[data-row-density="compact"] {
-          --sbcp-value-width: 54px;
+          --sbcp-value-width: 52px;
         }
         .main-line:not(.left-mode)[data-row-density="tight"] {
-          --sbcp-value-width: 50px;
+          --sbcp-value-width: 48px;
         }
         .main-line:not(.left-mode)[data-row-density="dense"] {
-          --sbcp-value-width: 46px;
+          --sbcp-value-width: 44px;
         }
         .main-line:not(.left-mode)[data-row-density="compressed"] {
-          --sbcp-value-width: 42px;
+          --sbcp-value-width: 40px;
         }
         .main-line.off-mode[data-row-density="compressed"] .icon-wrap,
         .main-line.above-mode[data-row-density="compressed"] .icon-wrap {
           display: none;
         }
         .main-line.left-mode[data-left-density="normal"] {
-          --sbcp-left-label-share: 32%;
-          --sbcp-value-width: 60px;
+          --sbcp-left-label-share: 25%;
+          --sbcp-value-width: 58px;
         }
         .main-line.left-mode[data-left-density="compact"] {
-          --sbcp-left-label-share: 28%;
-          --sbcp-value-width: 55px;
+          --sbcp-left-label-share: 22%;
+          --sbcp-value-width: 53px;
         }
         .main-line.left-mode[data-left-density="tight"] {
-          --sbcp-left-label-share: 24%;
-          --sbcp-value-width: 51px;
+          --sbcp-left-label-share: 19%;
+          --sbcp-value-width: 49px;
         }
         .main-line.left-mode[data-left-density="dense"] {
-          --sbcp-left-label-share: 20%;
-          --sbcp-value-width: 48px;
+          --sbcp-left-label-share: 16%;
+          --sbcp-value-width: 46px;
         }
         .main-line.left-mode[data-left-density="compressed"] {
-          --sbcp-left-label-share: 17%;
-          --sbcp-value-width: 44px;
+          --sbcp-left-label-share: 14%;
+          --sbcp-value-width: 42px;
         }
         .icon-wrap {
           display: flex;
@@ -1303,6 +1335,8 @@ class SensorBarCard extends HTMLElement {
           justify-content: center;
           flex-shrink: 0;
           width: var(--sbcp-icon-width);
+          height: var(--sbcp-row-height);
+          min-height: var(--sbcp-row-height);
           color: var(--primary-text-color, #333);
           line-height: 1;
         }
@@ -1315,12 +1349,16 @@ class SensorBarCard extends HTMLElement {
         }
         .label-left {
           flex: 1 1 auto;
+          height: var(--sbcp-row-height);
           min-width: 0;
           font-size: 13px;
           font-weight: 500;
           color: var(--primary-text-color, #333);
           display: flex;
           align-items: center;
+        }
+        .label-left[data-hidden="true"] {
+          display: none;
         }
         .label-left-text {
           display: block;
@@ -1337,6 +1375,7 @@ class SensorBarCard extends HTMLElement {
         .bar-track {
           position: relative;
           width: 100%;
+          height: var(--sbcp-row-height);
           border-radius: 6px;
           background: var(--secondary-background-color, #e8e8e8);
           overflow: hidden;
@@ -1593,6 +1632,7 @@ class SensorBarCard extends HTMLElement {
           width: calc(var(--sbcp-value-width) + var(--sbcp-value-extra-width));
           min-width: calc(var(--sbcp-value-width) + var(--sbcp-value-extra-width));
           max-width: calc(var(--sbcp-value-width) + var(--sbcp-value-extra-width));
+          height: var(--sbcp-row-height);
           text-align: right;
           font-size: 13px;
           font-weight: 600;
@@ -1634,7 +1674,8 @@ class SensorBarCard extends HTMLElement {
           white-space: nowrap;
           line-height: 1.1;
         }
-        .value-right .unit-group {
+        .value-right .unit-group,
+        .top-right-value .unit-group {
           flex: 0 1 auto;
           display: inline-flex;
           align-items: baseline;
@@ -1643,7 +1684,8 @@ class SensorBarCard extends HTMLElement {
           white-space: nowrap;
           line-height: 1.1;
         }
-        .value-right .unit {
+        .value-right .unit,
+        .top-right-value .unit {
           flex: 0 1 auto;
           min-width: 0;
           display: inline-block;
@@ -1874,6 +1916,49 @@ class SensorBarCard extends HTMLElement {
     return clone.scrollWidth;
   }
 
+  _measureTextWidthWithStyles(sourceEl, text) {
+    const layer = this.shadowRoot?.querySelector('.measure-layer');
+    if (!layer || !sourceEl) return 0;
+    const clone = sourceEl.cloneNode(false);
+    clone.textContent = text;
+    clone.style.width = 'auto';
+    clone.style.minWidth = '0';
+    clone.style.maxWidth = 'none';
+    clone.style.flex = '0 0 auto';
+    clone.style.overflow = 'visible';
+    clone.style.textOverflow = 'clip';
+    clone.style.whiteSpace = 'nowrap';
+    layer.replaceChildren(clone);
+    return clone.scrollWidth;
+  }
+
+  _measureVisibleLabelCharacters(labelTextEl, text, visibleWidth) {
+    if (!labelTextEl || !text || !Number.isFinite(visibleWidth) || visibleWidth <= 0) return 0;
+    const ellipsisWidth = this._measureTextWidthWithStyles(labelTextEl, '...');
+    const availableTextWidth = Math.max(0, visibleWidth - ellipsisWidth);
+    if (availableTextWidth <= 0) return 0;
+
+    let low = 0;
+    let high = text.length;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      const width = this._measureTextWidthWithStyles(labelTextEl, text.slice(0, mid));
+      if (width <= availableTextWidth) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return low;
+  }
+
+  _shouldHideLeftLabel(text, fullWidth, visibleWidth, visibleChars) {
+    if (!text) return false;
+    if (!Number.isFinite(fullWidth) || !Number.isFinite(visibleWidth)) return false;
+    const truncated = fullWidth > visibleWidth + 1;
+    return truncated && visibleChars < 5;
+  }
+
   _applyValueWidthReservation() {
     if (!this.shadowRoot) return;
     this.shadowRoot.querySelectorAll('.value-right').forEach(valueEl => {
@@ -1921,6 +2006,97 @@ class SensorBarCard extends HTMLElement {
     });
   }
 
+  _shouldUseTopValueRow(mainLine) {
+    if (!mainLine?.classList?.contains('left-mode')) return false;
+    const density = mainLine.dataset.leftDensity;
+    return density === 'dense' || density === 'compressed';
+  }
+
+  _getAdaptiveDensityForMainLine(mainLine) {
+    if (!mainLine) return 'normal';
+    if (mainLine.classList?.contains('left-mode')) {
+      return mainLine.dataset.leftDensity || 'normal';
+    }
+    return mainLine.dataset.rowDensity || 'normal';
+  }
+
+  _getAdaptiveDefaultHeightForDensity(density) {
+    if (density === 'compressed') return 24;
+    if (density === 'dense') return 28;
+    return 38;
+  }
+
+  _getEffectiveRowHeight(baseHeight, heightExplicit, mainLine) {
+    if (heightExplicit) return baseHeight;
+    return this._getAdaptiveDefaultHeightForDensity(this._getAdaptiveDensityForMainLine(mainLine));
+  }
+
+  _applyAdaptiveRowHeight() {
+    if (!this.shadowRoot) return;
+    this.shadowRoot.querySelectorAll('.row[data-entity]').forEach((row) => {
+      const mainLine = row.querySelector('.main-line');
+      const rowStack = row.querySelector('.row-stack');
+      if (!mainLine) return;
+      const baseHeight = parseFloat(row.dataset.baseHeight || '38') || 38;
+      const explicit = row.dataset.heightExplicit === 'true';
+      const effectiveHeight = this._getEffectiveRowHeight(baseHeight, explicit, mainLine);
+      row.style.setProperty('--sbcp-row-height', `${effectiveHeight}px`);
+      if (rowStack) rowStack.style.setProperty('--sbcp-row-height', `${effectiveHeight}px`);
+      mainLine.style.height = `${effectiveHeight}px`;
+      const labelLeft = mainLine.querySelector('.label-left');
+      if (labelLeft) labelLeft.style.height = `${effectiveHeight}px`;
+      const iconWrap = mainLine.querySelector('.icon-wrap');
+      if (iconWrap) {
+        iconWrap.style.height = `${effectiveHeight}px`;
+        iconWrap.style.minHeight = `${effectiveHeight}px`;
+      }
+      const track = mainLine.querySelector('.bar-track');
+      if (track) track.style.height = `${effectiveHeight}px`;
+      const inlineValue = mainLine.querySelector('.value-right');
+      if (inlineValue) inlineValue.style.height = `${effectiveHeight}px`;
+    });
+  }
+
+  _applyTopRightValueLayout() {
+    if (!this.shadowRoot) return;
+    this.shadowRoot.querySelectorAll('.main-line.left-mode').forEach((mainLine) => {
+      const rowStack = mainLine.closest('.row-stack');
+      const inlineValue = mainLine.querySelector('.value-right');
+      const topValue = rowStack?.querySelector('.top-right-value');
+      if (!rowStack || !inlineValue || !topValue) return;
+
+      const active = this._shouldUseTopValueRow(mainLine);
+      rowStack.dataset.topValue = active ? 'true' : 'false';
+      topValue.dataset.active = active ? 'true' : 'false';
+
+      const display = this._decodeDataAttr(inlineValue.dataset.display || '');
+      const unit = this._decodeDataAttr(inlineValue.dataset.unit || '');
+      topValue.dataset.display = inlineValue.dataset.display || '';
+      topValue.dataset.unit = inlineValue.dataset.unit || '';
+      topValue.dataset.hideUnit = 'false';
+      topValue.innerHTML = this._formatRightValueMarkup(display, unit, false);
+    });
+  }
+
+  _applyLeftLabelUsefulness() {
+    if (!this.shadowRoot) return;
+    this.shadowRoot.querySelectorAll('.main-line.left-mode').forEach(mainLine => {
+      const labelWrap = mainLine.querySelector('.label-left');
+      const labelText = mainLine.querySelector('.label-left-text');
+      if (!labelWrap || !labelText) return;
+
+      labelWrap.dataset.hidden = 'false';
+
+      const text = (labelText.textContent || '').trim();
+      const fullWidth = labelText.scrollWidth;
+      const visibleWidth = labelText.clientWidth;
+      const visibleChars = this._measureVisibleLabelCharacters(labelText, text, visibleWidth);
+      const shouldHide = this._shouldHideLeftLabel(text, fullWidth, visibleWidth, visibleChars);
+
+      labelWrap.dataset.hidden = shouldHide ? 'true' : 'false';
+    });
+  }
+
   _runPostLayoutPasses(rows = null) {
     requestAnimationFrame(() => {
       this._applyRowDensity();
@@ -1930,7 +2106,10 @@ class SensorBarCard extends HTMLElement {
       this._applyValueWidthReservation();
 
       requestAnimationFrame(() => {
+        this._applyAdaptiveRowHeight();
         this._applyValueVisibility();
+        this._applyLeftLabelUsefulness();
+        this._applyTopRightValueLayout();
         const targetRows = rows || this.shadowRoot?.querySelectorAll('.row[data-entity]') || [];
         targetRows.forEach(row => {
           this._positionTargetLabel(row);
@@ -2072,7 +2251,7 @@ class SensorBarCard extends HTMLElement {
     const targetMarkerColor = targetColor || '#888';
     const peakContrastColor = this._getMarkerContrastColor(peakMarkerColor);
     const targetContrastColor = this._getMarkerContrastColor(targetMarkerColor);
-    const fillState = this._getFillRenderState(pct, h, ecfg, color, targetPct, baselinePct, safeMin, safeMax);
+    const fillState = this._getFillRenderState(pct, 'var(--sbcp-row-height)', ecfg, color, targetPct, baselinePct, safeMin, safeMax);
 
     // Peak marker — chevron top, line full height, configurable colour
     const peakMarker = peakMarkerCfg.show && peakPct !== null ? `
@@ -2107,21 +2286,25 @@ class SensorBarCard extends HTMLElement {
       </div>` : '';
 
     const leftLabel  = lp === 'left'
-      ? `<div class="label-left" style="flex:0 1 min(${layout.label.width}px, var(--sbcp-left-label-share));max-width:min(${layout.label.width}px, var(--sbcp-left-label-share));height:${h}px;"><span class="label-left-text">${name}</span></div>`
+      ? `<div class="label-left" style="flex:0 1 min(${layout.label.width}px, var(--sbcp-left-label-share));max-width:min(${layout.label.width}px, var(--sbcp-left-label-share));"><span class="label-left-text">${name}</span></div>`
       : '';
     const rightValue = lp !== 'inside' && lp !== 'above'
-      ? `<div class="value-right" data-display="${this._encodeDataAttr(stateDisplay)}" data-unit="${this._encodeDataAttr(unit)}" data-hide-unit="false" style="height:${h}px;">${this._formatRightValueMarkup(stateDisplay, unit, false)}</div>`
-      : '';    
+      ? `<div class="value-right" data-display="${this._encodeDataAttr(stateDisplay)}" data-unit="${this._encodeDataAttr(unit)}" data-hide-unit="false">${this._formatRightValueMarkup(stateDisplay, unit, false)}</div>`
+      : '';
+    const topRightValue = lp === 'left'
+      ? `<div class="top-right-value" data-display="${this._encodeDataAttr(stateDisplay)}" data-unit="${this._encodeDataAttr(unit)}" data-hide-unit="false" data-active="false">${this._formatRightValueMarkup(stateDisplay, unit, false)}</div>`
+      : '';
       
     return `
-      <div class="row" data-entity="${entityCfg.entity}">
-        <div class="row-stack">
+      <div class="row" data-entity="${entityCfg.entity}" data-base-height="${h}" data-height-explicit="${layout.height_explicit ? 'true' : 'false'}">
+        <div class="row-stack" style="--sbcp-row-height:${h}px;">
           ${aboveLabel}
+          ${topRightValue}
           <div class="main-line ${lp}-mode" style="height:${h}px;">
-            ${ecfg.icon && ecfg.icon !== false ? `<div class="icon-wrap" style="height:${h}px;min-height:${h}px;"><ha-icon icon="${ecfg.icon}"></ha-icon></div>` : ''}
+            ${ecfg.icon && ecfg.icon !== false ? `<div class="icon-wrap"><ha-icon icon="${ecfg.icon}"></ha-icon></div>` : ''}
             ${leftLabel}
             <div class="bar-wrap">
-              <div class="bar-track" style="height:${h}px;">
+              <div class="bar-track">
                 <div class="bar-paint-layer${bar.animated ? '' : ' no-anim'}" style="${fillState.paintStyle}${fillState.revealStyle}"></div>
                 ${innerLabel}
                 ${peakMarker}
@@ -2160,12 +2343,14 @@ class SensorBarCard extends HTMLElement {
       liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
     }
     const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
-    const fillState = this._getFillRenderState(pct, ecfg.layout.height, ecfg, color, liveTargetPct, liveBaselinePct, safeMin, safeMax);
+    const fillState = this._getFillRenderState(pct, 'var(--sbcp-row-height)', ecfg, color, liveTargetPct, liveBaselinePct, safeMin, safeMax);
 
     if (paintLayer) {
       paintLayer.style.cssText = `${fillState.paintStyle}${fillState.revealStyle}`;
       paintLayer.className = `bar-paint-layer${ecfg.bar.animated ? '' : ' no-anim'}`;
     }
+    row.dataset.baseHeight = String(ecfg.layout.height);
+    row.dataset.heightExplicit = ecfg.layout.height_explicit ? 'true' : 'false';
 
     const valueEl = row.querySelector('.value-right');
     if (valueEl) {
@@ -2173,6 +2358,13 @@ class SensorBarCard extends HTMLElement {
       valueEl.dataset.unit = this._encodeDataAttr(displayUnit);
       valueEl.dataset.hideUnit = 'false';
       valueEl.innerHTML = this._formatRightValueMarkup(display, displayUnit, false);
+    }
+    const topValueEl = row.querySelector('.top-right-value');
+    if (topValueEl) {
+      topValueEl.dataset.display = this._encodeDataAttr(display);
+      topValueEl.dataset.unit = this._encodeDataAttr(displayUnit);
+      topValueEl.dataset.hideUnit = 'false';
+      topValueEl.innerHTML = this._formatRightValueMarkup(display, displayUnit, false);
     }
     const innerLabel = row.querySelector('.bar-inner-label');
     if (innerLabel) {

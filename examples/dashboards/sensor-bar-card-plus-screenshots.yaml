@@ -26,6 +26,294 @@ views:
         max:
           fixed: 3000
     - type: custom:sensor-bar-card-plus
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      bar:
+        fill_style: solid
+        color: '#f97316'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#2563eb'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#0f766e'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#22c55e'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#f59e0b'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#dc2626'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#7c3aed'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#06b6d4'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#84cc16'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        bar:
+          fill_style: solid
+          color: '#e11d48'
+    - type: custom:sensor-bar-card-plus
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: inside
+      bar:
+        fill_style: solid
+        color: '#f97316'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#2563eb'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#0f766e'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#22c55e'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#f59e0b'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#dc2626'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#7c3aed'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#06b6d4'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#84cc16'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: inside
+        bar:
+          fill_style: solid
+          color: '#e11d48'
+    - type: custom:sensor-bar-card-plus
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: above
+      bar:
+        fill_style: solid
+        color: '#f97316'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#2563eb'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#0f766e'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#22c55e'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#f59e0b'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#dc2626'
+    - type: horizontal-stack
+      cards:
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#7c3aed'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#06b6d4'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#84cc16'
+      - type: custom:sensor-bar-card-plus
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: above
+        bar:
+          fill_style: solid
+          color: '#e11d48'
+    - type: custom:sensor-bar-card-plus
       title: Left Labels
       entities:
       - entity: sensor.sbcp_playground_sensor

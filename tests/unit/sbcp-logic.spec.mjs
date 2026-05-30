@@ -66,6 +66,7 @@ describe('Sensor Bar Card Plus logic', () => {
         width: 160,
       },
       height: 44,
+      height_explicit: true,
     });
   });
 
@@ -128,6 +129,7 @@ describe('Sensor Bar Card Plus logic', () => {
         width: 180,
       },
       height: 44,
+      height_explicit: true,
     });
   });
 
@@ -731,6 +733,7 @@ describe('Sensor Bar Card Plus logic', () => {
         width: 180,
       },
       height: 50,
+      height_explicit: true,
     });
     expect(row.scale.min).toEqual({ fixed: -10, entity: null });
     expect(row.scale.max).toEqual({ fixed: 120, entity: null });
@@ -807,6 +810,7 @@ describe('Sensor Bar Card Plus logic', () => {
         width: 140,
       },
       height: 40,
+      height_explicit: true,
     });
     expect(row.scale.min).toEqual({ fixed: 0, entity: null });
     expect(row.scale.max).toEqual({ fixed: 120, entity: null });
@@ -883,6 +887,7 @@ describe('Sensor Bar Card Plus logic', () => {
         width: 200,
       },
       height: 50,
+      height_explicit: true,
     });
     expect(row.scale.min).toEqual({ fixed: -10, entity: null });
     expect(row.scale.max).toEqual({ fixed: 200, entity: null });
@@ -1168,6 +1173,332 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cardB._densityPassScheduled).toBe(false);
     expect(cardB._densityPassRetries).toBe(0);
+  });
+
+  it('keeps explicit height unchanged', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      height: 50,
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const mainLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'compressed', rowDensity: 'compressed' },
+    };
+
+    expect(cfg.layout.height_explicit).toBe(true);
+    expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, mainLine)).toBe(50);
+  });
+
+  it('shrinks default height for dense and compressed rows', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.layout.height_explicit).toBe(false);
+    expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'dense' },
+    })).toBe(28);
+    expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'compressed' },
+    })).toBe(24);
+  });
+
+  it('keeps default height at 38 for normal, compact, and tight rows', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    for (const density of ['normal', 'compact', 'tight']) {
+      expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, {
+        classList: { contains: (name) => name === 'left-mode' },
+        dataset: { leftDensity: density },
+      })).toBe(38);
+    }
+  });
+
+  it('keeps short complete left labels visible', () => {
+    const card = createCard();
+
+    expect(card._shouldHideLeftLabel('EV', 20, 20, 2)).toBe(false);
+    expect(card._shouldHideLeftLabel('CPU', 30, 30, 3)).toBe(false);
+  });
+
+  it('hides truncated left labels when fewer than five visible characters remain', () => {
+    const card = createCard();
+
+    expect(card._shouldHideLeftLabel('SensorLabel', 100, 52, 4)).toBe(true);
+    expect(card._shouldHideLeftLabel('BatteryLabel', 120, 62, 4)).toBe(true);
+    expect(card._shouldHideLeftLabel('SensorLabel', 100, 62, 5)).toBe(false);
+  });
+
+  it('applies the same left-label usefulness rule with and without an icon', () => {
+    const card = createCard();
+    card._measureTextWidthWithStyles = (_el, text) => (text === '...' ? 12 : text.length * 10);
+    const wrapWithIcon = { dataset: {} };
+    const wrapWithoutIcon = { dataset: {} };
+    const labelWithIcon = { textContent: 'SensorLabel', scrollWidth: 100, clientWidth: 52 };
+    const labelWithoutIcon = { textContent: 'SensorLabel', scrollWidth: 100, clientWidth: 52 };
+    const lineWithIcon = {
+      querySelector: (selector) => (
+        selector === '.label-left' ? wrapWithIcon
+          : selector === '.label-left-text' ? labelWithIcon
+          : selector === '.icon-wrap' ? {}
+          : null
+      ),
+    };
+    const lineWithoutIcon = {
+      querySelector: (selector) => (
+        selector === '.label-left' ? wrapWithoutIcon
+          : selector === '.label-left-text' ? labelWithoutIcon
+          : null
+      ),
+    };
+    card.shadowRoot = {
+      querySelectorAll: (selector) => selector === '.main-line.left-mode' ? [lineWithIcon, lineWithoutIcon] : [],
+      querySelector: () => null,
+    };
+
+    card._applyLeftLabelUsefulness();
+
+    expect(wrapWithIcon.dataset.hidden).toBe('true');
+    expect(wrapWithoutIcon.dataset.hidden).toBe('true');
+  });
+
+  it('does not hide wide left labels that fit normally', () => {
+    const card = createCard();
+    card._measureTextWidthWithStyles = (_el, text) => (text === '...' ? 12 : text.length * 10);
+    const wrap = { dataset: {} };
+    const label = { textContent: 'Battery', scrollWidth: 70, clientWidth: 70 };
+    const line = {
+      querySelector: (selector) => (
+        selector === '.label-left' ? wrap
+          : selector === '.label-left-text' ? label
+          : null
+      ),
+    };
+    card.shadowRoot = {
+      querySelectorAll: (selector) => selector === '.main-line.left-mode' ? [line] : [],
+      querySelector: () => null,
+    };
+
+    card._applyLeftLabelUsefulness();
+
+    expect(wrap.dataset.hidden).toBe('false');
+  });
+
+  it('activates the top-right value row for dense and compressed left-mode rows', () => {
+    const card = createCard();
+
+    expect(card._shouldUseTopValueRow({ classList: { contains: (name) => name === 'left-mode' }, dataset: { leftDensity: 'dense' } })).toBe(true);
+    expect(card._shouldUseTopValueRow({ classList: { contains: (name) => name === 'left-mode' }, dataset: { leftDensity: 'compressed' } })).toBe(true);
+  });
+
+  it('does not activate the top-right value row for normal, compact, or tight left-mode rows', () => {
+    const card = createCard();
+
+    expect(card._shouldUseTopValueRow({ classList: { contains: (name) => name === 'left-mode' }, dataset: { leftDensity: 'normal' } })).toBe(false);
+    expect(card._shouldUseTopValueRow({ classList: { contains: (name) => name === 'left-mode' }, dataset: { leftDensity: 'compact' } })).toBe(false);
+    expect(card._shouldUseTopValueRow({ classList: { contains: (name) => name === 'left-mode' }, dataset: { leftDensity: 'tight' } })).toBe(false);
+  });
+
+  it('keeps value and unit together in the top-right row', () => {
+    const card = createCard();
+    const html = card._buildRow(
+      {
+        entity: 'sensor.row',
+        name: 'Sensor',
+        icon: 'mdi:flash',
+        layout: { label: { position: 'left', width: 160 }, height: 38 },
+        bar: { color_mode: 'single', fill_style: 'solid', color: '#2563eb', animated: true, solid_fill: false },
+        target_marker: { source: { fixed: null, entity: null }, color: '#888', show_label: false },
+        peak_marker: { show: false, color: '#888' },
+        baseline: { at: { fixed: null, entity: null }, above: { color: null }, below: { color: null } },
+      },
+      '72',
+      'W',
+      50,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(html).toContain('class="top-right-value"');
+    expect(html).toContain('72');
+    expect(html).toContain('<span class="unit">W</span>');
+  });
+
+  it('applies top-right value layout regardless of icon presence once dense left-mode is active', () => {
+    const card = createCard();
+    const makeTopValue = () => ({ dataset: {}, innerHTML: '' });
+    const makeInlineValue = () => ({
+      dataset: {
+        display: encodeURIComponent('72'),
+        unit: encodeURIComponent('W'),
+      },
+    });
+    const makeRowStack = (topValue) => ({
+      dataset: {},
+      querySelector: (selector) => selector === '.top-right-value' ? topValue : null,
+    });
+    const denseWithIconTop = makeTopValue();
+    const denseNoIconTop = makeTopValue();
+    const denseWithIconInline = makeInlineValue();
+    const denseNoIconInline = makeInlineValue();
+    const denseWithIconStack = makeRowStack(denseWithIconTop);
+    const denseNoIconStack = makeRowStack(denseNoIconTop);
+    const denseWithIconLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'dense' },
+      closest: (selector) => selector === '.row-stack' ? denseWithIconStack : null,
+      querySelector: (selector) => (
+        selector === '.value-right' ? denseWithIconInline
+          : selector === '.icon-wrap' ? {}
+          : null
+      ),
+    };
+    const denseNoIconLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'dense' },
+      closest: (selector) => selector === '.row-stack' ? denseNoIconStack : null,
+      querySelector: (selector) => (
+        selector === '.value-right' ? denseNoIconInline
+          : null
+      ),
+    };
+
+    card.shadowRoot = {
+      querySelectorAll: (selector) => selector === '.main-line.left-mode' ? [denseWithIconLine, denseNoIconLine] : [],
+      querySelector: () => null,
+    };
+
+    card._applyTopRightValueLayout();
+
+    expect(denseWithIconStack.dataset.topValue).toBe('true');
+    expect(denseNoIconStack.dataset.topValue).toBe('true');
+    expect(denseWithIconTop.dataset.active).toBe('true');
+    expect(denseNoIconTop.dataset.active).toBe('true');
+    expect(denseWithIconTop.innerHTML).toContain('<span class="unit">W</span>');
+    expect(denseNoIconTop.innerHTML).toContain('<span class="unit">W</span>');
+  });
+
+  it('keeps top-right value layout working with adaptive height', () => {
+    const card = createCard();
+    const topValue = { dataset: {}, innerHTML: '' };
+    const inlineValue = {
+      dataset: {
+        display: encodeURIComponent('72'),
+        unit: encodeURIComponent('W'),
+      },
+      style: {},
+    };
+    const labelLeft = { style: {} };
+    const iconWrap = { style: {} };
+    const track = { style: {} };
+    const rowStack = {
+      dataset: {},
+      style: {
+        setProperty(name, value) {
+          this[name] = value;
+        },
+      },
+      querySelector: (selector) => selector === '.top-right-value' ? topValue : null,
+    };
+    const mainLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'dense', rowDensity: 'dense' },
+      style: {},
+      closest: (selector) => selector === '.row-stack' ? rowStack : null,
+      querySelector: (selector) => (
+        selector === '.value-right' ? inlineValue
+          : selector === '.label-left' ? labelLeft
+          : selector === '.icon-wrap' ? iconWrap
+          : selector === '.bar-track' ? track
+          : null
+      ),
+    };
+    const row = {
+      dataset: { entity: 'sensor.row', baseHeight: '38', heightExplicit: 'false' },
+      style: { setProperty(name, value) { this[name] = value; } },
+      querySelector: (selector) => (
+        selector === '.main-line' ? mainLine
+          : selector === '.row-stack' ? rowStack
+          : null
+      ),
+    };
+    card.shadowRoot = {
+      querySelectorAll: (selector) => {
+        if (selector === '.row[data-entity]') return [row];
+        if (selector === '.main-line.left-mode') return [mainLine];
+        return [];
+      },
+      querySelector: () => null,
+    };
+
+    card._applyAdaptiveRowHeight();
+    card._applyTopRightValueLayout();
+
+    expect(row.style['--sbcp-row-height']).toBe('28px');
+    expect(rowStack.style['--sbcp-row-height']).toBe('28px');
+    expect(mainLine.style.height).toBe('28px');
+    expect(rowStack.dataset.topValue).toBe('true');
+    expect(topValue.dataset.active).toBe('true');
+    expect(topValue.innerHTML).toContain('<span class="unit">W</span>');
+  });
+
+  it('uses the same adaptive 24px height on row-stack and track for compressed rows', () => {
+    const card = createCard();
+    const track = { style: {} };
+    const rowStack = {
+      style: {
+        setProperty(name, value) {
+          this[name] = value;
+        },
+      },
+    };
+    const mainLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'compressed', rowDensity: 'compressed' },
+      style: {},
+      querySelector: (selector) => (
+        selector === '.bar-track' ? track
+          : null
+      ),
+    };
+    const row = {
+      dataset: { entity: 'sensor.row', baseHeight: '38', heightExplicit: 'false' },
+      style: {
+        setProperty(name, value) {
+          this[name] = value;
+        },
+      },
+      querySelector: (selector) => (
+        selector === '.main-line' ? mainLine
+          : selector === '.row-stack' ? rowStack
+          : null
+      ),
+    };
+    card.shadowRoot = {
+      querySelectorAll: (selector) => selector === '.row[data-entity]' ? [row] : [],
+      querySelector: () => null,
+    };
+
+    card._applyAdaptiveRowHeight();
+
+    expect(row.style['--sbcp-row-height']).toBe('24px');
+    expect(rowStack.style['--sbcp-row-height']).toBe('24px');
+    expect(mainLine.style.height).toBe('24px');
+    expect(track.style.height).toBe('24px');
   });
 
   it('calculates baseline intervals at min, center, max, 10%, and 75%', () => {
