@@ -637,6 +637,103 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
+        title: Bands Rainbow + solid_fill
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at:
+            entity: sensor.sbcp_playground_target
+          label:
+            show: true
+        bar:
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: bands
+          solid_fill: true
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "off"
+      card:
+        type: custom:sensor-bar-card-plus
+        title: Bands Rainbow + solid_fill
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at: {}
+          label:
+            show: false
+        bar:
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: bands
+          solid_fill: true
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "on"
+      card:
+        type: custom:sensor-bar-card-plus
         title: Band Gradient Rainbow
         entities:
         - entity: sensor.sbcp_playground_sensor
@@ -726,6 +823,103 @@ views:
             to: 100%
             color: '#7c3aed'
           fill_style: band_gradient
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "on"
+      card:
+        type: custom:sensor-bar-card-plus
+        title: Band Gradient Rainbow + solid_fill
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at:
+            entity: sensor.sbcp_playground_target
+          label:
+            show: true
+        bar:
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: band_gradient
+          solid_fill: true
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "off"
+      card:
+        type: custom:sensor-bar-card-plus
+        title: Band Gradient Rainbow + solid_fill
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at: {}
+          label:
+            show: false
+        bar:
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: band_gradient
+          solid_fill: true
     - type: conditional
       conditions:
       - entity: input_boolean.sbcp_target_enabled

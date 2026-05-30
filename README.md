@@ -383,6 +383,37 @@ entities:
     name: Sensor
 ```
 
+### `solid_fill`
+
+`bar.solid_fill: true` samples the theoretical fill color at the current value, then renders the visible fill as one solid color.
+
+This is most useful with `bands`, `band_gradient`, and `gradient` when you want the active color logic without rendering the full multicolor fill across the revealed area.
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Sampled Solid Bands
+bar:
+  fill_style: bands
+  solid_fill: true
+  segments:
+    - from: 0%
+      to: 50%
+      color: '#22c55e'
+    - from: 50%
+      to: 100%
+      color: '#ef4444'
+scale:
+  min:
+    fixed: 0
+  max:
+    fixed: 100
+entities:
+  - entity: sensor.power_usage
+    name: Sensor
+```
+
+With `fill_style: bands`, the active band color is used directly. With `band_gradient` or `gradient`, the color is sampled from the interpolated gradient at the current value. If `solid_fill` is omitted, normal multicolor rendering is unchanged.
+
 ### `solid`
 
 Compatibility name: `single` 
@@ -1196,6 +1227,7 @@ Each entry in `entities` accepts:
 |---|---|---|
 | `bar.fill_style` | string | Preferred structured alias: `solid`, `gradient`, `bands`, `band_gradient` |
 | `bar.color_mode` | string | `single`, `gradient`, `severity`, `severity_gradient` |
+| `bar.solid_fill` | boolean | Sample the theoretical fill color at the current value and render the visible fill as one solid color |
 | `bar.color` | string | Solid color for `single` mode |
 | `bar.gradient_stops` | list | Gradient stops for `gradient` mode; `pos` accepts `50` and `50%` equivalently |
 | `bar.segments` | list | Segment definitions for `severity` and `severity_gradient` |
@@ -1290,7 +1322,6 @@ It is not a drop-in replacement for the original card.
 
 Likely future work includes:
 
-- `bar.solid_fill: true` so future fill styles can collapse to one sampled solid color
 - `display.mode: needle` as a future current-value rendering mode
 - visible `scale.ticks` support under `scale`
 - a more general marker collection once the current target and peak semantics are stable

@@ -240,6 +240,8 @@ class SensorBarCard extends HTMLElement {
     normalizedEntity.label_position = normalizedEntity.layout.label.position;
     normalizedEntity.label_width = normalizedEntity.layout.label.width;
     normalizedEntity.color_mode = normalizedEntity.bar.color_mode;
+    normalizedEntity.fill_style = normalizedEntity.bar.fill_style;
+    normalizedEntity.solid_fill = normalizedEntity.bar.solid_fill;
     normalizedEntity.color = normalizedEntity.bar.color;
     normalizedEntity.gradient_stops = normalizedEntity.bar.gradient_stops;
     normalizedEntity.severity = normalizedEntity.bar.severity;
@@ -573,6 +575,7 @@ class SensorBarCard extends HTMLElement {
     return {
       fill_style: normalizedMode.fill_style,
       color_mode: normalizedMode.color_mode,
+      solid_fill: entityBar?.solid_fill ?? cardBar?.solid_fill ?? false,
       color: entityBar?.color ?? entityConfig.color ?? cardBar?.color ?? cardConfig?.color ?? '#4a9eff',
       gradient_stops: this._normalizeGradientStops(
         entityBar?.gradient_stops ?? entityConfig.gradient_stops ?? cardBar?.gradient_stops ?? cardConfig?.gradient_stops ?? null
@@ -993,6 +996,10 @@ class SensorBarCard extends HTMLElement {
   }
 
   _getBasePaintGradient(color, ecfg, minValue = 0, maxValue = 100) {
+    if (ecfg.bar.solid_fill) {
+      return this._buildSolidGradientStyle(color);
+    }
+
     if (ecfg.bar.color_mode === 'severity') {
       return this._getSeverityBandGradientCss(ecfg, minValue, maxValue);
     }

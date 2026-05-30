@@ -443,12 +443,14 @@ describe('Sensor Bar Card Plus logic', () => {
           { pos: 100, color: '#ef4444' },
         ],
         animated: true,
+        solid_fill: true,
       },
       entities: [{ entity: 'sensor.row' }],
     });
 
     expect(cfg.bar.fill_style).toBe('gradient');
     expect(cfg.bar.color_mode).toBe('gradient');
+    expect(cfg.bar.solid_fill).toBe(true);
     expect(cfg.bar.color).toBe('#4a9eff');
     expect(cfg.bar.gradient_stops).toEqual([
       { pos: 0, color: '#22c55e' },
@@ -539,6 +541,49 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cfg.bar.fill_style).toBe('bands');
     expect(cfg.bar.color_mode).toBe('severity');
+  });
+
+  it('defaults solid_fill to false', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.solid_fill).toBe(false);
+    expect(cfg.entities[0].bar.solid_fill).toBe(false);
+  });
+
+  it('normalizes card-level solid_fill', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'gradient',
+        solid_fill: true,
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.solid_fill).toBe(true);
+    expect(cfg.entities[0].bar.solid_fill).toBe(true);
+  });
+
+  it('lets entity-level solid_fill override the card-level value', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'gradient',
+        solid_fill: true,
+      },
+      entities: [{
+        entity: 'sensor.row',
+        bar: {
+          solid_fill: false,
+        },
+      }],
+    });
+
+    expect(cfg.entities[0].bar.fill_style).toBe('gradient');
+    expect(cfg.entities[0].bar.solid_fill).toBe(false);
   });
 
   it('inherits card-level fill_style even when an entity-level bar object overrides other bar fields', () => {
@@ -1443,6 +1488,143 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getSegmentsForRendering(structured, 0, 160)).toEqual(
       card._getSegmentsForRendering(legacy, 0, 160)
     );
+  });
+
+  it('samples the active band color for bands plus solid_fill', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'bands',
+        solid_fill: true,
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const lowColor = card._getColor(25, ecfg, 0, 100);
+    const highColor = card._getColor(75, ecfg, 0, 100);
+
+    expect(lowColor).toBe('#22c55e');
+    expect(highColor).toBe('#ef4444');
+    expect(card._getBasePaintGradient(lowColor, ecfg, 0, 100)).toBe('linear-gradient(to right,#22c55e 0%,#22c55e 100%)');
+    expect(card._getBasePaintGradient(highColor, ecfg, 0, 100)).toBe('linear-gradient(to right,#ef4444 0%,#ef4444 100%)');
+  });
+
+  it('samples the interpolated color for band_gradient plus solid_fill', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'band_gradient',
+        solid_fill: true,
+        segments: [
+          { from: '0%', to: '100%', color: '#22c55e' },
+          { from: '100%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const midColor = card._getColor(50, ecfg, 0, 100);
+    expect(midColor).toBe('rgb(137,133,81)');
+    expect(card._getBasePaintGradient(midColor, ecfg, 0, 100)).toBe('linear-gradient(to right,rgb(137,133,81) 0%,rgb(137,133,81) 100%)');
+  });
+
+  it('samples the interpolated color for gradient plus solid_fill', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'gradient',
+        solid_fill: true,
+        gradient_stops: [
+          { pos: 0, color: '#2563eb' },
+          { pos: 100, color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const midColor = card._getColor(50, ecfg, 0, 100);
+    expect(midColor).toBe('rgb(138,84,152)');
+    expect(card._getBasePaintGradient(midColor, ecfg, 0, 100)).toBe('linear-gradient(to right,rgb(138,84,152) 0%,rgb(138,84,152) 100%)');
+  });
+
+  it('keeps baseline reveal geometry while using sampled solid_fill color for percent segments', () => {
+    const card = createCard();
+    const min = -100;
+    const max = 100;
+    const value = -50;
+    const pct = card._toScalePct(value, min, max);
+    const baselinePct = card._toScalePct(0, min, max);
+    const ecfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: min },
+        max: { fixed: max },
+      },
+      baseline: {
+        at: { fixed: 0 },
+      },
+      bar: {
+        fill_style: 'bands',
+        solid_fill: true,
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const color = card._getColor(pct, ecfg, min, max);
+    const fillState = card._getFillRenderState(pct, 38, ecfg, color, null, baselinePct, min, max);
+
+    expect(fillState.paintStyle).toContain('linear-gradient(to right,#22c55e 0%,#22c55e 100%)');
+    expect(fillState.revealStyle).toContain('clip-path:inset(0 50% 0 25%');
+  });
+
+  it('keeps existing non-solid-fill paint behavior unchanged', () => {
+    const card = createCard();
+    const solid = card.normalizeCardConfig({
+      bar: { fill_style: 'solid', color: '#2563eb' },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+    const gradient = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'gradient',
+        gradient_stops: [
+          { pos: 0, color: '#2563eb' },
+          { pos: 100, color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+    const bands = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'bands',
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+    const bandGradient = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'band_gradient',
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    expect(card._getBasePaintGradient('#2563eb', solid, 0, 100)).toBe('linear-gradient(to right,#2563eb 0%,#2563eb 100%)');
+    expect(card._getBasePaintGradient(card._getColor(50, gradient, 0, 100), gradient, 0, 100)).toContain('rgb(37,99,235) 0%,rgb(239,68,68) 100%');
+    expect(card._getBasePaintGradient(card._getColor(25, bands, 0, 100), bands, 0, 100)).toBe('linear-gradient(to right, #22c55e 0%, #22c55e 50%, #ef4444 50%, #ef4444 100%)');
+    expect(card._getBasePaintGradient(card._getColor(50, bandGradient, 0, 100), bandGradient, 0, 100)).toContain('rgb(');
   });
 
   it('renders baseline severity paint identically for legacy severity and structured percent segments', () => {
