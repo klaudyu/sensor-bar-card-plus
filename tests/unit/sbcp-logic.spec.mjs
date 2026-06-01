@@ -557,6 +557,346 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(cfg.bar.color_mode).toBe('severity');
   });
 
+  it('defaults needle config to show false and color "#ffffff"', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.needle).toEqual({ show: false, color: '#ffffff' });
+    expect(cfg.entities[0].bar.needle).toEqual({ show: false, color: '#ffffff' });
+  });
+
+  it('normalizes bar.needle true to show true and color "#ffffff"', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { needle: true },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.needle).toEqual({ show: true, color: '#ffffff' });
+    expect(cfg.entities[0].bar.needle).toEqual({ show: true, color: '#ffffff' });
+  });
+
+  it('normalizes bar.needle false to show false and color "#ffffff"', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { needle: false },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.needle).toEqual({ show: false, color: '#ffffff' });
+    expect(cfg.entities[0].bar.needle).toEqual({ show: false, color: '#ffffff' });
+  });
+
+  it('preserves full needle object form', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { needle: { show: true, color: '#00ffcc' } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.needle).toEqual({ show: true, color: '#00ffcc' });
+    expect(cfg.entities[0].bar.needle).toEqual({ show: true, color: '#00ffcc' });
+  });
+
+  it('lets entity-level needle override card-level needle', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { needle: true },
+      entities: [{
+        entity: 'sensor.row',
+        bar: { needle: { show: false, color: '#ff00aa' } },
+      }],
+    });
+
+    expect(cfg.bar.needle).toEqual({ show: true, color: '#ffffff' });
+    expect(cfg.entities[0].bar.needle).toEqual({ show: false, color: '#ff00aa' });
+  });
+
+  it('inherits card-level needle when entity-level needle is omitted', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { needle: { show: true, color: '#abcdef' } },
+      entities: [{
+        entity: 'sensor.row',
+        bar: { color: '#ff0000' },
+      }],
+    });
+
+    expect(cfg.entities[0].bar.needle).toEqual({ show: true, color: '#abcdef' });
+  });
+
+  it('inherits card-level needle color for partial entity-level needle objects', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { needle: { show: false, color: '#abcdef' } },
+      entities: [{
+        entity: 'sensor.row',
+        bar: { needle: { show: true } },
+      }],
+    });
+
+    expect(cfg.entities[0].bar.needle).toEqual({ show: true, color: '#abcdef' });
+  });
+
+  it('does not render a needle marker by default', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { fill_style: 'solid', color: '#2563eb' },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+
+    const html = card._buildRow(
+      cfg.entities[0],
+      '50',
+      'W',
+      50,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(html).not.toContain('needle-marker');
+  });
+
+  it('renders the needle marker when bar.needle is true', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { fill_style: 'solid', color: '#2563eb', needle: true },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+
+    const html = card._buildRow(
+      cfg.entities[0],
+      '50',
+      'W',
+      50,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(html).toContain('needle-marker');
+    expect(html).toContain('left:50%');
+    expect(html).toContain('--needle-color:#ffffff');
+    expect(html).toContain('--needle-border-color:#000000');
+    expect(html).toContain('display:block');
+    expect(html).toContain('data-edge="middle"');
+  });
+
+  it('renders the needle marker with the configured color override', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { fill_style: 'solid', color: '#2563eb', needle: { show: true, color: '#00ffcc' } },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+
+    const html = card._buildRow(
+      cfg.entities[0],
+      '50',
+      'W',
+      50,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(html).toContain('--needle-color:#00ffcc');
+    expect(html).toContain('--needle-border-color:#000000');
+  });
+
+  it('uses black needle side stripes for white needles', () => {
+    const card = createCard();
+    expect(card._getNeedleBorderColor('#ffffff')).toBe('#000000');
+  });
+
+  it('uses black needle side stripes for yellow needles', () => {
+    const card = createCard();
+    expect(card._getNeedleBorderColor('#ffff00')).toBe('#000000');
+  });
+
+  it('uses black needle side stripes for cyan needles', () => {
+    const card = createCard();
+    expect(card._getNeedleBorderColor('#00ffff')).toBe('#000000');
+  });
+
+  it('uses white needle side stripes for black needles', () => {
+    const card = createCard();
+    expect(card._getNeedleBorderColor('#000000')).toBe('#ffffff');
+  });
+
+  it('uses white needle side stripes for dark blue and dark purple needles', () => {
+    const card = createCard();
+    expect(card._getNeedleBorderColor('#0f172a')).toBe('#ffffff');
+    expect(card._getNeedleBorderColor('#3b0764')).toBe('#ffffff');
+  });
+
+  it('falls back to black needle side stripes for invalid colors', () => {
+    const card = createCard();
+    expect(card._getNeedleBorderColor('not-a-color')).toBe('#000000');
+  });
+
+  it('clamps needle position between 0 and 100', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { needle: true },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const ecfg = cfg.entities[0];
+
+    expect(card._getNeedleRenderState(-10, ecfg, 0, 100, null)).toMatchObject({ show: true, pct: 0, edge: 'left' });
+    expect(card._getNeedleRenderState(110, ecfg, 0, 100, null)).toMatchObject({ show: true, pct: 100, edge: 'right' });
+  });
+
+  it('hides the needle for unknown or unavailable values', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { fill_style: 'solid', color: '#2563eb', needle: true },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+    const ecfg = cfg.entities[0];
+
+    expect(card._getNeedleRenderState(NaN, ecfg, 0, 100, null)).toMatchObject({ show: false, pct: null });
+
+    const html = card._buildRow(
+      ecfg,
+      'unknown',
+      '',
+      0,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(html).toContain('needle-marker');
+    expect(html).toContain('display:none');
+  });
+
+  it('disables the needle when baseline is active', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      baseline: 0,
+      bar: { fill_style: 'solid', color: '#2563eb', needle: true },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+    const ecfg = cfg.entities[0];
+    const baselinePct = card._resolveBaselinePct(ecfg, 0, 100);
+
+    expect(card._getNeedleRenderState(50, ecfg, 0, 100, baselinePct)).toMatchObject({ show: false, pct: null });
+
+    const html = card._buildRow(
+      ecfg,
+      '50',
+      'W',
+      50,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(html).not.toContain('needle-marker');
+  });
+
+  it('keeps the needle visible when no baseline is active', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { fill_style: 'solid', color: '#2563eb', needle: true },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+    const ecfg = cfg.entities[0];
+
+    expect(card._getNeedleRenderState(50, ecfg, 0, 100, null)).toMatchObject({ show: true, pct: 50, edge: 'middle' });
+  });
+
+  it('renders left and right edge needle states for clamped positions', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { fill_style: 'solid', color: '#2563eb', needle: true },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+
+    const leftHtml = card._buildRow(
+      cfg.entities[0],
+      '0',
+      'W',
+      0,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+    const rightHtml = card._buildRow(
+      cfg.entities[0],
+      '100',
+      'W',
+      100,
+      '#2563eb',
+      null,
+      null,
+      null,
+      null,
+      '#888',
+      '#888',
+      0,
+      100
+    );
+
+    expect(leftHtml).toContain('data-edge="left"');
+    expect(leftHtml).toContain('left:0%');
+    expect(rightHtml).toContain('data-edge="right"');
+    expect(rightHtml).toContain('left:100%');
+  });
+
+  it('renders inside labels above peak/target/needle and marker layering in CSS', () => {
+    const source = readFileSync(new URL('../../src/sensor-bar-card-plus.js', import.meta.url), 'utf8');
+
+    expect(source).toContain('.bar-inner-label {\n          position: absolute;');
+    expect(source).toContain('z-index: 8;');
+    expect(source).toContain('.needle-marker');
+    expect(source).toContain('.target-marker {\n          z-index: 6;');
+    expect(source).toContain('.peak-marker {\n          z-index: 7;');
+    expect(source).toContain('.needle-marker {\n          position: absolute;');
+    expect(source).toContain('z-index: 5;');
+    expect(source).toContain('.bar-paint-layer {\n          position: absolute;');
+    expect(source).toContain('.bar-paint-layer {\n          position: absolute;\n          inset: 0;\n          transition: clip-path 0.6s cubic-bezier(0.4,0,0.2,1);\n          z-index: 1;');
+  });
+
   it('defaults solid_fill to false', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -1187,7 +1527,7 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(cardB._densityPassRetries).toBe(0);
   });
 
-  it('keeps explicit height unchanged', () => {
+  it('keeps explicit height unchanged when it is 16 or higher', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
       height: 50,
@@ -1200,6 +1540,67 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cfg.layout.height_explicit).toBe(true);
     expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, mainLine)).toBe(50);
+  });
+
+  it('normalizes explicit height 12 to 24 and applies 24', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      height: 12,
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const mainLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'compressed', rowDensity: 'compressed' },
+    };
+
+    expect(cfg.layout.height_explicit).toBe(true);
+    expect(cfg.layout.height).toBe(24);
+    expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, mainLine)).toBe(24);
+  });
+
+  it('normalizes explicit height 16 to 24 and applies 24', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      height: 16,
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const mainLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'compressed', rowDensity: 'compressed' },
+    };
+
+    expect(cfg.layout.height).toBe(24);
+    expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, mainLine)).toBe(24);
+  });
+
+  it('normalizes explicit height 24 to 24 and applies 24', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      height: 24,
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const mainLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'compressed', rowDensity: 'compressed' },
+    };
+
+    expect(cfg.layout.height).toBe(24);
+    expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, mainLine)).toBe(24);
+  });
+
+  it('keeps explicit height 38 at 38', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      height: 38,
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const mainLine = {
+      classList: { contains: (name) => name === 'left-mode' },
+      dataset: { leftDensity: 'compressed', rowDensity: 'compressed' },
+    };
+
+    expect(cfg.layout.height).toBe(38);
+    expect(card._getEffectiveRowHeight(cfg.layout.height, cfg.layout.height_explicit, mainLine)).toBe(38);
   });
 
   it('shrinks default height for dense and compressed rows', () => {
@@ -2745,6 +3146,28 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(fillState.revealStyle).toContain('clip-path:inset(');
   });
 
+  it('renders full-scale soft_bands paint when the needle is active', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'soft_bands',
+        needle: true,
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const color = card._getColor(50, ecfg, 0, 100);
+    const fillState = card._getFillRenderState(50, 38, ecfg, color, null, null, 0, 100, true);
+
+    expect(fillState.paintStyle).toContain('#22c55e 48%');
+    expect(fillState.paintStyle).toContain('#ef4444 52%');
+    expect(fillState.revealStyle).toContain('clip-path:inset(0 0% 0 0');
+  });
+
   it('keeps existing non-solid-fill paint behavior unchanged', () => {
     const card = createCard();
     const solid = card.normalizeCardConfig({
@@ -2835,6 +3258,28 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getBasePaintGradient(card._getColor(2, ecfg, 0, 100), ecfg, 0, 100)).toBe(
       'linear-gradient(to right, #22c55e 0%, #22c55e 3%, #ef4444 3%, #ef4444 100%)'
     );
+  });
+
+  it('renders full-scale sampled solid_fill paint when the needle is active', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'soft_bands',
+        solid_fill: true,
+        needle: true,
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const color = card._getColor(50, ecfg, 0, 100);
+    const fillState = card._getFillRenderState(50, 38, ecfg, color, null, null, 0, 100, true);
+
+    expect(fillState.paintStyle).toContain('linear-gradient(to right,rgb(137,133,81) 0%,rgb(137,133,81) 100%)');
+    expect(fillState.revealStyle).toContain('clip-path:inset(0 0% 0 0');
   });
 
   it('renders baseline severity paint identically for legacy severity and structured percent segments', () => {

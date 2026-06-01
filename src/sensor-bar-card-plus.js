@@ -534,6 +534,32 @@ class SensorBarCard extends HTMLElement {
     });
   }
 
+  normalizeNeedleConfig(input, inheritedNeedle = null) {
+    const base = inheritedNeedle
+      ? { show: inheritedNeedle.show ?? false, color: inheritedNeedle.color ?? '#ffffff' }
+      : { show: false, color: '#ffffff' };
+
+    if (input === undefined) {
+      return { ...base };
+    }
+
+    if (typeof input === 'boolean') {
+      return {
+        show: input,
+        color: '#ffffff',
+      };
+    }
+
+    if (input && typeof input === 'object' && !Array.isArray(input)) {
+      return {
+        show: input.show ?? base.show,
+        color: input.color ?? base.color,
+      };
+    }
+
+    return { ...base };
+  }
+
   normalizeBarConfig(entityConfig, cardConfig) {
     const cardBar = cardConfig?.bar;
     const entityBar = entityConfig?.bar;
@@ -577,6 +603,7 @@ class SensorBarCard extends HTMLElement {
     return {
       fill_style: normalizedMode.fill_style,
       color_mode: normalizedMode.color_mode,
+      needle: this.normalizeNeedleConfig(entityBar?.needle, cardBar?.needle),
       solid_fill: entityBar?.solid_fill ?? cardBar?.solid_fill ?? false,
       color: entityBar?.color ?? entityConfig.color ?? cardBar?.color ?? cardConfig?.color ?? '#4a9eff',
       gradient_stops: this._normalizeGradientStops(
@@ -596,6 +623,7 @@ class SensorBarCard extends HTMLElement {
     const entityLabel = entityLayout?.label;
     const cardLabel = cardLayout?.label;
     const isCardLevelNormalization = !cardConfig;
+    const rawHeight = entityLayout?.height ?? entityConfig.height ?? cardLayout?.height ?? cardConfig?.height ?? 38;
     const heightExplicit =
       entityLayout?.height !== undefined
       || entityConfig._height_explicit === true
@@ -607,9 +635,13 @@ class SensorBarCard extends HTMLElement {
         position: entityLabel?.position ?? entityConfig.label_position ?? cardLabel?.position ?? cardLayout?.label_position ?? cardConfig?.label_position ?? 'left',
         width: entityLabel?.width ?? entityConfig.label_width ?? cardLabel?.width ?? cardLayout?.label_width ?? cardConfig?.label_width ?? 100,
       },
-      height: entityLayout?.height ?? entityConfig.height ?? cardLayout?.height ?? cardConfig?.height ?? 38,
+      height: this._clampSupportedRowHeight(rawHeight),
       height_explicit: heightExplicit,
     };
+  }
+
+  _clampSupportedRowHeight(height) {
+    return Math.max(24, height);
   }
 
   normalizeFormattingConfig(entityConfig, cardConfig) {
@@ -1232,12 +1264,54 @@ class SensorBarCard extends HTMLElement {
     return `display:block;height:${heightValue};clip-path:inset(${topInset} ${rightInset} ${bottomInset} ${leftInset} round ${radii});`;
   }
 
-  _getFillRenderState(pct, h, ecfg, color, targetPct = null, baselinePct = null, minValue = 0, maxValue = 100) {
-    const geometry = this._getNormalizedPercent(pct, baselinePct);
+  _getFillRenderState(pct, h, ecfg, color, targetPct = null, baselinePct = null, minValue = 0, maxValue = 100, needleActive = false) {
+    const geometry = needleActive
+      ? this._getNormalizedPercent(100, null)
+      : this._getNormalizedPercent(pct, baselinePct);
     return {
       geometry,
       paintStyle: this._getFullScalePaintStyle(ecfg, color, targetPct, baselinePct, minValue, maxValue),
       revealStyle: this._getRevealShapeStyle(geometry, h),
+    };
+  }
+
+  _getNeedleRenderState(rawValue, ecfg, minValue = 0, maxValue = 100, baselinePct = null) {
+    const needle = ecfg?.bar?.needle;
+    if (!needle?.show) {
+      return {
+        show: false,
+        pct: null,
+        color: needle?.color ?? '#ffffff',
+        borderColor: this._getNeedleBorderColor(needle?.color ?? '#ffffff'),
+        edge: 'middle',
+      };
+    }
+    if (Number.isFinite(baselinePct)) {
+      return {
+        show: false,
+        pct: null,
+        color: needle.color ?? '#ffffff',
+        borderColor: this._getNeedleBorderColor(needle.color ?? '#ffffff'),
+        edge: 'middle',
+      };
+    }
+    if (!Number.isFinite(rawValue)) {
+      return {
+        show: false,
+        pct: null,
+        color: needle.color ?? '#ffffff',
+        borderColor: this._getNeedleBorderColor(needle.color ?? '#ffffff'),
+        edge: 'middle',
+      };
+    }
+
+    const pct = Math.min(100, Math.max(0, this._toScalePct(rawValue, minValue, maxValue)));
+    return {
+      show: true,
+      pct,
+      color: needle.color ?? '#ffffff',
+      borderColor: this._getNeedleBorderColor(needle.color ?? '#ffffff'),
+      edge: pct <= 0 ? 'left' : (pct >= 100 ? 'right' : 'middle'),
     };
   }
 
@@ -1488,7 +1562,7 @@ class SensorBarCard extends HTMLElement {
           gap: 6px;
           padding: 0 6px;
           pointer-events: none;
-          z-index: 4;
+          z-index: 8;
         }
         .bar-inner-label[data-inside-density="compact"] {
           gap: 5px;
@@ -1674,10 +1748,38 @@ class SensorBarCard extends HTMLElement {
           --marker-contrast-color: #f3f4f6;
         }
         .target-marker {
-          z-index: 4;
+          z-index: 6;
         }
         .peak-marker {
+          z-index: 7;
+        }
+        .needle-marker {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 7px;
+          transform: translateX(-50%);
+          pointer-events: none;
+          transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
           z-index: 5;
+          background: linear-gradient(
+            to right,
+            var(--needle-border-color, #000000) 0 1px,
+            var(--needle-color, #ffffff) 1px 6px,
+            var(--needle-border-color, #000000) 6px 7px
+          );
+          border-radius: 0;
+          filter:
+            drop-shadow(0 0 3px var(--needle-color, #ffffff))
+            drop-shadow(0 0 6px var(--needle-color, #ffffff));
+        }
+        .needle-marker[data-edge="left"] {
+          transform: none;
+          border-radius: 6px 0 0 6px;
+        }
+        .needle-marker[data-edge="right"] {
+          transform: translateX(-100%);
+          border-radius: 0 6px 6px 0;
         }
         .peak-marker .peak-inset,
         .peak-marker .peak-outset,
@@ -2504,8 +2606,8 @@ class SensorBarCard extends HTMLElement {
   }
 
   _getEffectiveRowHeight(baseHeight, heightExplicit, mainLine) {
-    if (heightExplicit) return baseHeight;
-    return this._getAdaptiveDefaultHeightForDensity(this._getAdaptiveDensityForMainLine(mainLine));
+    if (heightExplicit) return this._clampSupportedRowHeight(baseHeight);
+    return this._clampSupportedRowHeight(this._getAdaptiveDefaultHeightForDensity(this._getAdaptiveDensityForMainLine(mainLine)));
   }
 
   _applyAdaptiveRowHeight() {
@@ -2683,6 +2785,21 @@ class SensorBarCard extends HTMLElement {
     return `hsl(${Math.round(h)} ${Math.round(contrastS)}% ${Math.round(contrastL)}%)`;
   }
 
+  _getNeedleBorderColor(color) {
+    const rgb = this._parseColorToRgb(color);
+    if (!rgb) return '#000000';
+    const toLinear = (channel) => {
+      const srgb = channel / 255;
+      return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (
+      0.2126 * toLinear(rgb.r)
+      + 0.7152 * toLinear(rgb.g)
+      + 0.0722 * toLinear(rgb.b)
+    );
+    return luminance < 0.22 ? '#ffffff' : '#000000';
+  }
+
   _formatDisplayWithUnit(display, unit) {
     if (!unit) return String(display);
     const cleanUnit = String(unit);
@@ -2731,7 +2848,9 @@ class SensorBarCard extends HTMLElement {
     const targetMarkerColor = targetColor || '#888';
     const peakContrastColor = this._getMarkerContrastColor(peakMarkerColor);
     const targetContrastColor = this._getMarkerContrastColor(targetMarkerColor);
-    const fillState = this._getFillRenderState(pct, 'var(--sbcp-row-height)', ecfg, color, targetPct, baselinePct, safeMin, safeMax);
+    const rawValue = this._getFiniteNumber(stateDisplay);
+    const needleState = this._getNeedleRenderState(rawValue, ecfg, safeMin, safeMax, baselinePct);
+    const fillState = this._getFillRenderState(pct, 'var(--sbcp-row-height)', ecfg, color, targetPct, baselinePct, safeMin, safeMax, needleState.show);
 
     // Peak marker — chevron top, line full height, configurable colour
     const peakMarker = peakMarkerCfg.show && peakPct !== null ? `
@@ -2750,6 +2869,8 @@ class SensorBarCard extends HTMLElement {
       <div class="target-value-label" style="left:${targetPct !== null ? targetPct : 0}%;">
         ${targetDisplay !== null ? targetDisplay : ''}
       </div>` : '';
+    const needleMarker = ecfg.bar?.needle?.show && !Number.isFinite(baselinePct) ? `
+      <div class="needle-marker" data-edge="${needleState.edge}" style="left:${needleState.pct ?? 0}%;--needle-color:${needleState.color};--needle-border-color:${needleState.borderColor};display:${needleState.show ? 'block' : 'none'};"></div>` : '';
     const aboveLabel = lp === 'above' ? `
       <div class="above-line">
         ${ecfg.icon && ecfg.icon !== false ? `<div class="above-icon-spacer"></div>` : ''}
@@ -2789,6 +2910,7 @@ class SensorBarCard extends HTMLElement {
                 ${innerLabel}
                 ${peakMarker}
                 ${targetMarker}
+                ${needleMarker}
               </div>
               ${targetValueLabel}
             </div>
@@ -2823,11 +2945,20 @@ class SensorBarCard extends HTMLElement {
       liveTargetPct = this._toScalePct(targetVal, safeMin, safeMax);
     }
     const liveBaselinePct = this._resolveBaselinePct(ecfg, safeMin, safeMax);
-    const fillState = this._getFillRenderState(pct, 'var(--sbcp-row-height)', ecfg, color, liveTargetPct, liveBaselinePct, safeMin, safeMax);
+    const needleState = this._getNeedleRenderState(rawVal, ecfg, safeMin, safeMax, liveBaselinePct);
+    const fillState = this._getFillRenderState(pct, 'var(--sbcp-row-height)', ecfg, color, liveTargetPct, liveBaselinePct, safeMin, safeMax, needleState.show);
 
     if (paintLayer) {
       paintLayer.style.cssText = `${fillState.paintStyle}${fillState.revealStyle}`;
       paintLayer.className = `bar-paint-layer${ecfg.bar.animated ? '' : ' no-anim'}`;
+    }
+    const needleEl = row.querySelector('.needle-marker');
+    if (needleEl) {
+      needleEl.style.display = needleState.show ? 'block' : 'none';
+      needleEl.style.left = `${needleState.pct ?? 0}%`;
+      needleEl.style.setProperty('--needle-color', needleState.color);
+      needleEl.style.setProperty('--needle-border-color', needleState.borderColor);
+      needleEl.dataset.edge = needleState.edge;
     }
     row.dataset.baseHeight = String(ecfg.layout.height);
     row.dataset.heightExplicit = ecfg.layout.height_explicit ? 'true' : 'false';

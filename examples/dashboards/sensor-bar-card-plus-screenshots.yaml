@@ -866,6 +866,55 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
+        title: Bands Rainbow + Needle
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at:
+            entity: sensor.sbcp_playground_target
+          label:
+            show: true
+        bar:
+          needle: true
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: bands
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "on"
+      card:
+        type: custom:sensor-bar-card-plus
         title: Bands Rainbow
         entities:
         - entity: sensor.sbcp_playground_sensor
@@ -885,6 +934,54 @@ views:
           label:
             show: true
         bar:
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: bands
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "off"
+      card:
+        type: custom:sensor-bar-card-plus
+        title: Bands Rainbow + Needle
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at: {}
+          label:
+            show: false
+        bar:
+          needle: true
           segments:
           - from: 0%
             to: 14%
@@ -1052,6 +1149,55 @@ views:
             color: '#7c3aed'
           fill_style: bands
           solid_fill: true
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "on"
+      card:
+        type: custom:sensor-bar-card-plus
+        title: Band Gradient Rainbow + Needle
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at:
+            entity: sensor.sbcp_playground_target
+          label:
+            show: true
+        bar:
+          needle: true
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: band_gradient
     - type: conditional
       conditions:
       - entity: input_boolean.sbcp_target_enabled
@@ -1077,6 +1223,54 @@ views:
           label:
             show: true
         bar:
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: band_gradient
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "off"
+      card:
+        type: custom:sensor-bar-card-plus
+        title: Band Gradient Rainbow + Needle
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at: {}
+          label:
+            show: false
+        bar:
+          needle: true
           segments:
           - from: 0%
             to: 14%
@@ -1202,6 +1396,55 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
+        title: Soft Bands Rainbow + Needle
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at:
+            entity: sensor.sbcp_playground_target
+          label:
+            show: true
+        bar:
+          needle: true
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: soft_bands
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "on"
+      card:
+        type: custom:sensor-bar-card-plus
         title: Soft Bands Rainbow
         entities:
         - entity: sensor.sbcp_playground_sensor
@@ -1221,6 +1464,54 @@ views:
           label:
             show: true
         bar:
+          segments:
+          - from: 0%
+            to: 14%
+            color: '#ef4444'
+          - from: 14%
+            to: 28%
+            color: '#f97316'
+          - from: 28%
+            to: 42%
+            color: '#facc15'
+          - from: 42%
+            to: 56%
+            color: '#22c55e'
+          - from: 56%
+            to: 70%
+            color: '#06b6d4'
+          - from: 70%
+            to: 84%
+            color: '#2563eb'
+          - from: 84%
+            to: 100%
+            color: '#7c3aed'
+          fill_style: soft_bands
+    - type: conditional
+      conditions:
+      - entity: input_boolean.sbcp_target_enabled
+        state: "off"
+      card:
+        type: custom:sensor-bar-card-plus
+        title: Soft Bands Rainbow + Needle
+        entities:
+        - entity: sensor.sbcp_playground_sensor
+          name: Sensor
+        layout:
+          label:
+            position: left
+            width: 160
+        scale:
+          min:
+            entity: sensor.sbcp_playground_min
+          max:
+            entity: sensor.sbcp_playground_max
+        target:
+          at: {}
+          label:
+            show: false
+        bar:
+          needle: true
           segments:
           - from: 0%
             to: 14%
@@ -1408,6 +1699,39 @@ views:
           fixed: 100
       bar:
         fill_style: bands
+        segments:
+        - from: 0%
+          to: 25%
+          color: '#0ea5e9'
+        - from: 25%
+          to: 50%
+          color: '#22c55e'
+        - from: 50%
+          to: 75%
+          color: '#f59e0b'
+        - from: 75%
+          to: 100%
+          color: '#ec4899'
+    - type: custom:sensor-bar-card-plus
+      title: Needle vs No Needle
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Soft Bands
+      - entity: sensor.sbcp_playground_sensor
+        name: Soft Bands + Needle
+        bar:
+          needle: true
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: soft_bands
         segments:
         - from: 0%
           to: 25%
@@ -3176,6 +3500,462 @@ views:
       - pos: 100
         color: '#ef4444'
       fill_style: gradient
+- title: Needle Showcase
+  path: sensor-bar-card-plus-needle-showcase
+  icon: mdi:map-marker-path
+  badges: []
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: markdown
+      content: |
+        # Needle Showcase
+        Focused screenshot surface for needle positioning, layering, color contrast, and dense telemetry behavior.
+    - type: custom:sensor-bar-card-plus
+      title: Basic Needle
+      entities:
+      - entity: sensor.sbcp_showcase_daylight
+        name: Sky Window
+        icon: mdi:white-balance-sunny
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+      layout:
+        label:
+          position: above
+        height: 64
+      bar:
+        needle: true
+        gradient_stops:
+        - pos: 0
+          color: '#0f172a'
+        - pos: 18
+          color: '#1d4ed8'
+        - pos: 42
+          color: '#38bdf8'
+        - pos: 65
+          color: '#f59e0b'
+        - pos: 82
+          color: '#fb7185'
+        - pos: 100
+          color: '#4c1d95'
+        animated: true
+        fill_style: gradient
+    - type: custom:sensor-bar-card-plus
+      title: Needle + Bands Rainbow
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      bar:
+        needle: true
+        fill_style: bands
+        segments:
+        - from: 0%
+          to: 14%
+          color: '#ef4444'
+        - from: 14%
+          to: 28%
+          color: '#f97316'
+        - from: 28%
+          to: 42%
+          color: '#facc15'
+        - from: 42%
+          to: 56%
+          color: '#22c55e'
+        - from: 56%
+          to: 70%
+          color: '#06b6d4'
+        - from: 70%
+          to: 84%
+          color: '#2563eb'
+        - from: 84%
+          to: 100%
+          color: '#7c3aed'
+    - type: custom:sensor-bar-card-plus
+      title: Needle + Soft Bands Rainbow
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      bar:
+        needle: true
+        fill_style: soft_bands
+        segments:
+        - from: 0%
+          to: 14%
+          color: '#ef4444'
+        - from: 14%
+          to: 28%
+          color: '#f97316'
+        - from: 28%
+          to: 42%
+          color: '#facc15'
+        - from: 42%
+          to: 56%
+          color: '#22c55e'
+        - from: 56%
+          to: 70%
+          color: '#06b6d4'
+        - from: 70%
+          to: 84%
+          color: '#2563eb'
+        - from: 84%
+          to: 100%
+          color: '#7c3aed'
+    - type: custom:sensor-bar-card-plus
+      title: Needle + Band Gradient Rainbow
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      bar:
+        needle: true
+        fill_style: band_gradient
+        segments:
+        - from: 0%
+          to: 14%
+          color: '#ef4444'
+        - from: 14%
+          to: 28%
+          color: '#f97316'
+        - from: 28%
+          to: 42%
+          color: '#facc15'
+        - from: 42%
+          to: 56%
+          color: '#22c55e'
+        - from: 56%
+          to: 70%
+          color: '#06b6d4'
+        - from: 70%
+          to: 84%
+          color: '#2563eb'
+        - from: 84%
+          to: 100%
+          color: '#7c3aed'
+    - type: custom:sensor-bar-card-plus
+      title: Needle + solid_fill
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      bar:
+        needle: true
+        fill_style: soft_bands
+        solid_fill: true
+        segments:
+        - from: 0%
+          to: 14%
+          color: '#ef4444'
+        - from: 14%
+          to: 28%
+          color: '#f97316'
+        - from: 28%
+          to: 42%
+          color: '#facc15'
+        - from: 42%
+          to: 56%
+          color: '#22c55e'
+        - from: 56%
+          to: 70%
+          color: '#06b6d4'
+        - from: 70%
+          to: 84%
+          color: '#2563eb'
+        - from: 84%
+          to: 100%
+          color: '#7c3aed'
+    - type: custom:sensor-bar-card-plus
+      title: Needle + Target + Peak
+      entities:
+      - entity: sensor.sbcp_showcase_consumption
+        name: House Load
+        icon: mdi:home-lightning-bolt
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 3200
+      layout:
+        label:
+          position: left
+          width: 180
+        height: 44
+      target:
+        at:
+          fixed: 2400
+        color: '#d1d5db'
+        label:
+          show: true
+      peak:
+        enabled: true
+        color: '#fde68a'
+      bar:
+        needle: true
+        fill_style: gradient
+    - type: custom:sensor-bar-card-plus
+      title: Needle + Above-Target Color
+      entities:
+      - entity: sensor.sbcp_showcase_consumption
+        name: Above Target
+        icon: mdi:home-lightning-bolt
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 3200
+      layout:
+        label:
+          position: left
+          width: 180
+      target:
+        at:
+          fixed: 1800
+        color: '#d1d5db'
+        label:
+          show: true
+        when_exceeded:
+          fill_color: '#ef4444'
+      bar:
+        needle: true
+        fill_style: gradient
+    - type: custom:sensor-bar-card-plus
+      title: Needle Colors
+      entities:
+      - entity: sensor.sbcp_showcase_solar
+        name: White
+        bar:
+          needle:
+            show: true
+            color: '#ffffff'
+      - entity: sensor.sbcp_showcase_battery
+        name: Yellow
+        bar:
+          needle:
+            show: true
+            color: '#ffff00'
+      - entity: sensor.sbcp_showcase_consumption
+        name: Cyan
+        bar:
+          needle:
+            show: true
+            color: '#00ffff'
+      - entity: sensor.sbcp_showcase_network
+        name: Red
+        bar:
+          needle:
+            show: true
+            color: '#ef4444'
+      - entity: sensor.sbcp_showcase_storage
+        name: Black
+        bar:
+          needle:
+            show: true
+            color: '#000000'
+      layout:
+        label:
+          position: left
+          width: 120
+        height: 28
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: gradient
+        gradient_stops:
+        - pos: 0
+          color: '#0f172a'
+        - pos: 35
+          color: '#2563eb'
+        - pos: 70
+          color: '#06b6d4'
+        - pos: 100
+          color: '#f59e0b'
+    - type: custom:sensor-bar-card-plus
+      title: Needle Dense Telemetry
+      entities:
+      - entity: sensor.sbcp_showcase_cpu
+        name: CPU
+        icon: mdi:chip
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+        bar:
+          needle: true
+      - entity: sensor.sbcp_showcase_network
+        name: Network
+        icon: mdi:wifi
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+        bar:
+          needle: true
+      - entity: sensor.sbcp_showcase_water
+        name: Water
+        icon: mdi:water-outline
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+        bar:
+          needle: true
+      - entity: sensor.sbcp_showcase_air
+        name: Air
+        icon: mdi:air-filter
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+        bar:
+          needle: true
+      - entity: sensor.sbcp_showcase_storage
+        name: Storage
+        icon: mdi:database
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+        bar:
+          needle: true
+      - entity: sensor.sbcp_showcase_latency
+        name: Latency
+        icon: mdi:timer-sand
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 40
+        bar:
+          needle: true
+      layout:
+        label:
+          position: left
+          width: 110
+        height: 24
+      bar:
+        gradient_stops:
+        - pos: 0
+          color: '#0f172a'
+        - pos: 24
+          color: '#1d4ed8'
+        - pos: 48
+          color: '#06b6d4'
+        - pos: 72
+          color: '#8b5cf6'
+        - pos: 100
+          color: '#ec4899'
+        fill_style: gradient
+    - type: custom:sensor-bar-card-plus
+      title: Needle Edge Cases
+      entities:
+      - entity: sensor.sbcp_playground_min
+        name: Min
+      - entity: sensor.sbcp_playground_negative
+        name: Near Min
+        scale:
+          min:
+            fixed: -120
+          max:
+            fixed: 120
+      - entity: sensor.sbcp_playground_baseline
+        name: Center
+        scale:
+          min:
+            fixed: -100
+          max:
+            fixed: 100
+      - entity: sensor.sbcp_playground_target
+        name: Near Max
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+      - entity: sensor.sbcp_playground_max
+        name: Max
+      layout:
+        label:
+          position: left
+          width: 120
+        height: 28
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      bar:
+        needle: true
+        fill_style: gradient
+    - type: custom:sensor-bar-card-plus
+      title: Inside Labels + Needle
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Needle
+      - entity: sensor.sbcp_playground_target
+        name: Target
+      layout:
+        label:
+          position: inside
+        height: 52
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      target:
+        at:
+          entity: sensor.sbcp_playground_target
+        label:
+          show: true
+      peak:
+        enabled: true
+      bar:
+        needle: true
+        fill_style: gradient
 - title: Baseline Showcase
   path: sensor-bar-card-plus-baseline-showcase
   icon: mdi:axis-arrow
