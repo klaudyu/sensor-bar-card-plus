@@ -1179,221 +1179,227 @@ views:
     content: |
       ## Solid Fill
       Compare the normal theoretical fill against `solid_fill: true`, which samples the current color and renders the revealed area as one solid fill.
-  - type: custom:sensor-bar-card-plus
-    title: Bands
-    entities:
-    - entity: sensor.sbcp_playground_sensor
-      name: Sensor
-    layout:
-      label:
-        position: left
-        width: 160
-    scale:
-      min:
-        entity: sensor.sbcp_playground_min
-      max:
-        entity: sensor.sbcp_playground_max
-    target:
-      at:
-        entity: sensor.sbcp_playground_target
-      label:
-        show: true
-    bar:
-      segments:
-      - from: 0%
-        to: 30%
-        color: '#22c55e'
-      - from: 30%
-        to: 60%
-        color: '#facc15'
-      - from: 60%
-        to: 85%
-        color: '#f97316'
-      - from: 85%
-        to: 100%
-        color: '#ef4444'
-      fill_style: bands
-  - type: custom:sensor-bar-card-plus
-    title: Bands + solid_fill
-    entities:
-    - entity: sensor.sbcp_playground_sensor
-      name: Sensor
-    layout:
-      label:
-        position: left
-        width: 160
-    scale:
-      min:
-        entity: sensor.sbcp_playground_min
-      max:
-        entity: sensor.sbcp_playground_max
-    target:
-      at:
-        entity: sensor.sbcp_playground_target
-      label:
-        show: true
-    bar:
-      segments:
-      - from: 0%
-        to: 30%
-        color: '#22c55e'
-      - from: 30%
-        to: 60%
-        color: '#facc15'
-      - from: 60%
-        to: 85%
-        color: '#f97316'
-      - from: 85%
-        to: 100%
-        color: '#ef4444'
-      fill_style: bands
-      solid_fill: true
-  - type: custom:sensor-bar-card-plus
-    title: Band Gradient
-    entities:
-    - entity: sensor.sbcp_playground_sensor
-      name: Sensor
-    layout:
-      label:
-        position: left
-        width: 160
-    scale:
-      min:
-        entity: sensor.sbcp_playground_min
-      max:
-        entity: sensor.sbcp_playground_max
-    target:
-      at:
-        entity: sensor.sbcp_playground_target
-      label:
-        show: true
-    bar:
-      segments:
-      - from: 0%
-        to: 20%
-        color: '#22c55e'
-      - from: 20%
-        to: 35%
-        color: '#84cc16'
-      - from: 35%
-        to: 50%
-        color: '#eab308'
-      - from: 50%
-        to: 65%
-        color: '#f59e0b'
-      - from: 65%
-        to: 80%
-        color: '#f97316'
-      - from: 80%
-        to: 100%
-        color: '#ef4444'
-      fill_style: band_gradient
-  - type: custom:sensor-bar-card-plus
-    title: Band Gradient + solid_fill
-    entities:
-    - entity: sensor.sbcp_playground_sensor
-      name: Sensor
-    layout:
-      label:
-        position: left
-        width: 160
-    scale:
-      min:
-        entity: sensor.sbcp_playground_min
-      max:
-        entity: sensor.sbcp_playground_max
-    target:
-      at:
-        entity: sensor.sbcp_playground_target
-      label:
-        show: true
-    bar:
-      segments:
-      - from: 0%
-        to: 20%
-        color: '#22c55e'
-      - from: 20%
-        to: 35%
-        color: '#84cc16'
-      - from: 35%
-        to: 50%
-        color: '#eab308'
-      - from: 50%
-        to: 65%
-        color: '#f59e0b'
-      - from: 65%
-        to: 80%
-        color: '#f97316'
-      - from: 80%
-        to: 100%
-        color: '#ef4444'
-      fill_style: band_gradient
-      solid_fill: true
-  - type: custom:sensor-bar-card-plus
-    title: Gradient
-    entities:
-    - entity: sensor.sbcp_playground_sensor
-      name: Sensor
-    layout:
-      label:
-        position: left
-        width: 160
-    scale:
-      min:
-        entity: sensor.sbcp_playground_min
-      max:
-        entity: sensor.sbcp_playground_max
-    target:
-      at:
-        entity: sensor.sbcp_playground_target
-      label:
-        show: true
-      when_exceeded:
-        fill_color: '#991b1b'
-    bar:
-      gradient_stops:
-      - pos: 0
-        color: '#2563eb'
-      - pos: 35
-        color: '#0ea5e9'
-      - pos: 70
-        color: '#f59e0b'
-      - pos: 100
-        color: '#dc2626'
-      fill_style: gradient
-  - type: custom:sensor-bar-card-plus
-    title: Gradient + solid_fill
-    entities:
-    - entity: sensor.sbcp_playground_sensor
-      name: Sensor
-    layout:
-      label:
-        position: left
-        width: 160
-    scale:
-      min:
-        entity: sensor.sbcp_playground_min
-      max:
-        entity: sensor.sbcp_playground_max
-    target:
-      at:
-        entity: sensor.sbcp_playground_target
-      label:
-        show: true
-      when_exceeded:
-        fill_color: '#991b1b'
-    bar:
-      gradient_stops:
-      - pos: 0
-        color: '#2563eb'
-      - pos: 35
-        color: '#0ea5e9'
-      - pos: 70
-        color: '#f59e0b'
-      - pos: 100
-        color: '#dc2626'
-      fill_style: gradient
-      solid_fill: true
+  - type: vertical-stack
+    cards:
+    - type: custom:sensor-bar-card-plus
+      title: Bands
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      target:
+        at:
+          entity: sensor.sbcp_playground_target
+        label:
+          show: true
+      bar:
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#22c55e'
+        - from: 30%
+          to: 60%
+          color: '#facc15'
+        - from: 60%
+          to: 85%
+          color: '#f97316'
+        - from: 85%
+          to: 100%
+          color: '#ef4444'
+        fill_style: bands
+    - type: custom:sensor-bar-card-plus
+      title: Bands + solid_fill
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      target:
+        at:
+          entity: sensor.sbcp_playground_target
+        label:
+          show: true
+      bar:
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#22c55e'
+        - from: 30%
+          to: 60%
+          color: '#facc15'
+        - from: 60%
+          to: 85%
+          color: '#f97316'
+        - from: 85%
+          to: 100%
+          color: '#ef4444'
+        fill_style: bands
+        solid_fill: true
+    - type: custom:sensor-bar-card-plus
+      title: Soft Bands
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      target:
+        at:
+          entity: sensor.sbcp_playground_target
+        label:
+          show: true
+      bar:
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#22c55e'
+        - from: 30%
+          to: 60%
+          color: '#facc15'
+        - from: 60%
+          to: 85%
+          color: '#f97316'
+        - from: 85%
+          to: 100%
+          color: '#ef4444'
+        fill_style: soft_bands
+    - type: custom:sensor-bar-card-plus
+      title: Soft Bands + solid_fill
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      target:
+        at:
+          entity: sensor.sbcp_playground_target
+        label:
+          show: true
+      bar:
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#22c55e'
+        - from: 30%
+          to: 60%
+          color: '#facc15'
+        - from: 60%
+          to: 85%
+          color: '#f97316'
+        - from: 85%
+          to: 100%
+          color: '#ef4444'
+        fill_style: soft_bands
+        solid_fill: true
+    - type: custom:sensor-bar-card-plus
+      title: Band Gradient
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      target:
+        at:
+          entity: sensor.sbcp_playground_target
+        label:
+          show: true
+      bar:
+        segments:
+        - from: 0%
+          to: 20%
+          color: '#22c55e'
+        - from: 20%
+          to: 35%
+          color: '#84cc16'
+        - from: 35%
+          to: 50%
+          color: '#eab308'
+        - from: 50%
+          to: 65%
+          color: '#f59e0b'
+        - from: 65%
+          to: 80%
+          color: '#f97316'
+        - from: 80%
+          to: 100%
+          color: '#ef4444'
+        fill_style: band_gradient
+    - type: custom:sensor-bar-card-plus
+      title: Band Gradient + solid_fill
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      target:
+        at:
+          entity: sensor.sbcp_playground_target
+        label:
+          show: true
+      bar:
+        segments:
+        - from: 0%
+          to: 20%
+          color: '#22c55e'
+        - from: 20%
+          to: 35%
+          color: '#84cc16'
+        - from: 35%
+          to: 50%
+          color: '#eab308'
+        - from: 50%
+          to: 65%
+          color: '#f59e0b'
+        - from: 65%
+          to: 80%
+          color: '#f97316'
+        - from: 80%
+          to: 100%
+          color: '#ef4444'
+        fill_style: band_gradient
+        solid_fill: true
   - type: markdown
     content: |
       ## Display Formatting
@@ -4126,25 +4132,370 @@ views:
           width: 90
       bar:
         fill_style: bands
+  - type: vertical-stack
+    cards:
+    - type: markdown
+      content: |
+        ## Soft Bands Edge Cases
+        Matching `bands`, `soft_bands`, and `band_gradient` cards for boundaries at the edges and around genuinely narrow center bands.
     - type: custom:sensor-bar-card-plus
-      title: Grid rendering D
+      title: Bands Narrow At 0%
       entities:
       - entity: sensor.sbcp_playground_sensor
+        name: Sensor
       layout:
         label:
-          position: "off"
+          position: left
+          width: 160
       scale:
         min:
-          entity: sensor.sbcp_playground_min
+          fixed: 0
         max:
-          entity: sensor.sbcp_playground_max
-      target:
-        at:
-          entity: sensor.sbcp_playground_target
-      peak:
-        enabled: true
+          fixed: 100
       bar:
-        fill_style: gradient
+        fill_style: bands
+        segments:
+        - from: 0%
+          to: 3%
+          color: '#ef4444'
+        - from: 3%
+          to: 55%
+          color: '#f59e0b'
+        - from: 55%
+          to: 100%
+          color: '#22c55e'
+    - type: custom:sensor-bar-card-plus
+      title: Soft Bands Narrow At 0%
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: soft_bands
+        segments:
+        - from: 0%
+          to: 3%
+          color: '#ef4444'
+        - from: 3%
+          to: 55%
+          color: '#f59e0b'
+        - from: 55%
+          to: 100%
+          color: '#22c55e'
+    - type: custom:sensor-bar-card-plus
+      title: Band Gradient Narrow At 0%
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: band_gradient
+        segments:
+        - from: 0%
+          to: 3%
+          color: '#ef4444'
+        - from: 3%
+          to: 55%
+          color: '#f59e0b'
+        - from: 55%
+          to: 100%
+          color: '#22c55e'
+    - type: custom:sensor-bar-card-plus
+      title: Bands Narrow Center
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: bands
+        segments:
+        - from: 0%
+          to: 45%
+          color: '#0ea5e9'
+        - from: 45%
+          to: 48%
+          color: '#f59e0b'
+        - from: 48%
+          to: 58%
+          color: '#22c55e'
+        - from: 58%
+          to: 100%
+          color: '#2563eb'
+    - type: custom:sensor-bar-card-plus
+      title: Soft Bands Narrow Center
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: soft_bands
+        segments:
+        - from: 0%
+          to: 45%
+          color: '#0ea5e9'
+        - from: 45%
+          to: 48%
+          color: '#f59e0b'
+        - from: 48%
+          to: 58%
+          color: '#22c55e'
+        - from: 58%
+          to: 100%
+          color: '#2563eb'
+    - type: custom:sensor-bar-card-plus
+      title: Band Gradient Narrow Center
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: band_gradient
+        segments:
+        - from: 0%
+          to: 45%
+          color: '#0ea5e9'
+        - from: 45%
+          to: 48%
+          color: '#f59e0b'
+        - from: 48%
+          to: 58%
+          color: '#22c55e'
+        - from: 58%
+          to: 100%
+          color: '#2563eb'
+    - type: custom:sensor-bar-card-plus
+      title: Bands Consecutive Narrow Center
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: bands
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#2563eb'
+        - from: 30%
+          to: 33%
+          color: '#f59e0b'
+        - from: 33%
+          to: 36%
+          color: '#ec4899'
+        - from: 36%
+          to: 46%
+          color: '#22c55e'
+        - from: 46%
+          to: 100%
+          color: '#0ea5e9'
+    - type: custom:sensor-bar-card-plus
+      title: Soft Bands Consecutive Narrow Center
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: soft_bands
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#2563eb'
+        - from: 30%
+          to: 33%
+          color: '#f59e0b'
+        - from: 33%
+          to: 36%
+          color: '#ec4899'
+        - from: 36%
+          to: 46%
+          color: '#22c55e'
+        - from: 46%
+          to: 100%
+          color: '#0ea5e9'
+    - type: custom:sensor-bar-card-plus
+      title: Band Gradient Consecutive Narrow Center
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: band_gradient
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#2563eb'
+        - from: 30%
+          to: 33%
+          color: '#f59e0b'
+        - from: 33%
+          to: 36%
+          color: '#ec4899'
+        - from: 36%
+          to: 46%
+          color: '#22c55e'
+        - from: 46%
+          to: 100%
+          color: '#0ea5e9'
+    - type: custom:sensor-bar-card-plus
+      title: Bands Narrow At 100%
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: bands
+        segments:
+        - from: 0%
+          to: 45%
+          color: '#0ea5e9'
+        - from: 45%
+          to: 97%
+          color: '#22c55e'
+        - from: 97%
+          to: 100%
+          color: '#ef4444'
+    - type: custom:sensor-bar-card-plus
+      title: Soft Bands Narrow At 100%
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: soft_bands
+        segments:
+        - from: 0%
+          to: 45%
+          color: '#0ea5e9'
+        - from: 45%
+          to: 97%
+          color: '#22c55e'
+        - from: 97%
+          to: 100%
+          color: '#ef4444'
+    - type: custom:sensor-bar-card-plus
+      title: Band Gradient Narrow At 100%
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 160
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 100
+      bar:
+        fill_style: band_gradient
+        segments:
+        - from: 0%
+          to: 45%
+          color: '#0ea5e9'
+        - from: 45%
+          to: 97%
+          color: '#22c55e'
+        - from: 97%
+          to: 100%
+          color: '#ef4444'
+  - type: custom:sensor-bar-card-plus
+    title: Grid rendering D
+    entities:
+    - entity: sensor.sbcp_playground_sensor
+    layout:
+      label:
+        position: "off"
+    scale:
+      min:
+        entity: sensor.sbcp_playground_min
+      max:
+        entity: sensor.sbcp_playground_max
+    target:
+      at:
+        entity: sensor.sbcp_playground_target
+    peak:
+      enabled: true
+    bar:
+      fill_style: gradient
 - title: Stress Tests
   path: sensor-bar-card-plus-stress-tests
   icon: mdi:view-dashboard-outline

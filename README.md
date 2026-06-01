@@ -333,6 +333,44 @@ entities:
     name: Sensor
 ```
 
+### `soft_bands`
+
+`soft_bands` uses the same `bar.segments` configuration as `bands`, but blends each eligible boundary over a short transition zone instead of switching colors abruptly.
+
+It sits between the other segment-based styles:
+
+- `bands`: hard transitions
+- `soft_bands`: short blended transitions
+- `band_gradient`: continuous gradient derived from segment colors
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Soft Bands Fill
+bar:
+  fill_style: soft_bands
+  segments:
+    - from: 0%
+      to: 30%
+      color: '#22c55e'
+    - from: 30%
+      to: 60%
+      color: '#facc15'
+    - from: 60%
+      to: 85%
+      color: '#f97316'
+    - from: 85%
+      to: 100%
+      color: '#ef4444'
+scale:
+  min:
+    fixed: 0
+  max:
+    fixed: 100
+entities:
+  - entity: sensor.power_usage
+    name: Sensor
+```
+
 ### `band_gradient` 
 
 Compatibility name: `severity_gradient` 
@@ -1244,12 +1282,12 @@ Each entry in `entities` accepts:
 
 | Option | Type | Description |
 |---|---|---|
-| `bar.fill_style` | string | Preferred structured alias: `solid`, `gradient`, `bands`, `band_gradient` |
+| `bar.fill_style` | string | Preferred structured alias: `solid`, `gradient`, `bands`, `soft_bands`, `band_gradient` |
 | `bar.color_mode` | string | `single`, `gradient`, `severity`, `severity_gradient` |
 | `bar.solid_fill` | boolean | Sample the theoretical fill color at the current value and render the visible fill as one solid color |
 | `bar.color` | string | Solid color for `single` mode |
 | `bar.gradient_stops` | list | Gradient stops for `gradient` mode; `pos` accepts `50` and `50%` equivalently |
-| `bar.segments` | list | Segment definitions for `severity` and `severity_gradient` |
+| `bar.segments` | list | Segment definitions for `bands`, `soft_bands`, and `band_gradient` |
 | `bar.animated` | boolean | Animate value changes |
 
 `target`

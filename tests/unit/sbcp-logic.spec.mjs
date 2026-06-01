@@ -521,6 +521,17 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(cfg.bar.color_mode).toBe('severity');
   });
 
+  it('maps fill_style soft_bands to color_mode severity', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      bar: { fill_style: 'soft_bands' },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.bar.fill_style).toBe('soft_bands');
+    expect(cfg.bar.color_mode).toBe('severity');
+  });
+
   it('maps fill_style band_gradient to color_mode severity_gradient', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -2649,6 +2660,25 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getBasePaintGradient(midColor, ecfg, 0, 100)).toBe('linear-gradient(to right,rgb(138,84,152) 0%,rgb(138,84,152) 100%)');
   });
 
+  it('samples the interpolated color for soft_bands plus solid_fill', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'soft_bands',
+        solid_fill: true,
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const midColor = card._getColor(50, ecfg, 0, 100);
+    expect(midColor).toBe('rgb(137,133,81)');
+    expect(card._getBasePaintGradient(midColor, ecfg, 0, 100)).toBe('linear-gradient(to right,rgb(137,133,81) 0%,rgb(137,133,81) 100%)');
+  });
+
   it('keeps baseline reveal geometry while using sampled solid_fill color for percent segments', () => {
     const card = createCard();
     const min = -100;
@@ -2680,6 +2710,39 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(fillState.paintStyle).toContain('linear-gradient(to right,#22c55e 0%,#22c55e 100%)');
     expect(fillState.revealStyle).toContain('clip-path:inset(0 50% 0 25%');
+  });
+
+  it('keeps baseline rendering working with soft_bands', () => {
+    const card = createCard();
+    const min = -100;
+    const max = 100;
+    const value = 25;
+    const pct = card._toScalePct(value, min, max);
+    const baselinePct = card._toScalePct(0, min, max);
+    const ecfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: min },
+        max: { fixed: max },
+      },
+      baseline: {
+        at: { fixed: 0 },
+      },
+      bar: {
+        fill_style: 'soft_bands',
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    const color = card._getColor(pct, ecfg, min, max);
+    const fillState = card._getFillRenderState(pct, 38, ecfg, color, null, baselinePct, min, max);
+
+    expect(fillState.paintStyle).toContain('#22c55e 48%');
+    expect(fillState.paintStyle).toContain('#ef4444 52%');
+    expect(fillState.revealStyle).toContain('clip-path:inset(');
   });
 
   it('keeps existing non-solid-fill paint behavior unchanged', () => {
@@ -2723,6 +2786,55 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getBasePaintGradient(card._getColor(50, gradient, 0, 100), gradient, 0, 100)).toContain('rgb(37,99,235) 0%,rgb(239,68,68) 100%');
     expect(card._getBasePaintGradient(card._getColor(25, bands, 0, 100), bands, 0, 100)).toBe('linear-gradient(to right, #22c55e 0%, #22c55e 50%, #ef4444 50%, #ef4444 100%)');
     expect(card._getBasePaintGradient(card._getColor(50, bandGradient, 0, 100), bandGradient, 0, 100)).toContain('rgb(');
+  });
+
+  it('generates softened transition stops for soft_bands without changing bands output', () => {
+    const card = createCard();
+    const bands = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'bands',
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+    const softBands = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'soft_bands',
+        segments: [
+          { from: '0%', to: '50%', color: '#22c55e' },
+          { from: '50%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    expect(card._getBasePaintGradient(card._getColor(25, bands, 0, 100), bands, 0, 100)).toBe(
+      'linear-gradient(to right, #22c55e 0%, #22c55e 50%, #ef4444 50%, #ef4444 100%)'
+    );
+    expect(card._getBasePaintGradient(card._getColor(25, softBands, 0, 100), softBands, 0, 100)).toBe(
+      'linear-gradient(to right, #22c55e 0%, #22c55e 48%, #ef4444 52%, #ef4444 100%)'
+    );
+  });
+
+  it('keeps narrow adjacent bands hard in soft_bands mode', () => {
+    const card = createCard();
+    const ecfg = card.normalizeCardConfig({
+      bar: {
+        fill_style: 'soft_bands',
+        segments: [
+          { from: '0%', to: '3%', color: '#22c55e' },
+          { from: '3%', to: '100%', color: '#ef4444' },
+        ],
+      },
+      entities: [{ entity: 'sensor.row' }],
+    }).entities[0];
+
+    expect(card._getBasePaintGradient(card._getColor(2, ecfg, 0, 100), ecfg, 0, 100)).toBe(
+      'linear-gradient(to right, #22c55e 0%, #22c55e 3%, #ef4444 3%, #ef4444 100%)'
+    );
   });
 
   it('renders baseline severity paint identically for legacy severity and structured percent segments', () => {

@@ -483,6 +483,7 @@ class SensorBarCard extends HTMLElement {
       case 'solid': return 'single';
       case 'gradient': return 'gradient';
       case 'bands': return 'severity';
+      case 'soft_bands': return 'severity';
       case 'band_gradient': return 'severity_gradient';
       default: return null;
     }
@@ -848,6 +849,58 @@ class SensorBarCard extends HTMLElement {
     return `linear-gradient(to right, ${stops.join(', ')})`;
   }
 
+  _getSoftBandBlendWidthPct() {
+    return 4;
+  }
+
+  _pushGradientColorStop(stops, pos, color) {
+    if (!Array.isArray(stops) || !color) return;
+    const clampedPos = Math.min(100, Math.max(0, pos));
+    const last = stops[stops.length - 1];
+    if (last && last.color === color && Math.abs(last.p - clampedPos) < 0.0001) return;
+    stops.push({ p: clampedPos, color });
+  }
+
+  _getSoftBandGradientStops(ecfg, minValue = 0, maxValue = 100) {
+    const bands = this._getSegmentsForRendering(ecfg, minValue, maxValue);
+    const sorted = bands
+      .filter(s => Number.isFinite(s?.from) && Number.isFinite(s?.to) && s?.color)
+      .sort((a, b) => a.from - b.from);
+
+    if (!sorted.length) return [];
+
+    const blendWidth = this._getSoftBandBlendWidthPct();
+    const blendHalf = blendWidth / 2;
+    const stops = [];
+    this._pushGradientColorStop(stops, sorted[0].from, sorted[0].color);
+
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const current = sorted[i];
+      const next = sorted[i + 1];
+      const boundary = current.to;
+      const currentWidth = current.to - current.from;
+      const nextWidth = next.to - next.from;
+      const soften = currentWidth >= blendWidth && nextWidth >= blendWidth;
+
+      if (soften) {
+        this._pushGradientColorStop(stops, Math.max(current.from, boundary - blendHalf), current.color);
+        this._pushGradientColorStop(stops, Math.min(next.to, boundary + blendHalf), next.color);
+      } else {
+        this._pushGradientColorStop(stops, boundary, current.color);
+        this._pushGradientColorStop(stops, boundary, next.color);
+      }
+    }
+
+    this._pushGradientColorStop(stops, sorted[sorted.length - 1].to, sorted[sorted.length - 1].color);
+    return stops;
+  }
+
+  _getSoftBandGradientCss(ecfg, minValue = 0, maxValue = 100) {
+    const stops = this._getSoftBandGradientStops(ecfg, minValue, maxValue);
+    if (!stops.length) return null;
+    return `linear-gradient(to right, ${stops.map((stop) => `${stop.color} ${stop.p}%`).join(', ')})`;
+  }
+
   _resolveSegmentBoundaryPct(boundary, minValue, maxValue) {
     if (boundary === null || boundary === undefined) return null;
 
@@ -869,6 +922,12 @@ class SensorBarCard extends HTMLElement {
 
     const fixed = this._getFiniteNumber(boundary);
     return Number.isFinite(fixed) ? this._toScalePct(fixed, minValue, maxValue) : null;
+  }
+
+  _getEffectiveFillStyle(ecfg) {
+    return ecfg?.bar?.fill_style
+      ?? this._colorModeToFillStyle(ecfg?.bar?.color_mode)
+      ?? 'bands';
   }
 
   _segmentsNeedBoundaryResolution(segments) {
@@ -901,12 +960,20 @@ class SensorBarCard extends HTMLElement {
   }
 
   _getColor(pct, ecfg, minValue = 0, maxValue = 100) {
-    if (ecfg.bar.color_mode === 'single') return ecfg.bar.color;
+    const fillStyle = this._getEffectiveFillStyle(ecfg);
+    if (fillStyle === 'solid') return ecfg.bar.color;
 
-    if (ecfg.bar.color_mode === 'gradient' || ecfg.bar.color_mode === 'severity_gradient') {
+    if (fillStyle === 'gradient' || fillStyle === 'band_gradient' || fillStyle === 'soft_bands') {
       let stops;
-      if (ecfg.bar.color_mode === 'severity_gradient') {
+      if (fillStyle === 'band_gradient') {
         stops = this._getSeverityInterpolationStops(ecfg, minValue, maxValue);
+      } else if (fillStyle === 'soft_bands') {
+        stops = this._getSoftBandGradientStops(ecfg, minValue, maxValue)
+          .map((stop) => {
+            const rgb = this._hexToRgb(stop.color);
+            return rgb ? { p: stop.p, ...rgb } : null;
+          })
+          .filter(Boolean);
       } else if (ecfg.bar.gradient_stops && ecfg.bar.gradient_stops.length >= 2) {
         stops = ecfg.bar.gradient_stops.map(s => {
           const hex = s.color.replace('#','');
@@ -934,7 +1001,7 @@ class SensorBarCard extends HTMLElement {
       return `rgb(${Math.round(lo.r + t*(hi.r-lo.r))},${Math.round(lo.g + t*(hi.g-lo.g))},${Math.round(lo.b + t*(hi.b-lo.b))})`;
     }
 
-    // Severity mode
+    // Bands mode
     for (const s of this._getSegmentsForRendering(ecfg, minValue, maxValue)) {
       if (pct >= s.from && pct <= s.to) return s.color;
     }
@@ -952,8 +1019,19 @@ class SensorBarCard extends HTMLElement {
   }
 
   _getGradientInterpolationStops(ecfg, minValue = 0, maxValue = 100) {
-    if (ecfg.bar.color_mode === 'severity_gradient') {
+    const fillStyle = this._getEffectiveFillStyle(ecfg);
+    if (fillStyle === 'band_gradient') {
       return this._getSeverityInterpolationStops(ecfg, minValue, maxValue);
+    }
+
+    if (fillStyle === 'soft_bands') {
+      return this._getSoftBandGradientStops(ecfg, minValue, maxValue)
+        .map((stop) => {
+          const rgb = this._hexToRgb(stop.color);
+          return rgb ? { p: stop.p, ...rgb } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.p - b.p);
     }
 
     if (ecfg.bar.gradient_stops && ecfg.bar.gradient_stops.length >= 2) {
@@ -1005,15 +1083,20 @@ class SensorBarCard extends HTMLElement {
   }
 
   _getBasePaintGradient(color, ecfg, minValue = 0, maxValue = 100) {
+    const fillStyle = this._getEffectiveFillStyle(ecfg);
     if (ecfg.bar.solid_fill) {
       return this._buildSolidGradientStyle(color);
     }
 
-    if (ecfg.bar.color_mode === 'severity') {
+    if (fillStyle === 'bands') {
       return this._getSeverityBandGradientCss(ecfg, minValue, maxValue);
     }
 
-    if (ecfg.bar.color_mode === 'gradient' || ecfg.bar.color_mode === 'severity_gradient') {
+    if (fillStyle === 'soft_bands') {
+      return this._getSoftBandGradientCss(ecfg, minValue, maxValue);
+    }
+
+    if (fillStyle === 'gradient' || fillStyle === 'band_gradient') {
       const stops = this._getGradientInterpolationStops(ecfg, minValue, maxValue);
       return this._buildFullScaleGradientStyle(stops)?.replace(/^background:/, '').replace(/;background-repeat:no-repeat;$/, '');
     }
