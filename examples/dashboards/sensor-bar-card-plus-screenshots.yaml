@@ -601,6 +601,42 @@ views:
       bar:
         color: '#4a9eff'
         fill_style: solid
+    - type: custom:sensor-bar-card-plus
+      title: Responsive Behavior
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor with a very long label
+      layout:
+        label:
+          position: left
+          width: 170
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      bar:
+        fill_style: gradient
+    - type: custom:sensor-bar-card-plus
+      title: Value + Unit
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Sensor
+      layout:
+        label:
+          position: left
+          width: 170
+      scale:
+        min:
+          entity: sensor.sbcp_playground_min
+        max:
+          entity: sensor.sbcp_playground_max
+      formatting:
+        decimal: 1
+        unit: kilowatt-hours equivalent
+      bar:
+        color: '#0f766e'
+        fill_style: solid
     - type: conditional
       conditions:
       - entity: input_boolean.sbcp_target_enabled
@@ -1214,7 +1250,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Solid Color
+        title: Solid
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1241,7 +1277,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Solid Color
+        title: Solid
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1267,7 +1303,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Dynamic min / max / target entities
+        title: Dynamic Scale And Target
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1293,7 +1329,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Dynamic min / max / target entities
+        title: Dynamic Scale And Target
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1318,7 +1354,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Dynamic target_entity
+        title: Dynamic Target Entity
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1344,7 +1380,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Dynamic target_entity
+        title: Dynamic Target Entity
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1369,7 +1405,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Long target label clamp
+        title: Long Target Label Clamp
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1398,7 +1434,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Long target label clamp
+        title: Long Target Label Clamp
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1426,7 +1462,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Above target color
+        title: Above-Target Color
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1456,7 +1492,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Above target color
+        title: Above-Target Color
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1487,7 +1523,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak / target overlap
+        title: Peak / Target Overlap
         entities:
         - entity: sensor.sbcp_playground_target
           name: Overlap reference
@@ -1519,7 +1555,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak / target overlap
+        title: Peak / Target Overlap
         entities:
         - entity: sensor.sbcp_playground_target
           name: Overlap reference
@@ -1551,7 +1587,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak / target overlap
+        title: Peak / Target Overlap
         entities:
         - entity: sensor.sbcp_playground_target
           name: Overlap reference
@@ -1582,7 +1618,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak / target overlap
+        title: Peak / Target Overlap
         entities:
         - entity: sensor.sbcp_playground_target
           name: Overlap reference
@@ -1613,7 +1649,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak plus target label
+        title: Peak + Target Label
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1645,7 +1681,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak plus target label
+        title: Peak + Target Label
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1677,7 +1713,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak plus target label
+        title: Peak + Target Label
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1708,7 +1744,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Peak plus target label
+        title: Peak + Target Label
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Sensor
@@ -1866,7 +1902,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Tight time unit - seconds
+        title: "Tight Time Unit: Seconds"
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Response time
@@ -1894,7 +1930,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Tight time unit - seconds
+        title: "Tight Time Unit: Seconds"
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Response time
@@ -1921,7 +1957,7 @@ views:
         state: "on"
       card:
         type: custom:sensor-bar-card-plus
-        title: Tight time unit - hours
+        title: "Tight Time Unit: Hours"
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Runtime
@@ -1948,7 +1984,7 @@ views:
         state: "off"
       card:
         type: custom:sensor-bar-card-plus
-        title: Tight time unit - hours
+        title: "Tight Time Unit: Hours"
         entities:
         - entity: sensor.sbcp_playground_sensor
           name: Runtime
@@ -1969,7 +2005,7 @@ views:
           color: '#0f766e'
           fill_style: solid
     - type: custom:sensor-bar-card-plus
-      title: Custom text state
+      title: Text State
       entities:
       - entity: sensor.sbcp_playground_text_state
         name: Text from helper
@@ -1981,7 +2017,7 @@ views:
         color: '#9333ea'
         fill_style: solid
     - type: custom:sensor-bar-card-plus
-      title: Unknown and unavailable
+      title: Unknown / Unavailable
       entities:
       - entity: sensor.sbcp_playground_unknown
       - entity: sensor.sbcp_playground_unavailable

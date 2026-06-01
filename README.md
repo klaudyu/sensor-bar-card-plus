@@ -414,6 +414,8 @@ entities:
 
 With `fill_style: bands`, the active band color is used directly. With `band_gradient` or `gradient`, the color is sampled from the interpolated gradient at the current value. If `solid_fill` is omitted, normal multicolor rendering is unchanged.
 
+The screenshots dashboard includes `Bands Rainbow + solid_fill` and `Band Gradient Rainbow + solid_fill` cards for direct visual comparisons.
+
 ### `solid`
 
 Compatibility name: `single` 
@@ -492,6 +494,8 @@ Value and unit are treated as one piece of text. They are never split, and the u
 In tight layouts, left labels may step aside when they no longer fit usefully, the value may move above and to the right of the bar, and the icon may hide as a last resort. Explicit `layout.height` is still respected exactly, while the default row height may shrink automatically in very dense layouts.
 
 There is no YAML option for this yet. The behavior is automatic.
+
+The screenshots dashboard includes dedicated `Responsive Behavior` and `Value + Unit` cards for capture-ready examples.
 
 ## Label Width
 
