@@ -1819,6 +1819,17 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(source).not.toContain('.above-line[data-above-density="dense"] .above-bar-label-unit');
   });
 
+  it('inside label pill shrink-wraps short labels while clamping long ones', () => {
+    const source = readFileSync(new URL('../../src/sensor-bar-card-plus.js', import.meta.url), 'utf8');
+
+    expect(source).toContain('.bar-inner-label .inside-name {\n          flex: 0 1 auto;');
+    expect(source).toContain('width: fit-content;');
+    expect(source).toContain('max-width: 60%;');
+    expect(source).toContain('display: inline-block;');
+    expect(source).toContain('.bar-inner-label[data-inside-density="compact"] .inside-name {\n          max-width: 56%;');
+    expect(source).toContain('.bar-inner-label[data-inside-density="tight"] .inside-name {\n          max-width: 48%;');
+  });
+
   const makeLeftModeResponsiveFixture = ({
     text = 'Sensor',
     visibleChars = 6,

@@ -1601,14 +1601,16 @@ class SensorBarCard extends HTMLElement {
           text-overflow: ellipsis;
         }
         .bar-inner-label .inside-name {
-          flex: 1 1 auto;
-          max-width: 58%;
+          flex: 0 1 auto;
+          width: fit-content;
+          max-width: 60%;
+          display: inline-block;
         }
         .bar-inner-label[data-inside-density="compact"] .inside-name {
-          max-width: 52%;
+          max-width: 56%;
         }
         .bar-inner-label[data-inside-density="tight"] .inside-name {
-          max-width: 44%;
+          max-width: 48%;
         }
         .bar-inner-label[data-hide-name="true"] .inside-name,
         .bar-inner-label[data-priority-hide-name="true"] .inside-name {
