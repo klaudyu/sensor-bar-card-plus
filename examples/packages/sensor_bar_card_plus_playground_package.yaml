@@ -110,12 +110,21 @@ input_number:
     initial: 0
 
   sbcp_hero_phase:
-    name: SBCP Hero Showcase Phase
+    name: SBCP Hero Simulation Time
     min: 0
-    max: 359
-    step: 1
+    max: 86399
+    step: 0.1
     mode: box
     initial: 0
+
+  sbcp_hero_simulation_speed:
+    name: SBCP Hero Simulation Speed
+    min: 60
+    max: 21600
+    step: 60
+    mode: box
+    initial: 3600
+    unit_of_measurement: s/h
 
 input_boolean:
   sbcp_animated:
@@ -148,6 +157,10 @@ input_boolean:
 
   sbcp_hero_showcase_enabled:
     name: SBCP Hero Showcase Enabled
+    initial: true
+
+  sbcp_hero_simulation_enabled:
+    name: SBCP Hero Simulation Enabled
     initial: true
 
 input_select:
@@ -417,17 +430,26 @@ sensor:
         unit_of_measurement: W
         icon_template: mdi:transmission-tower
         value_template: >-
-          {% set p = states('input_number.sbcp_showcase_phase') | float(0) %}
-          {{ (-350 + 980 * sin((p + 205) * pi / 180) + 260 * sin((p * 2 - 25) * pi / 180)) | round(1) }}
+          {% set solar = states('sensor.sbcp_hero_solar') | float(0) %}
+          {% set ev = states('sensor.sbcp_showcase_ev') | float(0) %}
+          {% set hour = states('sensor.sbcp_hero_daylight') | float(0) %}
+          {% set daytime = (sin(((hour - 7) / 12) * pi) + 1) / 2 %}
+          {% set house = 620 + 160 * daytime + 35 * sin((hour * 55 + 20) * pi / 180) + 22 * sin((hour * 120 - 5) * pi / 180) %}
+          {{ (house + ev - solar) | round(1) }}
 
       sbcp_showcase_ev:
         friendly_name: EV Charging
         unit_of_measurement: W
         icon_template: mdi:car-electric
         value_template: >-
-          {% set p = states('input_number.sbcp_showcase_phase') | float(0) %}
-          {% set wave = sin((p + 250) * pi / 180) %}
-          {{ ([0, 3200 + 2900 * wave] | max) | round(1) }}
+          {% set hour = states('sensor.sbcp_hero_daylight') | float(0) %}
+          {% set start_hour = 6 %}
+          {% set charge_hours = 16.4 %}
+          {% if hour >= start_hour and hour < (start_hour + charge_hours) %}
+            4874
+          {% else %}
+            0
+          {% endif %}
 
       sbcp_showcase_outdoor_temp:
         friendly_name: Outdoor Temperature
@@ -519,53 +541,108 @@ sensor:
 
       # Hero-showcase telemetry. Slower, calmer motion for promo captures.
       sbcp_hero_daylight:
-        friendly_name: Daylight Progress
-        unit_of_measurement: '%'
+        friendly_name: Simulated Hour
+        unit_of_measurement: h
         icon_template: mdi:white-balance-sunny
         value_template: >-
-          {% set p = states('input_number.sbcp_hero_phase') | float(0) %}
-          {% set cycle = (p % 360) / 360 %}
-          {% set day_start = 1 / 6 %}
-          {% set day_end = 5 / 6 %}
-          {% set day_fraction = day_end - day_start %}
-          {% set twilight_floor = 0.1 %}
-          {% if cycle < day_start %}
-            {% set dawn_t = cycle / day_start %}
-            {% set sky_progress = twilight_floor * (dawn_t * dawn_t * (3 - 2 * dawn_t)) %}
-          {% elif cycle > day_end %}
-            {% set dusk_t = (1 - cycle) / (1 - day_end) %}
-            {% set sky_progress = twilight_floor * (dusk_t * dusk_t * (3 - 2 * dusk_t)) %}
-          {% else %}
-            {% set day_t = (cycle - day_start) / day_fraction %}
-            {% set sun_shape = sin(day_t * pi) %}
-            {% set circadian = sun_shape ** 0.82 %}
-            {% set daylight = circadian * circadian * (3 - 2 * circadian) %}
-            {% set sky_progress = twilight_floor + (1 - twilight_floor) * daylight %}
-          {% endif %}
-          {{ (sky_progress * 100) | round(1) }}
+          {% set t = states('input_number.sbcp_hero_phase') | float(0) %}
+          {{ ((t % 86400) / 3600) | round(2) }}
 
       sbcp_hero_solar:
         friendly_name: Solar Production
         unit_of_measurement: W
         icon_template: mdi:solar-power
         value_template: >-
-          {% set p = states('input_number.sbcp_hero_phase') | float(0) %}
-          {% set cycle = (p % 360) / 360 %}
-          {% set day_start = 1 / 6 %}
-          {% set day_end = 5 / 6 %}
-          {% set day_fraction = day_end - day_start %}
-          {% if cycle <= day_start or cycle >= day_end %}
-            {% set daylight = 0 %}
+          {% set hour = states('sensor.sbcp_hero_daylight') | float(0) %}
+          {% set sunrise = 5.6 %}
+          {% set sunset = 20.4 %}
+          {% if hour <= sunrise or hour >= sunset %}
+            0
           {% else %}
-            {% set day_t = (cycle - day_start) / day_fraction %}
-            {% set sun_shape = sin(day_t * pi) %}
-            {% set circadian = sun_shape ** 0.82 %}
-            {% set daylight = circadian * circadian * (3 - 2 * circadian) %}
+            {% set day_t = (hour - sunrise) / (sunset - sunrise) %}
+            {% set sun = sin(day_t * pi) %}
+            {% set envelope = sun ** 2.6 %}
+            {% set skew = 0.985 + 0.03 * sin((day_t * 180 - 20) * pi / 180) %}
+            {{ ([0, 5820 * envelope * skew] | max) | round(1) }}
           {% endif %}
-          {% set solar_shape = [0, ((daylight - 0.04) / 0.96)] | max %}
-          {% set base = (solar_shape ** 2.35) * 5250 %}
-          {% set shimmer = solar_shape * 110 * sin((p * 2 + 20) * pi / 180) %}
-          {{ ([0, base + shimmer] | max) | round(1) }}
+
+      sbcp_hero_energy_today:
+        friendly_name: Solar Energy Today
+        unit_of_measurement: kWh
+        icon_template: mdi:solar-power-variant
+        value_template: >-
+          {% set hour = states('sensor.sbcp_hero_daylight') | float(0) %}
+          {% set sunrise = 5.6 %}
+          {% set sunset = 20.4 %}
+          {% set steps = 96 %}
+          {% set ns = namespace(total = 0) %}
+          {% set dt = hour / steps %}
+          {% for i in range(steps) %}
+            {% set sample_hour = (i + 0.5) * dt %}
+            {% if sample_hour > sunrise and sample_hour < sunset %}
+              {% set day_t = (sample_hour - sunrise) / (sunset - sunrise) %}
+              {% set sun = sin(day_t * pi) %}
+              {% set envelope = sun ** 2.6 %}
+              {% set skew = 0.985 + 0.03 * sin((day_t * 180 - 20) * pi / 180) %}
+              {% set watts = [0, 5820 * envelope * skew] | max %}
+              {% set ns.total = ns.total + (watts * dt / 1000) %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.total | round(2) }}
+
+      sbcp_hero_grid_voltage:
+        friendly_name: Grid Voltage
+        unit_of_measurement: V
+        icon_template: mdi:sine-wave
+        value_template: >-
+          {% set hour = states('sensor.sbcp_hero_daylight') | float(0) %}
+          {% set solar = states('sensor.sbcp_hero_solar') | float(0) %}
+          {% set solar_frac = solar / 5820 %}
+          {% if hour >= 7 and hour <= 12 %}
+            {% set morning_lift = 5.1 * sin(((hour - 7) / 5) * pi) %}
+          {% else %}
+            {% set morning_lift = 0 %}
+          {% endif %}
+          {% if hour >= 16 and hour <= 23 %}
+            {% set late_drop = 10.8 * sin(((hour - 16) / 7) * pi) %}
+          {% else %}
+            {% set late_drop = 0 %}
+          {% endif %}
+          {% if hour >= 19 and hour <= 21.4 %}
+            {% set deep_dip = 14.4 * sin(((hour - 19) / 2.4) * pi) %}
+          {% else %}
+            {% set deep_dip = 0 %}
+          {% endif %}
+          {% if hour >= 22 and hour <= 24 %}
+            {% set night_recovery = 3.8 * sin(((hour - 22) / 2) * pi) %}
+          {% else %}
+            {% set night_recovery = 0 %}
+          {% endif %}
+          {% set ripple_a = 1.9 * sin((hour * 24 + 10) * pi / 180) %}
+          {% set ripple_b = 1.1 * sin((hour * 51 - 15) * pi / 180) %}
+          {% set ripple_c = 0.7 * sin((hour * 83 + 120) * pi / 180) %}
+          {% set voltage_spike_shift = 0 %}
+          {% set spike_hour = 17 + voltage_spike_shift %}
+          {% set spike_width = 2.2 %}
+          {% set spike_strength = 13.5 %}
+          {% if hour >= spike_hour - spike_width / 2 and hour <= spike_hour + spike_width / 2 %}
+            {% set high_voltage_bump = spike_strength * sin(((hour - (spike_hour - spike_width / 2)) / spike_width) * pi) %}
+          {% else %}
+            {% set high_voltage_bump = 0 %}
+          {% endif %}
+          {% set voltage = 228.6 + 16.9 * solar_frac + morning_lift + high_voltage_bump - late_drop - deep_dip + night_recovery + ripple_a + ripple_b + ripple_c %}
+          {{ voltage | round(1) }}
+
+      sbcp_hero_ev_soc:
+        friendly_name: EV State Of Charge
+        unit_of_measurement: '%'
+        icon_template: mdi:car-electric
+        value_template: >-
+          {% set hour = states('sensor.sbcp_hero_daylight') | float(0) %}
+          {% set start_hour = 6 %}
+          {% set charge_hours = 16.4 %}
+          {% set charged_hours = [charge_hours, [0, hour - start_hour] | max] | min %}
+          {{ ([100, 18 + charged_hours * 5] | min) | round(1) }}
 
       sbcp_hero_battery:
         friendly_name: Home Battery Power
@@ -624,6 +701,27 @@ template:
         unit_of_measurement: W
         icon: mdi:vector-line
         state: "{{ states('input_number.sbcp_baseline_value') | float(0) }}"
+
+script:
+  sbcp_hero_phase_back_1h:
+    alias: SBCP Hero Phase Back 1h
+    sequence:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.sbcp_hero_phase
+        data:
+          value: >-
+            {{ ((states('input_number.sbcp_hero_phase') | float(0) - 3600) % 86400) | round(1) }}
+
+  sbcp_hero_phase_forward_1h:
+    alias: SBCP Hero Phase Forward 1h
+    sequence:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.sbcp_hero_phase
+        data:
+          value: >-
+            {{ ((states('input_number.sbcp_hero_phase') | float(0) + 3600) % 86400) | round(1) }}
 
 automation:
   - id: sbcp_quick_slider_sync
@@ -827,8 +925,8 @@ automation:
     mode: restart
 
   - id: sbcp_hero_showcase_phase_driver
-    alias: SBCP Hero Showcase Phase Driver
-    description: Loop a slower, calmer deterministic phase for the cinematic hero showcase.
+    alias: SBCP Hero Simulation Driver
+    description: Drive the shared simulated clock for the hero showcase sensors.
     trigger:
       - platform: homeassistant
         event: start
@@ -837,9 +935,15 @@ automation:
       - platform: state
         entity_id: input_boolean.sbcp_hero_showcase_enabled
         to: "on"
+      - platform: state
+        entity_id: input_boolean.sbcp_hero_simulation_enabled
+        to: "on"
     condition:
       - condition: state
         entity_id: input_boolean.sbcp_hero_showcase_enabled
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.sbcp_hero_simulation_enabled
         state: "on"
     action:
       - repeat:
@@ -847,15 +951,21 @@ automation:
             - condition: state
               entity_id: input_boolean.sbcp_hero_showcase_enabled
               state: "on"
+            - condition: state
+              entity_id: input_boolean.sbcp_hero_simulation_enabled
+              state: "on"
           sequence:
             - variables:
+                tick_seconds: 0.1
+                speed: "{{ states('input_number.sbcp_hero_simulation_speed') | float(3600) }}"
                 next_phase: >-
-                  {{ ((states('input_number.sbcp_hero_phase') | int(0) + 6) % 360) }}
+                  {{ ((states('input_number.sbcp_hero_phase') | float(0) + speed * tick_seconds) % 86400) | round(1) }}
             - service: input_number.set_value
               target:
                 entity_id: input_number.sbcp_hero_phase
               data:
                 value: "{{ next_phase }}"
             - delay:
-                milliseconds: 400
+                milliseconds: 100
     mode: restart
+    

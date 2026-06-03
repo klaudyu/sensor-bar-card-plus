@@ -4304,167 +4304,303 @@ views:
             to: 100%
             color: '#f59e0b'
           fill_style: band_gradient
-- title: Hero Showcase
-  path: sensor-bar-card-plus-hero-showcase
-  icon: mdi:movie-open-star
+- title: Hero Showcase v1.4
+  path: sensor-bar-card-plus-hero-showcase-v14
+  icon: mdi:transmission-tower
   badges: []
   cards:
+  - type: vertical-stack
+    title: Home Energy Sensor Bard Card Plus
+    cards:
+    - type: custom:sensor-bar-card-plus
+      entity: sensor.sbcp_hero_daylight
+      name: Daylight Progress
+      icon: mdi:white-balance-sunny
+      scale:
+        min:
+          fixed: 0
+        max:
+          fixed: 24
+      layout:
+        label:
+          position: inside
+        height: 46
+      formatting:
+        decimal: 0
+      bar:
+        fill_style: gradient
+        needle:
+          show: true
+          color: '#38bdf8'
+        animated: false
+        gradient_stops:
+        - pos: 0
+          color: '#091223'
+        - pos: 4
+          color: '#1e3a8a'
+        - pos: 12
+          color: '#0ea5e9'
+        - pos: 16
+          color: '#f472b6'
+        - pos: 22
+          color: '#fb923c'
+        - pos: 28
+          color: '#bfdbfe'
+        - pos: 44
+          color: '#bfdbfe'
+        - pos: 56
+          color: '#bfdbfe'
+        - pos: 72
+          color: '#bfdbfe'
+        - pos: 78
+          color: '#fb923c'
+        - pos: 84
+          color: '#f472b6'
+        - pos: 88
+          color: '#0ea5e9'
+        - pos: 96
+          color: '#1e3a8a'
+        - pos: 100
+          color: '#091223'
+    - type: custom:sensor-bar-card-plus
+      entities:
+      - entity: sensor.sbcp_showcase_grid
+        name: Grid Import/Export
+        icon: mdi:transmission-tower
+        layout:
+          label:
+            position: above
+          height: 42
+        scale:
+          min:
+            fixed: -6000
+          max:
+            fixed: 6000
+        bar:
+          fill_style: soft_bands
+          needle: true
+          segments:
+          - from: -6000
+            color: '#0041A3'
+          - from: -3000
+            color: '#2b7fff'
+          - from: -1500
+            color: '#3bbbdb'
+          - from: -500
+            color: '#43a047'
+          - from: 500
+            color: '#ffa600'
+          - from: 1500
+            color: '#db4437'
+          - from: 3000
+            color: '#9f0712'
+      - entity: sensor.sbcp_hero_grid_voltage
+        name: Grid Voltage
+        icon: mdi:sine-wave
+        layout:
+          label:
+            position: left
+          height: 28
+        scale:
+          min:
+            fixed: 200
+          max:
+            fixed: 260
+        target:
+          at:
+            fixed: 230
+          label:
+            show: true
+        formatting:
+          decimal: 0
+        baseline:
+          at:
+            fixed: 230
+        bar:
+          fill_style: band_gradient
+          segments:
+            - from: 200
+              to: 207
+              color: '#dc2626'   # low alert red
+            - from: 207
+              to: 215
+              color: '#f97316'   # low warning orange
+            - from: 215
+              to: 245
+              color: '#0ea5e9'   # normal blue
+            - from: 245
+              to: 253
+              color: '#f59e0b'   # high warning amber
+            - from: 253
+              to: 260
+              color: '#dc2626'   # high alert red
+    - type: custom:sensor-bar-card-plus
+      entities:
+      - entity: sensor.sbcp_hero_solar
+        name: Solar Power
+        icon: mdi:solar-power
+        layout:
+          label:
+            position: above
+          height: 42
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 6000
+        peak:
+          enabled: true
+          color: '#fde68a'
+        bar:
+          fill_style: band_gradient
+          needle:
+            show: true
+            color: '#f8fafc'
+          segments:
+            - from: 0%
+              to: 12%
+              color: '#ef4444'
+            - from: 12%
+              to: 28%
+              color: '#f97316'
+            - from: 28%
+              to: 45%
+              color: '#facc15'
+            - from: 45%
+              to: 72%
+              color: '#22c55e'
+            - from: 72%
+              to: 100%
+              color: '#06b6d4'
+
+      - entity: sensor.sbcp_hero_energy_today
+        name: Energy Today
+        icon: mdi:solar-power-variant
+        formatting:
+          unit: kWh
+        layout:
+          label:
+            position: left
+          height: 28
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 40
+        bar:
+          fill_style: band_gradient
+          segments:
+          - from: 0%
+            to: 22%
+            color: '#ef4444'
+          - from: 22%
+            to: 46%
+            color: '#f59e0b'
+          - from: 46%
+            to: 68%
+            color: '#facc15'
+          - from: 68%
+            to: 84%
+            color: '#84cc16'
+          - from: 84%
+            to: 100%
+            color: '#16a34a'
+    - type: custom:sensor-bar-card-plus
+      entities:
+      - entity: sensor.sbcp_showcase_ev
+        name: EV Charge Power
+        icon: mdi:car-electric
+        layout:
+          label:
+            position: above
+          height: 42
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 7000
+
+        bar:
+          fill_style: band_gradient
+          needle:
+            show: true
+            color: '#ffffff'
+          segments:
+          - from: 0%
+            to: 28%
+            color: '#0ea5e9'
+          - from: 28%
+            to: 56%
+            color: '#8b5cf6'
+          - from: 56%
+            to: 100%
+            color: '#ec4899'
+      - entity: sensor.sbcp_hero_ev_soc
+        name: EV SoC
+        icon: mdi:battery-high
+        layout:
+          label:
+            position: left
+          height: 28
+        scale:
+          min:
+            fixed: 0
+          max:
+            fixed: 100
+        bar:
+          fill_style: soft_bands
+          segments:
+          - from: 0%
+            to: 10%
+            color: '#9f0712'
+          - from: 10%
+            to: 20%
+            color: '#ffa600'
+          - from: 20%
+            to: 80%
+            color: '#43a047'
+          - from: 80%
+            to: 100%
+            color: '#3bbbdb'
   - type: entities
     title: Hero Showcase Controls
     show_header_toggle: false
     entities:
     - entity: input_boolean.sbcp_hero_showcase_enabled
       name: Animate Hero Showcase
+    - entity: input_boolean.sbcp_hero_simulation_enabled
+      name: Run Hero Simulation
     - entity: input_number.sbcp_hero_phase
       name: Hero Phase
-  - type: vertical-stack
+    - entity: input_number.sbcp_hero_simulation_speed
+      name: Hero Speed
+  - type: tile
+    entity: input_number.sbcp_hero_phase
+    name: Quick Hero Time
+    hide_state: true
+    features_position: bottom
+    vertical: false
+    features:
+    - type: numeric-input
+      style: slider
+  - type: grid
+    columns: 2
+    square: false
     cards:
-    - type: custom:sensor-bar-card-plus
-      title: ""
-      entities:
-      - entity: sensor.sbcp_hero_daylight
-        name: Daylight Progress
-        icon: mdi:white-balance-sunny
-        scale:
-          min:
-            fixed: 0
-          max:
-            fixed: 100
-      layout:
-        label:
-          position: inside
-        height: 56
-      bar:
-        gradient_stops:
-        - pos: 0
-          color: '#091223'
-        - pos: 14
-          color: '#1e3a8a'
-        - pos: 30
-          color: '#0ea5e9'
-        - pos: 50
-          color: '#7dd3fc'
-        - pos: 68
-          color: '#fde68a'
-        - pos: 82
-          color: '#fb923c'
-        - pos: 92
-          color: '#f472b6'
-        - pos: 100
-          color: '#1f2a5a'
-        animated: true
-        fill_style: gradient
-    - type: custom:sensor-bar-card-plus
-      title: ""
-      entities:
-      - entity: sensor.sbcp_hero_solar
-        name: Solar Production
-        icon: mdi:solar-power
-        scale:
-          min:
-            fixed: 0
-          max:
-            fixed: 5500
+    - type: button
+      name: -1h
+      icon: mdi:minus-circle-outline
+      tap_action:
+        action: perform-action
+        perform_action: script.turn_on
         target:
-          at:
-            fixed: 2000
-          color: '#bfdbfe'
-          label:
-            show: true
-        peak:
-          enabled: true
-          color: '#fde68a'
-        bar:
-          gradient_stops:
-          - pos: 0
-            color: '#0f172a'
-          - pos: 18
-            color: '#1d4ed8'
-          - pos: 42
-            color: '#38bdf8'
-          - pos: 74
-            color: '#facc15'
-          - pos: 100
-            color: '#fb923c'
-              # Battery is computed from solar minus house load, so the 0 W
-              # baseline anchors the neutral point between discharge and charge.
-          fill_style: gradient
-      - entity: sensor.sbcp_hero_battery
-        name: Home Battery Power
-        icon: mdi:home-battery-outline
-        scale:
-          min:
-            fixed: -3200
-          max:
-            fixed: 3200
-        baseline:
-          at:
-            fixed: 0
-        bar:
-          gradient_stops:
-          - pos: 0
-            color: '#ef4444'
-          - pos: 18.75
-            color: '#ef4444'
-          - pos: 42.1875
-            color: '#f97316'
-          - pos: 50
-            color: '#2563eb'
-          - pos: 100
-            color: '#22c55e'
-          fill_style: gradient
-      - entity: sensor.sbcp_hero_consumption
-        name: House Consumption
-        icon: mdi:home-lightning-bolt
-        scale:
-          min:
-            fixed: 0
-          max:
-            fixed: 2600
+          entity_id: script.sbcp_hero_phase_back_1h
+    - type: button
+      name: +1h
+      icon: mdi:plus-circle-outline
+      tap_action:
+        action: perform-action
+        perform_action: script.turn_on
         target:
-          at:
-            fixed: 1800
-          color: '#cbd5e1'
-          label:
-            show: false
-          when_exceeded:
-            fill_color: '#ef4444'
-        bar:
-          gradient_stops:
-          - pos: 0
-            color: '#2F5BEA'
-          - pos: 100
-            color: '#6476F7'
-          fill_style: gradient
-      - entity: sensor.sbcp_hero_grid_intensity
-        name: Grid Carbon Intensity
-        icon: mdi:leaf-circle-outline
-        layout:
-          label:
-            position: inside
-        scale:
-          min:
-            fixed: 150
-          max:
-            fixed: 380
-        bar:
-          segments:
-          - from: 0%
-            to: 25%
-            color: '#22c55e'
-          - from: 25%
-            to: 50%
-            color: '#84cc16'
-          - from: 50%
-            to: 75%
-            color: '#f59e0b'
-          - from: 75%
-            to: 100%
-            color: '#ef4444'
-          fill_style: band_gradient
-      layout:
-        label:
-          position: above
-        height: 30
-      bar:
-        animated: true
+          entity_id: script.sbcp_hero_phase_forward_1h
+      
