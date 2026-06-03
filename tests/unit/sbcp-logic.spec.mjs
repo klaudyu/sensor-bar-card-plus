@@ -875,6 +875,7 @@ describe('Sensor Bar Card Plus logic', () => {
 
     const source = readFileSync(new URL('../../src/sensor-bar-card-plus.js', import.meta.url), 'utf8');
     expect(source).toContain('.row[data-bar-animated="false"] .bar-paint-layer,');
+    expect(source).toContain('.row[data-bar-animated="false"] .above-target-layer,');
     expect(source).toContain('.row[data-bar-animated="false"] .needle-marker,');
     expect(source).toContain('.row[data-bar-animated="false"] .target-marker,');
     expect(source).toContain('.row[data-bar-animated="false"] .peak-marker,');
@@ -3675,10 +3676,93 @@ describe('Sensor Bar Card Plus logic', () => {
     const paintStyleAbove = card._getFullScalePaintStyle(ecfg, '#dc2626', targetPct, baselinePct);
     const paintStyleBelow = card._getFullScalePaintStyle(ecfg, '#2563eb', targetPct, baselinePct);
 
-    expect(paintStyleAbove).toContain('#ef4444');
-    expect(paintStyleAbove).toContain(`transparent ${targetPct}%`);
-    expect(paintStyleBelow).toContain('#ef4444');
-    expect(paintStyleBelow).toContain(`transparent ${targetPct}%`);
+    expect(paintStyleAbove).not.toContain('#ef4444');
+    expect(paintStyleBelow).not.toContain('#ef4444');
+  });
+
+  it('renders an above-target overlay layer only when above_target_color, target, and filled geometry overlap', () => {
+    const card = createCard();
+    const withOverlay = card.normalizeCardConfig({
+      color_mode: 'gradient',
+      gradient_stops: [
+        { pos: 0, color: '#2563eb' },
+        { pos: 100, color: '#dc2626' },
+      ],
+      above_target_color: '#ef4444',
+      target: 60,
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    }).entities[0];
+    const withoutOverlay = card.normalizeCardConfig({
+      color_mode: 'gradient',
+      gradient_stops: [
+        { pos: 0, color: '#2563eb' },
+        { pos: 100, color: '#dc2626' },
+      ],
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    }).entities[0];
+
+    const htmlWith = card._buildRow(withOverlay, '75', 'W', 75, '#dc2626', null, null, 50, '60 W', '#888', '#111827', 0, 120);
+    const htmlWithout = card._buildRow(withoutOverlay, '75', 'W', 75, '#dc2626', null, null, null, null, '#888', '#111827', 0, 120);
+    const htmlNoOverlap = card._buildRow(withOverlay, '20', 'W', 20, '#2563eb', null, null, 50, '60 W', '#888', '#111827', 0, 120);
+
+    expect(htmlWith).toContain('class="above-target-layer"');
+    expect(htmlWith).toContain('background:#ef4444');
+    expect(htmlWith).toContain('clip-path:inset(0 25% 0 50% round 0)');
+    expect(htmlWithout).toContain('class="above-target-layer"');
+    expect(htmlWithout).toContain('display:none;');
+    expect(htmlNoOverlap).toContain('display:none;');
+  });
+
+  it('updates above-target overlay style when the target changes during patching', () => {
+    const card = createCard();
+    card._hass.states = {
+      'sensor.row': {
+        state: '75',
+        attributes: {
+          friendly_name: 'Row',
+          icon: 'mdi:flash',
+          unit_of_measurement: 'W',
+        },
+      },
+    };
+    const ecfg = card.normalizeCardConfig({
+      min: 0,
+      max: 120,
+      above_target_color: '#ef4444',
+      target: 60,
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    }).entities[0];
+    const aboveTargetLayer = {
+      style: { cssText: '' },
+    };
+    const row = {
+      dataset: {},
+      querySelector: (selector) => (
+        selector === '.bar-paint-layer' ? { style: { cssText: '' }, className: '' }
+          : selector === '.above-target-layer' ? aboveTargetLayer
+          : selector === '.needle-marker' ? null
+          : selector === '.value-right' ? null
+          : selector === '.top-right-value' ? null
+          : selector === '.bar-inner-label' ? null
+          : selector === '.above-bar-label' ? null
+          : selector === '.peak-marker' ? null
+          : selector === '.target-marker' ? { style: {} }
+          : selector === '.target-value-label' ? { style: {}, textContent: '' }
+          : null
+      ),
+    };
+
+    card._patchRow(row, ecfg, {
+      state: '75',
+      attributes: {
+        friendly_name: 'Row',
+        icon: 'mdi:flash',
+        unit_of_measurement: 'W',
+      },
+    });
+
+    expect(aboveTargetLayer.style.cssText).toContain('background:#ef4444');
+    expect(aboveTargetLayer.style.cssText).toContain('clip-path:inset(0 37.5% 0 50%');
   });
 
   it('keeps very small reveal intervals as tiny clipped windows on full-width paint', () => {

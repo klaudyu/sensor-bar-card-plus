@@ -1271,10 +1271,13 @@ class SensorBarCard extends HTMLElement {
     return `${leftRadius} ${rightRadius} ${rightRadius} ${leftRadius}`;
   }
 
-  _getAboveTargetOverlayInterval(targetPct = null) {
-    if (!Number.isFinite(targetPct)) return null;
+  _getAboveTargetOverlayInterval(targetPct = null, geometry = null) {
+    if (!Number.isFinite(targetPct) || geometry?.hidden) return null;
     const clampedTarget = Math.min(100, Math.max(0, targetPct));
-    return { start: clampedTarget, end: 100 };
+    const start = Math.max(clampedTarget, Math.min(100, Math.max(0, geometry?.start ?? 0)));
+    const end = Math.min(100, Math.max(0, geometry?.end ?? 0));
+    if (!(end > clampedTarget) || !(end > start)) return null;
+    return { start, end };
   }
 
   _getFullScalePaintStyle(ecfg, color, targetPct = null, baselinePct = null, minValue = 0, maxValue = 100) {
@@ -1293,18 +1296,28 @@ class SensorBarCard extends HTMLElement {
       if (aboveOverlay) layers.push(aboveOverlay);
     }
 
-    if (ecfg.bar.above_target_color) {
-      const interval = this._getAboveTargetOverlayInterval(targetPct);
-      const targetOverlay = interval
-        ? this._getOverlayGradient(interval.start, interval.end, ecfg.bar.above_target_color)
-        : null;
-      if (targetOverlay) layers.push(targetOverlay);
-    }
-
     if (basePaint) layers.push(basePaint);
     if (!layers.length) return 'display:none;';
 
     return `display:block;inset:0;background-image:${layers.join(',')};background-repeat:no-repeat;background-size:100% 100%;`;
+  }
+
+  _getAboveTargetLayerStyle(ecfg, targetPct = null, geometry = null, h = 'var(--sbcp-row-height)') {
+    if (!ecfg?.bar?.above_target_color) {
+      return 'display:none;';
+    }
+    const interval = this._getAboveTargetOverlayInterval(targetPct, geometry);
+    if (!interval || interval.start >= interval.end) {
+      return 'display:none;';
+    }
+
+    const heightValue = typeof h === 'number' ? `${h}px` : h;
+    const leftInset = `${Math.min(100, Math.max(0, interval.start))}%`;
+    const rightInset = `${Math.max(0, 100 - interval.end)}%`;
+    const radii = interval.start <= 0
+      ? (interval.end >= 100 ? '6px 6px 6px 6px' : '6px 0 0 6px')
+      : (interval.end >= 100 ? '0 6px 6px 0' : '0');
+    return `display:block;height:${heightValue};background:${ecfg.bar.above_target_color};clip-path:inset(0 ${rightInset} 0 ${leftInset} round ${radii});`;
   }
 
   _getRevealShapeStyle(geometry, h) {
@@ -1332,6 +1345,7 @@ class SensorBarCard extends HTMLElement {
       geometry,
       paintStyle: this._getFullScalePaintStyle(ecfg, color, targetPct, baselinePct, minValue, maxValue),
       revealStyle: this._getRevealShapeStyle(geometry, h),
+      aboveTargetStyle: this._getAboveTargetLayerStyle(ecfg, targetPct, geometry, h),
     };
   }
 
@@ -1610,10 +1624,18 @@ class SensorBarCard extends HTMLElement {
           transition: clip-path 0.6s cubic-bezier(0.4,0,0.2,1);
           z-index: 1;
         }
+        .above-target-layer {
+          position: absolute;
+          inset: 0;
+          transition: clip-path 0.6s cubic-bezier(0.4,0,0.2,1);
+          z-index: 2;
+          pointer-events: none;
+        }
         .bar-paint-layer.no-anim {
           transition: none;
         }
         .row[data-bar-animated="false"] .bar-paint-layer,
+        .row[data-bar-animated="false"] .above-target-layer,
         .row[data-bar-animated="false"] .needle-marker,
         .row[data-bar-animated="false"] .target-marker,
         .row[data-bar-animated="false"] .peak-marker,
@@ -3039,6 +3061,7 @@ class SensorBarCard extends HTMLElement {
             <div class="bar-wrap">
               <div class="bar-track">
                 <div class="bar-paint-layer${bar.animated ? '' : ' no-anim'}" style="${fillState.paintStyle}${fillState.revealStyle}"></div>
+                <div class="above-target-layer" style="${fillState.aboveTargetStyle}"></div>
                 ${innerLabel}
                 ${peakMarker}
                 ${targetMarker}
@@ -3083,6 +3106,10 @@ class SensorBarCard extends HTMLElement {
     if (paintLayer) {
       this._setStyleTextIfChanged(paintLayer, `${fillState.paintStyle}${fillState.revealStyle}`);
       this._setClassNameIfChanged(paintLayer, `bar-paint-layer${ecfg.bar.animated ? '' : ' no-anim'}`);
+    }
+    const aboveTargetLayer = row.querySelector('.above-target-layer');
+    if (aboveTargetLayer) {
+      this._setStyleTextIfChanged(aboveTargetLayer, fillState.aboveTargetStyle);
     }
     const needleEl = row.querySelector('.needle-marker');
     if (needleEl) {
