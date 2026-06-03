@@ -2349,8 +2349,10 @@ describe('Sensor Bar Card Plus logic', () => {
 
   it('inside mode hides the label before the value and can hide the icon at compressed density', () => {
     const card = createCard();
+    card._measureInsideValueMarkupWidth = () => 52;
     const mainLine = { dataset: { rowDensity: 'compressed' } };
     const track = { getBoundingClientRect: () => ({ width: 60 }) };
+    const valueEl = { scrollWidth: 24, dataset: { display: '72', unit: 'W' }, querySelector: () => null };
     const innerLabel = {
       dataset: {},
       closest: (selector) => (
@@ -2360,7 +2362,7 @@ describe('Sensor Bar Card Plus logic', () => {
       ),
       querySelector: (selector) => (
         selector === '.inside-name' ? {}
-          : selector === '.inside-value' ? { scrollWidth: 52 }
+          : selector === '.inside-value' ? valueEl
           : null
       ),
     };
@@ -2379,12 +2381,14 @@ describe('Sensor Bar Card Plus logic', () => {
 
   it('inside mode hides the icon while keeping the value visible at dense density', () => {
     const card = createCard();
+    card._measureInsideValueMarkupWidth = () => 52;
     const iconWrap = { getBoundingClientRect: () => ({ width: 28 }) };
     const mainLine = {
       dataset: { rowDensity: 'dense' },
       querySelector: (selector) => selector === '.icon-wrap' ? iconWrap : null,
     };
     const track = { getBoundingClientRect: () => ({ width: 100 }) };
+    const valueEl = { scrollWidth: 24, dataset: { display: '72', unit: 'W' }, querySelector: () => null };
     const innerLabel = {
       dataset: {},
       closest: (selector) => (
@@ -2394,7 +2398,7 @@ describe('Sensor Bar Card Plus logic', () => {
       ),
       querySelector: (selector) => (
         selector === '.inside-name' ? {}
-          : selector === '.inside-value' ? { scrollWidth: 52 }
+          : selector === '.inside-value' ? valueEl
           : null
       ),
     };
@@ -2413,12 +2417,14 @@ describe('Sensor Bar Card Plus logic', () => {
 
   it('inside mode hides the icon before hiding the name when icon space resolves value pressure', () => {
     const card = createCard();
+    card._measureInsideValueMarkupWidth = () => 90;
     const iconWrap = { getBoundingClientRect: () => ({ width: 28 }) };
     const mainLine = {
       dataset: { rowDensity: 'tight' },
       querySelector: (selector) => selector === '.icon-wrap' ? iconWrap : null,
     };
-    const track = { getBoundingClientRect: () => ({ width: 100 }) };
+    const track = { getBoundingClientRect: () => ({ width: 160 }) };
+    const valueEl = { scrollWidth: 44, dataset: { display: '1234', unit: 'W' }, querySelector: () => null };
     const innerLabel = {
       dataset: {},
       closest: (selector) => (
@@ -2428,7 +2434,7 @@ describe('Sensor Bar Card Plus logic', () => {
       ),
       querySelector: (selector) => (
         selector === '.inside-name' ? {}
-          : selector === '.inside-value' ? { scrollWidth: 52 }
+          : selector === '.inside-value' ? valueEl
           : null
       ),
     };
@@ -2439,19 +2445,21 @@ describe('Sensor Bar Card Plus logic', () => {
 
     card._applyInsideLabelDensity();
 
-    expect(innerLabel.dataset.insideDensity).toBe('tight');
+    expect(innerLabel.dataset.insideDensity).toBe('compact');
     expect(innerLabel.dataset.hideName).toBe('false');
     expect(mainLine.dataset.hideInsideIcon).toBe('true');
   });
 
   it('inside mode hides the name only when icon sacrifice still leaves no room', () => {
     const card = createCard();
+    card._measureInsideValueMarkupWidth = () => 52;
     const iconWrap = { getBoundingClientRect: () => ({ width: 28 }) };
     const mainLine = {
       dataset: { rowDensity: 'tight' },
       querySelector: (selector) => selector === '.icon-wrap' ? iconWrap : null,
     };
     const track = { getBoundingClientRect: () => ({ width: 30 }) };
+    const valueEl = { scrollWidth: 20, dataset: { display: '72', unit: 'W' }, querySelector: () => null };
     const innerLabel = {
       dataset: {},
       closest: (selector) => (
@@ -2461,7 +2469,7 @@ describe('Sensor Bar Card Plus logic', () => {
       ),
       querySelector: (selector) => (
         selector === '.inside-name' ? {}
-          : selector === '.inside-value' ? { scrollWidth: 52 }
+          : selector === '.inside-value' ? valueEl
           : null
       ),
     };
@@ -2475,6 +2483,113 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(innerLabel.dataset.insideDensity).toBe('compressed');
     expect(innerLabel.dataset.hideName).toBe('true');
     expect(mainLine.dataset.hideInsideIcon).toBe('true');
+  });
+
+  it('inside mode keeps compressed emergency collapse even if icon reclamation would relax density', () => {
+    const card = createCard();
+    card._measureInsideValueMarkupWidth = () => 52;
+    const iconWrap = { getBoundingClientRect: () => ({ width: 28 }) };
+    const mainLine = {
+      dataset: { rowDensity: 'compressed' },
+      querySelector: (selector) => selector === '.icon-wrap' ? iconWrap : null,
+    };
+    const track = { getBoundingClientRect: () => ({ width: 100 }) };
+    const valueEl = { scrollWidth: 20, dataset: { display: '72', unit: 'W' }, querySelector: () => null };
+    const innerLabel = {
+      dataset: {},
+      closest: (selector) => (
+        selector === '.bar-track' ? track
+          : selector === '.main-line' ? mainLine
+          : null
+      ),
+      querySelector: (selector) => (
+        selector === '.inside-name' ? {}
+          : selector === '.inside-value' ? valueEl
+          : null
+      ),
+    };
+    card.shadowRoot = {
+      querySelectorAll: (selector) => selector === '.bar-inner-label' ? [innerLabel] : [],
+      querySelector: () => null,
+    };
+
+    card._applyInsideLabelDensity();
+
+    expect(innerLabel.dataset.insideDensity).toBe('compressed');
+    expect(innerLabel.dataset.hideName).toBe('true');
+    expect(mainLine.dataset.hideInsideIcon).toBe('true');
+  });
+
+  it('inside mode uses natural value width instead of the rendered constrained width', () => {
+    const card = createCard();
+    const valueEl = { scrollWidth: 40, dataset: { display: '5,089.2', unit: 'W' }, querySelector: () => null };
+    card._measureInsideValueMarkupWidth = (el, display, unit) => {
+      expect(el).toBe(valueEl);
+      expect(display).toBe('5,089.2');
+      expect(unit).toBe('W');
+      return 96;
+    };
+    const iconWrap = { getBoundingClientRect: () => ({ width: 28 }) };
+    const mainLine = {
+      dataset: { rowDensity: 'tight' },
+      querySelector: (selector) => selector === '.icon-wrap' ? iconWrap : null,
+    };
+    const track = { getBoundingClientRect: () => ({ width: 170 }) };
+    const innerLabel = {
+      dataset: {},
+      closest: (selector) => (
+        selector === '.bar-track' ? track
+          : selector === '.main-line' ? mainLine
+          : null
+      ),
+      querySelector: (selector) => (
+        selector === '.inside-name' ? {}
+          : selector === '.inside-value' ? valueEl
+          : null
+      ),
+    };
+    card.shadowRoot = {
+      querySelectorAll: (selector) => selector === '.bar-inner-label' ? [innerLabel] : [],
+      querySelector: () => null,
+    };
+
+    card._applyInsideLabelDensity();
+
+    expect(mainLine.dataset.hideInsideIcon).toBe('true');
+    expect(innerLabel.dataset.hideName).toBe('false');
+  });
+
+  it('inside mode hides the name at dense density', () => {
+    const card = createCard();
+    card._measureInsideValueMarkupWidth = () => 52;
+    const mainLine = {
+      dataset: { rowDensity: 'normal' },
+      querySelector: () => null,
+    };
+    const track = { getBoundingClientRect: () => ({ width: 100 }) };
+    const valueEl = { scrollWidth: 24, dataset: { display: '72', unit: 'W' }, querySelector: () => null };
+    const innerLabel = {
+      dataset: {},
+      closest: (selector) => (
+        selector === '.bar-track' ? track
+          : selector === '.main-line' ? mainLine
+          : null
+      ),
+      querySelector: (selector) => (
+        selector === '.inside-name' ? {}
+          : selector === '.inside-value' ? valueEl
+          : null
+      ),
+    };
+    card.shadowRoot = {
+      querySelectorAll: (selector) => selector === '.bar-inner-label' ? [innerLabel] : [],
+      querySelector: () => null,
+    };
+
+    card._applyInsideLabelDensity();
+
+    expect(innerLabel.dataset.insideDensity).toBe('dense');
+    expect(innerLabel.dataset.hideName).toBe('true');
   });
 
   it('above mode hides the label before the value at dense and compressed densities', () => {
@@ -2510,6 +2625,8 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(source).not.toContain('.bar-inner-label[data-inside-density="compressed"] {\n          display: none;');
     expect(source).toContain('.main-line.inside-mode[data-hide-inside-icon="true"] .icon-wrap');
+    expect(source).toContain('.main-line.inside-mode[data-hide-inside-icon="true"] .bar-inner-label .inside-value,');
+    expect(source).toContain('.bar-inner-label[data-hide-name="true"] .inside-value,');
     expect(source).toContain('margin-left: auto;');
     expect(source).not.toContain('.above-line[data-above-density="dense"] .above-bar-label-value .unit');
   });
@@ -2783,7 +2900,7 @@ describe('Sensor Bar Card Plus logic', () => {
     const track = {
       getBoundingClientRect: () => {
         let width = 50;
-        if (mainLine.dataset.hideInsideIcon === 'true') width = 82;
+        if (mainLine.dataset.hideInsideIcon === 'true' || mainLine.dataset.priorityHideInsideIcon === 'true') width = 82;
         return { width };
       },
     };
@@ -2800,7 +2917,7 @@ describe('Sensor Bar Card Plus logic', () => {
     card._ensureMinimumBarShare([row]);
 
     expect(innerLabel.dataset.priorityHideName).toBeUndefined();
-    expect(mainLine.dataset.hideInsideIcon).toBe('true');
+    expect(mainLine.dataset.priorityHideInsideIcon).toBe('true');
   });
 
   it('does nothing when the bar already meets the minimum share', () => {
@@ -3952,8 +4069,8 @@ describe('Sensor Bar Card Plus logic', () => {
     const color = card._getColor(pct, ecfg, min, max);
     const fillState = card._getFillRenderState(pct, 38, ecfg, color, null, baselinePct, min, max);
 
-    expect(fillState.paintStyle).toContain('#22c55e 48%');
-    expect(fillState.paintStyle).toContain('#ef4444 52%');
+    expect(fillState.paintStyle).toContain('#22c55e 49.25%');
+    expect(fillState.paintStyle).toContain('#ef4444 50.75%');
     expect(fillState.revealStyle).toContain('clip-path:inset(');
   });
 
@@ -3974,8 +4091,8 @@ describe('Sensor Bar Card Plus logic', () => {
     const color = card._getColor(50, ecfg, 0, 100);
     const fillState = card._getFillRenderState(50, 38, ecfg, color, null, null, 0, 100, true);
 
-    expect(fillState.paintStyle).toContain('#22c55e 48%');
-    expect(fillState.paintStyle).toContain('#ef4444 52%');
+    expect(fillState.paintStyle).toContain('#22c55e 49.25%');
+    expect(fillState.paintStyle).toContain('#ef4444 50.75%');
     expect(fillState.revealStyle).toContain('clip-path:inset(0 0% 0 0');
   });
 
@@ -4049,7 +4166,7 @@ describe('Sensor Bar Card Plus logic', () => {
       'linear-gradient(to right, #22c55e 0%, #22c55e 50%, #ef4444 50%, #ef4444 100%)'
     );
     expect(card._getBasePaintGradient(card._getColor(25, softBands, 0, 100), softBands, 0, 100)).toBe(
-      'linear-gradient(to right, #22c55e 0%, #22c55e 48%, #ef4444 52%, #ef4444 100%)'
+      'linear-gradient(to right, #22c55e 0%, #22c55e 49.25%, #ef4444 50.75%, #ef4444 100%)'
     );
   });
 
@@ -4067,7 +4184,7 @@ describe('Sensor Bar Card Plus logic', () => {
     }).entities[0];
 
     expect(card._getBasePaintGradient(card._getColor(2, ecfg, 0, 100), ecfg, 0, 100)).toBe(
-      'linear-gradient(to right, #22c55e 0%, #22c55e 3%, #ef4444 3%, #ef4444 100%)'
+      'linear-gradient(to right, #22c55e 0%, #22c55e 2.25%, #ef4444 3.75%, #ef4444 100%)'
     );
   });
 

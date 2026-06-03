@@ -1528,7 +1528,8 @@ class SensorBarCard extends HTMLElement {
         }
         .main-line.left-mode[data-hide-left-icon="true"] .icon-wrap,
         .main-line.above-mode[data-hide-above-icon="true"] .icon-wrap,
-        .main-line.inside-mode[data-hide-inside-icon="true"] .icon-wrap {
+        .main-line.inside-mode[data-hide-inside-icon="true"] .icon-wrap,
+        .main-line.inside-mode[data-priority-hide-inside-icon="true"] .icon-wrap {
           display: none;
         }
         .main-line.left-mode[data-left-density="normal"] {
@@ -1681,10 +1682,17 @@ class SensorBarCard extends HTMLElement {
           display: none;
         }
         .bar-inner-label .inside-value {
-          flex: 0 0 auto;
+          flex: 0 1 auto;
+          min-width: 0;
           max-width: 56%;
           display: inline-flex;
           align-items: baseline;
+        }
+        .main-line.inside-mode[data-hide-inside-icon="true"] .bar-inner-label .inside-value,
+        .main-line.inside-mode[data-priority-hide-inside-icon="true"] .bar-inner-label .inside-value,
+        .bar-inner-label[data-hide-name="true"] .inside-value,
+        .bar-inner-label[data-priority-hide-name="true"] .inside-value {
+          max-width: 100%;
         }
         .bar-inner-label[data-inside-density="dense"] .inside-value,
         .bar-inner-label[data-inside-density="compressed"] .inside-value {
@@ -1913,9 +1921,6 @@ class SensorBarCard extends HTMLElement {
           padding-right: 1px;
           min-width: 0;
         }
-        .main-line.inside-mode[data-hide-inside-icon="true"] .icon-wrap {
-          display: none;
-        }
         .value-right-text {
           display: inline-flex;
           align-items: baseline;
@@ -2131,24 +2136,58 @@ class SensorBarCard extends HTMLElement {
       if (!track || !nameEl || !valueEl) return;
 
       const trackWidth = track.getBoundingClientRect().width;
-      const valueWidth = valueEl.scrollWidth;
+      const valueDisplay = this._decodeDataAttr(valueEl.dataset.display || valueEl.textContent || '');
+      const valueUnit = this._decodeDataAttr(valueEl.dataset.unit || valueEl.querySelector('.inside-unit')?.textContent || '');
+      const valueWidth = this._measureInsideValueMarkupWidth(valueEl, valueDisplay, valueUnit);
       let density = this._classifyInsideDensity(trackWidth, valueWidth);
-      const rowDensity = mainLine?.dataset?.rowDensity || 'normal';
+      const rowWidth = typeof mainLine?.getBoundingClientRect === 'function'
+        ? mainLine.getBoundingClientRect().width
+        : 0;
+      const rowDensity = this._isReliableWidth(rowWidth)
+        ? this._classifyRowDensity(rowWidth, mainLine?.dataset?.rowDensity || 'normal')
+        : (mainLine?.dataset?.rowDensity || 'normal');
       const iconWrap = mainLine?.querySelector?.('.icon-wrap') ?? null;
       let hideIcon = rowDensity === 'dense' || rowDensity === 'compressed';
+      let hideName = density === 'dense' || density === 'compressed';
+      const reclaimedWidth = iconWrap
+        ? this._getLeftModeIconWidth(iconWrap, mainLine) + this._getLeftModeGap(mainLine)
+        : 0;
 
-      if (iconWrap && (hideIcon || density === 'dense' || density === 'compressed')) {
+      if (!hideIcon && valueWidth > this._getInsideValueVisibleCap(trackWidth, density)) {
         hideIcon = true;
-        const reclaimedWidth = this._getLeftModeIconWidth(iconWrap, mainLine) + this._getLeftModeGap(mainLine);
+      }
+
+      if (iconWrap && hideIcon) {
         density = this._classifyInsideDensity(trackWidth + reclaimedWidth, valueWidth);
+        hideName = density === 'dense' || density === 'compressed';
+      }
+
+      const effectiveTrackWidth = trackWidth + (hideIcon ? reclaimedWidth : 0);
+      if (!hideName && valueWidth > this._getInsideValueVisibleCap(effectiveTrackWidth, density)) {
+        hideName = true;
+      }
+
+      if (rowDensity === 'compressed') {
+        density = 'compressed';
+        hideIcon = true;
+        hideName = true;
+      } else if (hideName && density === 'normal') {
+        density = 'dense';
       }
 
       innerLabel.dataset.insideDensity = density;
-      innerLabel.dataset.hideName = density === 'compressed' ? 'true' : 'false';
+      innerLabel.dataset.hideName = hideName ? 'true' : 'false';
       if (mainLine) {
         mainLine.dataset.hideInsideIcon = hideIcon ? 'true' : 'false';
       }
     });
+  }
+
+  _getInsideValueVisibleCap(trackWidth, density) {
+    if (density === 'dense' || density === 'compressed') {
+      return trackWidth;
+    }
+    return trackWidth * 0.56;
   }
 
   _classifyInsideDensity(trackWidth, valueWidth) {
@@ -2199,6 +2238,22 @@ class SensorBarCard extends HTMLElement {
     clone.style.maxWidth = 'none';
     clone.style.flex = '0 0 auto';
     clone.innerHTML = this._formatRightValueMarkup(display, unit, hideUnit);
+    layer.replaceChildren(clone);
+    return clone.scrollWidth;
+  }
+
+  _measureInsideValueMarkupWidth(valueEl, display, unit) {
+    const layer = this.shadowRoot?.querySelector('.measure-layer');
+    if (!layer || !valueEl) return valueEl?.scrollWidth || 0;
+    const clone = valueEl.cloneNode(false);
+    clone.style.width = 'auto';
+    clone.style.minWidth = '0';
+    clone.style.maxWidth = 'none';
+    clone.style.flex = '0 0 auto';
+    clone.style.overflow = 'visible';
+    clone.style.textOverflow = 'clip';
+    clone.style.whiteSpace = 'nowrap';
+    clone.innerHTML = this._formatInsideValueMarkup(display, unit);
     layer.replaceChildren(clone);
     return clone.scrollWidth;
   }
@@ -2531,7 +2586,7 @@ class SensorBarCard extends HTMLElement {
     if (!mainLine) return;
     delete mainLine.dataset.hideLeftIcon;
     delete mainLine.dataset.hideAboveIcon;
-    delete mainLine.dataset.hideInsideIcon;
+    delete mainLine.dataset.priorityHideInsideIcon;
   }
 
   _hideMinimumBarShareLabel(row, mode) {
@@ -2571,7 +2626,7 @@ class SensorBarCard extends HTMLElement {
       return;
     }
     if (mode === 'inside') {
-      mainLine.dataset.hideInsideIcon = 'true';
+      mainLine.dataset.priorityHideInsideIcon = 'true';
     }
   }
 
@@ -2960,7 +3015,7 @@ class SensorBarCard extends HTMLElement {
     const innerLabel = lp === 'inside' ? `
       <div class="bar-inner-label">
         <span class="inside-name">${name}</span>
-        <span class="inside-value">${this._formatInsideValueMarkup(stateDisplay, unit)}</span>
+        <span class="inside-value" data-display="${this._encodeDataAttr(stateDisplay)}" data-unit="${this._encodeDataAttr(unit)}">${this._formatInsideValueMarkup(stateDisplay, unit)}</span>
       </div>` : '';
 
     const leftLabel  = lp === 'left'
@@ -3058,7 +3113,11 @@ class SensorBarCard extends HTMLElement {
     const innerLabel = row.querySelector('.bar-inner-label');
     if (innerLabel) {
       const valueSpan = innerLabel.querySelector('.inside-value');
-      if (valueSpan) valueSpan.innerHTML = this._formatInsideValueMarkup(display, displayUnit);
+      if (valueSpan) {
+        valueSpan.dataset.display = this._encodeDataAttr(display);
+        valueSpan.dataset.unit = this._encodeDataAttr(displayUnit);
+        valueSpan.innerHTML = this._formatInsideValueMarkup(display, displayUnit);
+      }
     }
     const aboveLabel = row.querySelector('.above-bar-label');
     if (aboveLabel) {

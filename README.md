@@ -77,8 +77,7 @@ Install this card side by side, then update:
 type: custom:sensor-bar-card-plus
 title: Caravan Power
 bar:
-  fill_style: solid
-  color: '#2563eb'
+  fill_style: bands
 scale:
   min:
     fixed: 0
