@@ -17,7 +17,7 @@ Instead of relying on hardcoded scales and thresholds, the card can derive range
 Ideal for energy monitoring, batteries, power flows, temperatures, quotas, environmental sensors, and other numeric data, Sensor Bar Card Plus combines dynamic scales, segment-based coloring, target and peak markers, and responsive layouts into a single highly configurable card.
 
 
-![Sensor Bar Card Plus showcase](images/hero.png)
+![Sensor Bar Card Plus showcase](images/hero-400.gif)
 
 
 [![Buy me a coffee on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/chrisdelaet)
@@ -263,7 +263,7 @@ Current color_mode compatibility values map directly to these fill styles.
 
 `gradient` paints a true full-bar gradient across the configured scale.
 
-![Gradient fill style](images/gradient-small.gif)
+![Gradient fill style](images/example-gradient-small.gif)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -293,7 +293,7 @@ Compatibility name: `severity`
 
 `bands` paints hard bands from `bar.segments`.
 
-![Band fill style](images/example-severity-bands-75.png)
+![Bands fill style](images/example-bands-small.gif)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -342,6 +342,8 @@ It sits between the other segment-based styles:
 - `soft_bands`: short blended transitions
 - `band_gradient`: continuous gradient derived from segment colors
 
+![Soft Bands Fill](images/example-soft-bands-rainbow.png)
+
 ```yaml
 type: custom:sensor-bar-card-plus
 title: Soft Bands Fill
@@ -384,7 +386,7 @@ Anchor model:
 
 This makes the mode feel intuitive while still respecting the configured severity ranges.
 
-![Bands vs band gradient](images/severity-rainbow-comparison-small.gif)
+![Band Gradient Fill](images/example-band-gradient-small.gif)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -426,6 +428,9 @@ entities:
 
 This is most useful with `bands`, `band_gradient`, and `gradient` when you want the active color logic without rendering the full multicolor fill across the revealed area.
 
+![Soft Bands Solid Fill](images/example-soft-bands-and-solid-rainbow.png)
+
+
 ```yaml
 type: custom:sensor-bar-card-plus
 title: Sampled Solid Bands
@@ -459,7 +464,7 @@ Compatibility name: `single`
 
 `solid` uses one fixed fill color regardless of value.
 
-![Solid fill](images/example-single.png)
+![Solid fill](images/example-solid.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -486,7 +491,7 @@ Supported values:
 - `inside`
 - `off`
 
-![Label modes](images/example-label-modes-4up.png)
+![Label modes](images/example-label-positions.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -575,7 +580,7 @@ Each row resolves its icon in this order:
 2. `icon: mdi:something` uses that explicit icon
 3. otherwise the card uses the entity's own Home Assistant icon
 
-![Icon control](images/example-icon-control-3up.png)
+![Icon control](images/example-icons.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -610,7 +615,7 @@ The card supports:
 
 The target marker sits on the bottom edge of the bar. The peak marker sits on the top edge. They coexist cleanly and can overlap at the same position without fighting for visibility.
 
-![Dynamic target and above-target color](images/above-target-small.gif)
+![Dynamic target and above-target color](images/example-above-target-color-small.gif)
 
 ### Above-target color 
 
@@ -669,7 +674,7 @@ entities:
 
 ### Target marker example
 
-![Target marker](images/example-target.png)
+![Target marker](images/example-target-colors-above.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -694,6 +699,8 @@ entities:
 
 ### Marker coexistence
 
+![Peak and target markers](images/example-peak-and-target.png)
+
 Peak and target markers can occupy the same position without becoming ambiguous because they live on opposite bar edges. That makes them suitable for shared-threshold visualizations and future multi-reference extensions.
 
 ## Baseline Fill Origin 
@@ -708,7 +715,7 @@ Use `baseline` when the fill should start from a neutral point instead of always
 
 This is useful for batteries, charge and discharge, import and export, neutral operating points, and any bidirectional flow where movement on either side of a reference value should read clearly at a glance.
 
-![Baseline fill origin](images/baseline-fill-origin.png)
+![Baseline fill origin](images/example-baseline-fill-origin.png)
 
 ### Structured baseline configuration
 
@@ -752,6 +759,8 @@ entities:
 
 ### Off-center baseline
 
+![Baseline off-center](images/example-baseline-off-center.png)
+
 ```yaml
 type: custom:sensor-bar-card-plus
 title: Off-center baseline
@@ -782,6 +791,9 @@ entities:
 
 ### Percentage baseline
 
+![Baseline percentage](images/example-baseline-off-center-percent.png)
+
+
 ```yaml
 type: custom:sensor-bar-card-plus
 title: Midpoint Baseline
@@ -803,7 +815,7 @@ entities:
 
 The base semantic scale still spans the full bar. Optional above and below colors sit on top of that scale when you want the two directions to carry distinct meaning.
 
-![Baseline colors and overrides](images/baseline-colors-overrides.png)
+![Baseline colors and overrides](images/example-baseline-colors-and-overrides.png)
 
 #### Above-baseline color only
 
@@ -855,7 +867,7 @@ entities:
 
 Targets stay on the same global scale, so threshold markers, `target.when_exceeded.fill_color`, and baseline geometry remain easy to read together.
 
-![Baseline target interaction](images/baseline-target-interaction.png)
+![Baseline target interaction](images/example-baseline-above-target-colors.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -926,7 +938,7 @@ entities:
 
 Baseline also works well in denser dashboard layouts where you still want bidirectional meaning without giving up readability.
 
-![Compact baseline showcase](images/baseline-compact-showcase.png)
+![Compact baseline showcase](images/example-baseline-compact.png)
 
 ## Dynamic Min / Max / Target
 
@@ -936,7 +948,7 @@ This is especially useful when the scale and threshold are driven by other helpe
 
 Why dynamic sources matter: the card can follow real Home Assistant entities for scale and target context instead of baking those values into YAML. That makes the visualization adapt naturally to batteries, grid limits, quotas, thresholds, changing operating modes, and dashboards where the meaning of "full", "safe", or "on target" changes over time.
 
-![Dynamic min and max entities](images/example-dynamic-min-max-entity.png)
+![Dynamic min and max entities](images/example-dynamic-min-max.png)
 
 ### Dynamic `scale.min` and `scale.max`
 
@@ -957,7 +969,7 @@ entities:
 
 This makes the full bar scale adaptive. The current value stays the same entity, but the visible scale can expand or contract around it.
 
-![Dynamic target entity](images/example-dynamic-target-entity.png)
+![Dynamic target entity](images/example-dynamic-target.png)
 
 ### Dynamic `target.at.entity`
 
@@ -995,9 +1007,6 @@ entities:
     name: Sensor
 ```
 
-Animated example:
-
-![above-target-small.gif](images/above-target-small.gif)
 
 If both a fixed value and an entity are configured, the entity takes precedence. If the entity is unavailable or non-numeric, the fixed value is used as fallback.
 
@@ -1014,7 +1023,7 @@ The card handles four related display concerns:
 
 Use `formatting.decimal` to control how many decimal places are shown per row.
 
-![Decimal places](images/example-decimal.png)
+![Decimal places](images/example-decimals.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -1066,9 +1075,7 @@ entities:
 
 Time units `h`, `m`, and `s` render tight, for example `43s` and `4h`, instead of showing an extra space.
 
-| Seconds | Hours |
-|---|---|
-| ![Seconds formatting](images/playground-formatting-seconds.png) | ![Hours formatting](images/playground-formatting-hours.png) |
+![Time formatting](images/example-time-units.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -1092,7 +1099,7 @@ entities:
 
 Non-numeric current states are handled as first-class display states rather than treated like broken numeric rows.
 
-![Text states](images/playground-text-states.png)
+![Text states](images/example-text-values.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -1132,7 +1139,7 @@ Other rows continue to render normally.
 
 Use `layout.height` globally or per entity to make rows more compact or more prominent.
 
-![Bar height variations](images/example-bar-heights-4up.png)
+![Bar height variations](images/example-heights.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -1169,7 +1176,7 @@ entities:
 
 Every card-level option can be overridden per entity.
 
-![Per-entity overrides](images/example-overrides-refresh.png)
+![Per-entity overrides](images/example-per-entity-overrides.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -1540,10 +1547,8 @@ It is not a drop-in replacement for the original card.
 
 Likely future work includes:
 
-- `display.mode: needle` as a future current-value rendering mode
 - visible `scale.ticks` support under `scale`
 - a more general marker collection once the current target and peak semantics are stable
-- additional UI/editor improvements where practical
 - verticality, baby!
 
 ## Contributing
