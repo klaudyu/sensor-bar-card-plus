@@ -19,9 +19,18 @@ views:
       - entity: sensor.sbcp_playground_sensor
         name: Caravan
         icon: mdi:caravan
-      layout:
-        label:
-          position: left
+      scale:
+        max:
+          fixed: 3000
+    - type: custom:sensor-bar-card-plus
+      title: Caravan Power
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Caravan
+        icon: mdi:caravan
+      bar:
+        needle: true
+        fill_style: gradient
       scale:
         max:
           fixed: 3000
@@ -1688,10 +1697,6 @@ views:
         name: Soft Bands
         bar:
           fill_style: soft_bands
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -1721,10 +1726,6 @@ views:
         name: Soft Bands + Needle
         bar:
           needle: true
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -2593,10 +2594,6 @@ views:
           decimal: 2
       - entity: sensor.sbcp_playground_sensor
         name: Raw (no decimal set)
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -3548,10 +3545,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -3587,10 +3580,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -3626,10 +3615,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -3665,10 +3650,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -4304,6 +4285,113 @@ views:
             to: 100%
             color: '#f59e0b'
           fill_style: band_gradient
+  - type: custom:sensor-bar-card-plus
+    title: Dense AV Telemetry
+    entities:
+      - entity: sensor.sbcp_showcase_av_balance
+        name: Balance
+        icon: mdi:surround-sound
+        scale:
+          min:
+            fixed: -100
+          max:
+            fixed: 100
+        baseline:
+          at:
+            fixed: 0
+
+
+      - entity: sensor.sbcp_showcase_av_phase
+        name: Phase
+        icon: mdi:sine-wave
+        scale:
+          min:
+            fixed: -1
+          max:
+            fixed: 1
+        baseline:
+          at:
+            fixed: 0
+
+      - entity: sensor.sbcp_showcase_av_pitch
+        name: Pitch Offset
+        icon: mdi:tune-vertical
+        scale:
+          min:
+            fixed: -50
+          max:
+            fixed: 50
+        baseline:
+          at:
+            fixed: 0
+
+      - entity: sensor.sbcp_showcase_av_tint
+        name: Tint
+        icon: mdi:palette-outline
+        scale:
+          min:
+            fixed: -100
+          max:
+            fixed: 100
+        baseline:
+          at:
+            fixed: 0
+
+      - entity: sensor.sbcp_showcase_av_exposure
+        name: Exposure
+        icon: mdi:brightness-6
+        scale:
+          min:
+            fixed: -3
+          max:
+            fixed: 3
+        baseline:
+          at:
+            fixed: 0
+
+      - entity: sensor.sbcp_showcase_av_keystone
+        name: Keystone
+        icon: mdi:projector
+        scale:
+          min:
+            fixed: -50
+          max:
+            fixed: 50
+        baseline:
+          at:
+            fixed: 0
+
+    layout:
+      label:
+        position: left
+        width: 120
+      height: 24
+
+    formatting:
+      decimal: 1
+
+    bar:
+      fill_style: band_gradient
+      segments:
+        - from: 0%
+          to: 18%
+          color: '#2563eb'
+
+        - from: 18%
+          to: 42%
+          color: '#06b6d4'
+
+        - from: 42%
+          to: 58%
+          color: '#e2e8f0'
+
+        - from: 58%
+          to: 82%
+          color: '#f59e0b'
+
+        - from: 82%
+          to: 100%
+          color: '#ef4444'
 - title: Hero Showcase v1.4
   path: sensor-bar-card-plus-hero-showcase-v14
   icon: mdi:transmission-tower

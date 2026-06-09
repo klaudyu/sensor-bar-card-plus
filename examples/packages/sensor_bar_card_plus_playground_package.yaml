@@ -523,6 +523,37 @@ template:
         state: >-
           {% set p = states('input_number.sbcp_showcase_phase') | float(0) %}
           {{ (18 + 8 * sin((p + 320) * pi / 180)) | round(1) }}
+      # AV baseline showcase telemetry. Fixed values chosen for visually clear
+      # baseline screenshots with meaningful positive/negative deviation.
+      - name: AV Balance
+        default_entity_id: sensor.sbcp_showcase_av_balance
+        unit_of_measurement: '%'
+        icon: mdi:surround-sound
+        state: "-8"
+      - name: AV Pitch Offset
+        default_entity_id: sensor.sbcp_showcase_av_pitch
+        unit_of_measurement: cents
+        icon: mdi:tune-vertical
+        state: "34"
+      - name: AV Phase Correlation
+        default_entity_id: sensor.sbcp_showcase_av_phase
+        icon: mdi:sine-wave
+        state: "-0.68"
+      - name: AV Tint Offset
+        default_entity_id: sensor.sbcp_showcase_av_tint
+        unit_of_measurement: '%'
+        icon: mdi:palette-outline
+        state: "42"
+      - name: AV Exposure Bias
+        default_entity_id: sensor.sbcp_showcase_av_exposure
+        unit_of_measurement: EV
+        icon: mdi:brightness-6
+        state: "-2.1"
+      - name: AV Keystone
+        default_entity_id: sensor.sbcp_showcase_av_keystone
+        unit_of_measurement: °
+        icon: mdi:projector
+        state: "41"
       # Hero-showcase telemetry. Slower, calmer motion for promo captures.
       - name: Simulated Hour
         default_entity_id: sensor.sbcp_hero_daylight

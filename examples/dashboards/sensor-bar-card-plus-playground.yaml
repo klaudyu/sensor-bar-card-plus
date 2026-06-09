@@ -1190,10 +1190,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1224,10 +1220,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1259,10 +1251,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1293,10 +1281,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1328,10 +1312,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1368,10 +1348,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1415,10 +1391,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Soft Bands Needle
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1441,14 +1413,37 @@ views:
           to: 100%
           color: '#ef4444'
     - type: custom:sensor-bar-card-plus
+      title: Needle + Band Gradient
+      entities:
+      - entity: sensor.sbcp_playground_sensor
+        name: Band Gradient Needle
+
+      scale:
+        min:
+          entity: sensor.sbcp_playground_scale_min
+        max:
+          entity: sensor.sbcp_playground_scale_max
+      bar:
+        fill_style: band_gradient
+        needle: true
+        segments:
+        - from: 0%
+          to: 30%
+          color: '#22c55e'
+        - from: 30%
+          to: 60%
+          color: '#facc15'
+        - from: 60%
+          to: 85%
+          color: '#f97316'
+        - from: 85%
+          to: 100%
+          color: '#ef4444'
+    - type: custom:sensor-bar-card-plus
       title: Needle + solid_fill
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sampled Needle
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1476,10 +1471,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Needle Over Target
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1507,10 +1498,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Response time
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1581,10 +1568,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -1669,10 +1652,6 @@ views:
       title: Missing Icons
       entities:
       - entity: sensor.sbcp_playground_no_icon
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           entity: sensor.sbcp_playground_scale_min
@@ -5521,10 +5500,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5547,10 +5522,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5573,10 +5544,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5599,10 +5566,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5628,10 +5591,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5657,10 +5616,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5686,10 +5641,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5718,10 +5669,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5750,10 +5697,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5782,10 +5725,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5808,10 +5747,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0
@@ -5834,10 +5769,6 @@ views:
       entities:
       - entity: sensor.sbcp_playground_sensor
         name: Sensor
-      layout:
-        label:
-          position: left
-          width: 160
       scale:
         min:
           fixed: 0

@@ -12,10 +12,11 @@
 
 Sensor Bar Card Plus is a next-generation visualization card for Home Assistant, designed for dashboards where the visual context is just as dynamic as the data itself.
 
-Instead of relying on hardcoded scales and thresholds, the card can derive ranges, targets, baselines, and reference values directly from Home Assistant entities. The result is a dashboard that stays meaningful as conditions change.
+It supports classic reveal-fill bars, baseline-driven bidirectional flows, and full-scale needle gauges. Instead of relying on hardcoded scales and thresholds, the card can derive ranges, targets, baselines, and reference values directly from Home Assistant entities.
 
-Ideal for energy monitoring, batteries, power flows, temperatures, quotas, environmental sensors, and other numeric data, Sensor Bar Card Plus combines dynamic scales, segment-based coloring, target and peak markers, and responsive layouts into a single highly configurable card.
+Ideal for energy monitoring, batteries, power flows, temperatures, quotas, environmental sensors, gauges, and other numeric data, Sensor Bar Card Plus combines dynamic scales, semantic fills, segment-based coloring, target and peak markers, needle indicators, and responsive layouts into a single highly configurable card.
 
+Now you have no excuse anymore to build that pretty dashboard. Go forth and look cool. -Chris
 
 ![Sensor Bar Card Plus showcase](images/hero-400.gif)
 
@@ -24,16 +25,19 @@ Ideal for energy monitoring, batteries, power flows, temperatures, quotas, envir
 
 ## Highlights
 
+- 📍 Needle gauge mode for full-scale, gauge-style bars with a moving value indicator
+- 🌈 Soft bands for segment-aware fills with short blended transitions
+- 🎯 Semantic threshold fills for visually separating regions beyond dynamic targets and references (such as an above-target color)
 - 📈 Dynamic scales, targets, and references driven by Home Assistant entities
 - 🧩 Structured configuration model with full backwards compatibility
 - ⚖️ Baseline fill origin for bidirectional flows such as charge/discharge and import/export
 - 🎨 Flexible segment-based coloring with scale-space and percent-space thresholds
 - ✏️ Target and peak markers with optional target value labels
-- 🎯 Above-target color for visually separating the portion beyond a live or fixed threshold
 - 📍 Flexible label placement for compact and information-dense dashboards
 - 🏷️ Responsive label and marker layout for tighter dashboard spaces
+- 🧠 Deterministic responsive layout engine for narrow dashboards and dense cards
 - 🔧 Per-entity overrides for nearly every card option
-- 🎞️ Smooth semantic animations for gradients, segments, and threshold overlays
+- 🎞️ Shared animated reveal pipeline for coherent gradients, segments, and semantic fills
 - 🖱️ Native Home Assistant more-info dialog on click
 
 ## Installation
@@ -64,200 +68,205 @@ Type: JavaScript Module
 
 4. Hard refresh the browser.
 
-### Migrating From The Original Card
-
-Install this card side by side, then update:
-
-- resource URL from the original file to `/local/sensor-bar-card-plus.js`
-- card type from `custom:sensor-bar-card` to `custom:sensor-bar-card-plus`
 
 ## Quick Start
 
 ```yaml
 type: custom:sensor-bar-card-plus
 title: Caravan Power
-bar:
-  fill_style: bands
+entities:
+- entity: sensor.caravan_power
+  name: Caravan
+  icon: mdi:caravan
 scale:
-  min:
-    fixed: 0
   max:
     fixed: 3000
-layout:
-  label:
-    position: left
-    width: 140
-entities:
-  - entity: sensor.caravan_power
-    name: Caravan
-    icon: mdi:caravan
 ```
 
-![Basic example](images/example-basic.png)
-
-> Existing flat YAML remains fully supported. New examples below use the structured configuration model because it is clearer, easier to extend, and recommended for new dashboards.
-
-## Migrating From Legacy Flat YAML
-
-Legacy flat YAML remains fully supported. You do not need to migrate existing dashboards immediately. For new dashboards, the structured model is recommended because related options stay grouped and the configuration scales better as cards become more advanced.
-
-| Legacy flat key | Structured equivalent |
-|---|---|
-| `label_position` | `layout.label.position` |
-| `label_width` | `layout.label.width` |
-| `height` | `layout.height` |
-| `min` | `scale.min.fixed` |
-| `min_entity` | `scale.min.entity` |
-| `max` | `scale.max.fixed` |
-| `max_entity` | `scale.max.entity` |
-| `decimal` | `formatting.decimal` |
-| `unit` | `formatting.unit` |
-| `target` | `target.at.fixed` or `target.at: 50%` |
-| `target_entity` | `target.at.entity` |
-| `target_color` | `target.color` |
-| `show_target_label` | `target.label.show` |
-| `above_target_color` | `target.when_exceeded.fill_color` |
-| `show_peak` | `peak.enabled` |
-| `peak_color` | `peak.color` |
-| `color_mode` | `bar.color_mode` (compatibility) |
-| `fill_style` | `bar.fill_style` (preferred structured syntax) |
-| `color` | `bar.color` |
-| `gradient_stops` | `bar.gradient_stops` |
-| `severity` | `bar.segments` with percentage values, for example `from: 50%` |
-| `segments` | `bar.segments` |
-| `animated` | `bar.animated` |
-| `baseline` | `baseline.at.fixed`, `baseline.at.entity`, or `baseline.at: 50%` |
-
-Legacy:
+![Basic example](images/bar-basic.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
-title: Legacy Example
-label_position: left
-label_width: 150
-min: 0
-max: 100
-color_mode: severity
-target: 65
-show_target_label: true
-severity:
-  - from: 0
-    to: 50
-    color: '#22c55e'
-  - from: 50
-    to: 100
-    color: '#ef4444'
+title: Caravan Power
 entities:
-  - entity: sensor.power_usage
-    name: Power
+- entity: sensor.caravan_power
+  name: Caravan
+  icon: mdi:caravan
+bar:
+  needle: true
+  fill_style: gradient
+scale:
+  max:
+    fixed: 3000
 ```
 
-Structured:
+![Basic needle example](images/needle-basic.png)
+
+
+> Legacy flat YAML remains supported. See Legacy Compatibility near the end of this README if you want to migrate older dashboards.
+
+
+## Rendering Modes
+
+Sensor Bar Card Plus currently supports two primary rendering models:
+
+- reveal fill mode
+- needle mode
+
+Both modes share the same semantic fill pipeline, fill styles, dynamic scales, markers, and responsive layout system.
+
+### Reveal Fill Mode
+
+Reveal fill mode is the classic bar behavior. The visible fill grows and shrinks with the current value.
+
+This mode works especially well for:
+
+- progress-style visualizations
+- quotas and limits
+- batteries
+- charge/discharge flows
+- import/export power
+- bidirectional energy movement
+
+![Reveal fill showcase](images/bar-dense-telemetry.png)
 
 ```yaml
 type: custom:sensor-bar-card-plus
-title: Structured Example
-layout:
-  label:
-    position: left
-    width: 150
+title: Reveal Fill
+bar:
+  fill_style: gradient
 scale:
   min:
     fixed: 0
   max:
     fixed: 100
-bar:
-  fill_style: bands
-  segments:
-    - from: 0%
-      to: 50%
-      color: '#22c55e'
-    - from: 50%
-      to: 100%
-      color: '#ef4444'
-target:
-  at:
-    fixed: 65
-  label:
-    show: true
 entities:
   - entity: sensor.power_usage
-    name: Power
+    name: Sensor
 ```
 
-When migrating legacy `severity`, remember that legacy band numbers are percentages of the active scale. Structured `bar.segments` should therefore usually use `%` values during migration. Plain numeric segment boundaries are actual scale values.
+### Reveal Fill With Baseline
 
-`bar.fill_style` is now the preferred structured syntax for new dashboards. Existing `bar.color_mode` remains fully supported for compatibility and renders identically.
+Baseline mode extends reveal fill mode by changing the fill origin from `scale.min` to a neutral reference point. The scale itself does not change.
 
-For a full visual comparison, see `examples/dashboards/sensor-bar-card-plus-heritage.yaml`.
+This is useful for visualizing:
 
-### Automatic Dashboard Migration
+- batteries charging/discharging
+- import/export flows
+- heating/cooling balance
+- bidirectional sensors
+- centered operating ranges
 
-Existing dashboards do not need to be migrated. Legacy flat YAML remains fully supported. This utility is available if you want to adopt the structured configuration model for an existing Lovelace dashboard.
+![Reveal fill with baseline showcase](images/baseline-dense-telemetry.png)
 
-```bash
-python tools/convert-legacy-config.py dashboard.yaml > dashboard-structured.yaml
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Baseline Flow
+bar:
+  fill_style: band_gradient
+scale:
+  min:
+    fixed: -3000
+  max:
+    fixed: 3000
+baseline:
+  at:
+    fixed: 0
+entities:
+  - entity: sensor.grid_power
+    name: Grid
 ```
 
-```bash
-python tools/convert-legacy-config.py dashboard.yaml dashboard-structured.yaml
+### Needle Mode
+
+Needle mode keeps the full theoretical scale visible at all times while a moving needle indicates the current value.
+
+This mode works especially well for:
+
+- gauges
+- dashboards with semantic full-scale context
+- dynamic scales
+- monitoring dashboards
+- situations where the full scale meaning matters continuously
+
+![Needle showcase](images/needle-dense-telemetry.png)
+
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Needle Gauge
+bar:
+  fill_style: soft_bands
+  needle: true
+scale:
+  min:
+    fixed: 0
+  max:
+    fixed: 100
+entities:
+  - entity: sensor.power_usage
+    name: Sensor
 ```
 
-```bash
-cat dashboard.yaml | python tools/convert-legacy-config.py > dashboard-structured.yaml
+The rendering mode determines how the current value is visualized. Fill styles, semantic overlays, markers, targets, peaks, gradients, and responsive behavior work consistently across both rendering models.
+
+
+
+## Needle Mode
+
+Needle mode keeps the full theoretical bar paint visible and shows the current value with a moving needle. This makes the card behave more like a gauge while still preserving all of the existing fill logic.
+
+It works with:
+
+- `solid`
+- `gradient`
+- `bands`
+- `soft_bands`
+- `band_gradient`
+- `solid_fill`
+
+It is especially useful for gauge-style dashboards, dynamic scales, energy flows, and cards where the color context across the whole scale matters as much as the current value itself.
+
+![Needle mode basic sky](images/needle-sky-basic.png)
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Needle Gauge
+bar:
+  fill_style: soft_bands
+  needle: true
+scale:
+  min:
+    fixed: 0
+  max:
+    fixed: 100
+entities:
+  - entity: sensor.power_usage
+    name: Sensor
 ```
 
-The converter only rewrites Sensor Bar Card Plus cards. All other Lovelace cards, custom cards, `card_mod` configuration, and unrelated YAML are left unchanged.
+Expanded form:
 
-It traverses dashboards recursively, so nested Sensor Bar Card Plus cards are converted even when they appear inside wrapper cards or more complex dashboard structures.
-
-The conversion is deterministic and follows the same migration rules used by the Heritage Dashboard examples.
-
-## Demo Assets
-
-The repository includes a full demo playground and a dedicated screenshot board:
-
-- playground dashboard: `examples/dashboards/sensor-bar-card-plus-playground.yaml`
-- heritage parity dashboard: `examples/dashboards/sensor-bar-card-plus-heritage.yaml`
-- screenshot dashboard: `examples/dashboards/sensor-bar-card-plus-screenshots.yaml`
-- helper/template package: `examples/packages/sensor_bar_card_plus_playground_package.yaml`
-
-Use them to validate fill styles, markers, dynamic scales, text states, edge cases, and responsive behavior.
-
-## Development / Testing
-
-Install the dev dependencies and Playwright browser once:
-
-```bash
-npm install
-npx playwright install chromium
+```yaml
+bar:
+  needle:
+    show: true
+    color: '#ffffff'
 ```
 
-Run the pure logic unit tests:
+![Needle yellow with black needle](images/needle-yellow-fill-black-needle.png)
 
-```bash
-npm run test:unit
-```
-
-Run the Playwright visual regression suite:
-
-```bash
-npm run test:visual
-```
-
-Update the stored visual snapshots intentionally after a reviewed visual change:
-
-```bash
-npm run test:visual:update
-```
-
-`npm test` runs the unit suite first and then the visual regression suite.
-
-The visual regression suite covers baseline rendering, fill styles, target and peak markers, compact layouts, and clipping or rounded-edge regressions.
+- needle mode and baseline mode are mutually exclusive because baseline visualizes directional fill geometry while needle mode visualizes absolute position on a persistent full-scale track
+- target and peak markers render on top of the needle
+- inside labels and values render on top of markers and needle
+- `bar.needle: true` is the preferred simple syntax for new dashboards
 
 ## Fill Styles
 
 Current color_mode compatibility values map directly to these fill styles.
+
+Sensor Bar Card Plus separates semantic fill composition from animated reveal geometry. That is what allows gradients, bands, above-target colors, markers, and animations to stay visually coherent while the bar updates.
 
 ### `gradient`
 
@@ -285,6 +294,16 @@ scale:
 entities:
   - entity: sensor.power_usage
     name: Sensor
+```
+
+Needle variant:
+
+![Gradient fill with needle](images/needle-gradient.png)
+
+```yaml
+bar:
+  fill_style: gradient
+  needle: true
 ```
 
 ### `bands`
@@ -332,6 +351,17 @@ entities:
     name: Sensor
 ```
 
+Needle variant:
+
+![Bands fill with needle](images/needle-bands.png)
+
+
+```yaml
+bar:
+  fill_style: bands
+  needle: true
+```
+
 ### `soft_bands`
 
 `soft_bands` uses the same `bar.segments` configuration as `bands`, but blends each eligible boundary over a short transition zone instead of switching colors abruptly.
@@ -370,6 +400,16 @@ scale:
 entities:
   - entity: sensor.power_usage
     name: Sensor
+```
+
+Needle variant:
+
+![Soft Bands fill with needle](images/needle-soft-bands-rainbow.png)
+
+```yaml
+bar:
+  fill_style: soft_bands
+  needle: true
 ```
 
 ### `band_gradient` 
@@ -422,6 +462,17 @@ entities:
     name: Sensor
 ```
 
+Needle variant:
+
+![Band Gradient Fill with needle](images/needle-band-gradient.png)
+
+
+```yaml
+bar:
+  fill_style: band_gradient
+  needle: true
+```
+
 ### `solid_fill`
 
 `bar.solid_fill: true` samples the theoretical fill color at the current value, then renders the visible fill as one solid color.
@@ -433,7 +484,7 @@ This is most useful with `bands`, `band_gradient`, and `gradient` when you want 
 
 ```yaml
 type: custom:sensor-bar-card-plus
-title: Sampled Solid Bands
+title: Sampled Solid Fill
 bar:
   fill_style: bands
   solid_fill: true
@@ -457,6 +508,18 @@ entities:
 With `fill_style: bands`, the active band color is used directly. With `band_gradient` or `gradient`, the color is sampled from the interpolated gradient at the current value. If `solid_fill` is omitted, normal multicolor rendering is unchanged.
 
 The screenshots dashboard includes `Bands Rainbow + solid_fill` and `Band Gradient Rainbow + solid_fill` cards for direct visual comparisons.
+
+Needle variant:
+
+![Soft Bands Solid Fill with needle](images/needle-bands-solid.png)
+
+
+```yaml
+bar:
+  fill_style: bands
+  solid_fill: true
+  needle: true
+```
 
 ### `solid`
 
@@ -619,7 +682,7 @@ The target marker sits on the bottom edge of the bar. The peak marker sits on th
 
 ### Above-target color 
 
-Use `target.when_exceeded.fill_color` when you want the filled section beyond the target to stand out as a different state. The marker, target label, and color split animate together so the threshold remains readable while the target changes.
+Use `target.when_exceeded.fill_color` when you want the filled section beyond the target to stand out as a different semantic state. Sensor Bar Card Plus composes that semantic fill with the normal bar paint, then clips the result with the shared animated reveal front so the marker, target label, and color split stay visually coherent while the target changes.
 
 ```yaml
 type: custom:sensor-bar-card-plus
@@ -643,6 +706,20 @@ entities:
   - entity: sensor.power_usage
     name: Sensor
     icon: mdi:lightning-bolt
+```
+
+Needle variant:
+
+![Above-target color with needle at 100%](images/needle-above-target-color-100.png)
+
+
+```yaml
+bar:
+  fill_style: gradient
+  needle: true
+target:
+  when_exceeded:
+    fill_color: '#dc2626'
 ```
 
 ### Target value label
@@ -1256,7 +1333,7 @@ This appendix is the quick-reference guide for the currently supported Sensor Ba
 | `min_entity` | string | `null` | Legacy alias for `scale.min.entity` |
 | `max` | number | `100` | Legacy alias for `scale.max.fixed` |
 | `max_entity` | string | `null` | Legacy alias for `scale.max.entity` |
-| `fill_style` | string | `bands` | Legacy flat alias for `bar.fill_style` |
+| `fill_style` | string | `bands` (legacy compatibility default) | Legacy flat alias for `bar.fill_style` |
 | `color_mode` | string | `severity` | Legacy compatibility alias for `bar.color_mode` |
 | `color` | string | `#4a9eff` | Legacy flat alias for `bar.color` |
 | `gradient_stops` | list | `null` | Legacy flat alias for `bar.gradient_stops` |
@@ -1379,6 +1456,8 @@ Notes:
 | `soft_bands` | Segment-based colors with short blended transitions at eligible boundaries |
 | `band_gradient` | Continuous interpolation across segment colors on the active scale |
 
+For backwards compatibility with the original Sensor Bar Card, `bands` remains the implicit default fill style when no explicit style is configured. It is what it is.
+
 ## Needle
 
 Simple form:
@@ -1399,6 +1478,9 @@ bar:
 
 Notes:
 
+- `bar.needle: true` is the preferred simple syntax
+- `bar.needle.show` explicitly enables or disables the needle in structured form
+- `bar.needle.color` sets the needle body and glow color
 - the bar switches to full-scale paint mode when the needle is shown
 - the current value is represented by the needle position
 - the needle works with `solid`, `gradient`, `bands`, `soft_bands`, `band_gradient`, and `solid_fill`
@@ -1497,7 +1579,16 @@ formatting:
 - `formatting.decimal` applies to displayed numeric values
 - `formatting.unit` overrides the entity unit
 
-## Legacy Compatibility
+
+## Behavior Notes
+
+- Clicking a row opens the native Home Assistant more-info dialog.
+- Peak values are stored in memory and reset when the page reloads.
+- Textual states do not show leftover units.
+- Time units `h`, `m`, and `s` render tight, for example `43s` and `4h`.
+- Responsive fallbacks prioritize the bar and keep value + unit readable. In tight spaces, labels and icons may step aside automatically.
+
+## Legacy Compatibility / Migration
 
 Legacy syntax remains fully supported for backward compatibility.
 
@@ -1520,13 +1611,172 @@ Legacy syntax remains fully supported for backward compatibility.
 | `decimal` / `unit` | `formatting.decimal` / `formatting.unit` |
 | `severity` | `bar.segments` using `%` values when migrating legacy bands |
 
-## Behavior Notes
+### Migrating From The Original Card
 
-- Clicking a row opens the native Home Assistant more-info dialog.
-- Peak values are stored in memory and reset when the page reloads.
-- Textual states do not show leftover units.
-- Time units `h`, `m`, and `s` render tight, for example `43s` and `4h`.
-- Responsive fallbacks prioritize the bar and keep value + unit readable. In tight spaces, labels and icons may step aside automatically.
+Install this card side by side, then update:
+
+- resource URL from the original file to `/local/sensor-bar-card-plus.js`
+- card type from `custom:sensor-bar-card` to `custom:sensor-bar-card-plus`
+
+### Migrating From Legacy Flat YAML
+
+You do not need to migrate existing dashboards immediately. For new dashboards, the structured model is recommended because related options stay grouped and the configuration scales better as cards become more advanced.
+
+| Legacy flat key | Structured equivalent |
+|---|---|
+| `label_position` | `layout.label.position` |
+| `label_width` | `layout.label.width` |
+| `height` | `layout.height` |
+| `min` | `scale.min.fixed` |
+| `min_entity` | `scale.min.entity` |
+| `max` | `scale.max.fixed` |
+| `max_entity` | `scale.max.entity` |
+| `decimal` | `formatting.decimal` |
+| `unit` | `formatting.unit` |
+| `target` | `target.at.fixed` or `target.at: 50%` |
+| `target_entity` | `target.at.entity` |
+| `target_color` | `target.color` |
+| `show_target_label` | `target.label.show` |
+| `above_target_color` | `target.when_exceeded.fill_color` |
+| `show_peak` | `peak.enabled` |
+| `peak_color` | `peak.color` |
+| `color_mode` | `bar.color_mode` (compatibility) |
+| `fill_style` | `bar.fill_style` (preferred structured syntax) |
+| `color` | `bar.color` |
+| `gradient_stops` | `bar.gradient_stops` |
+| `severity` | `bar.segments` with percentage values, for example `from: 50%` |
+| `segments` | `bar.segments` |
+| `animated` | `bar.animated` |
+| `baseline` | `baseline.at.fixed`, `baseline.at.entity`, or `baseline.at: 50%` |
+
+Legacy:
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Legacy Example
+label_position: left
+label_width: 150
+min: 0
+max: 100
+color_mode: severity
+target: 65
+show_target_label: true
+severity:
+  - from: 0
+    to: 50
+    color: '#22c55e'
+  - from: 50
+    to: 100
+    color: '#ef4444'
+entities:
+  - entity: sensor.power_usage
+    name: Power
+```
+
+Structured:
+
+```yaml
+type: custom:sensor-bar-card-plus
+title: Structured Example
+layout:
+  label:
+    position: left
+    width: 150
+scale:
+  min:
+    fixed: 0
+  max:
+    fixed: 100
+bar:
+  fill_style: bands
+  segments:
+    - from: 0%
+      to: 50%
+      color: '#22c55e'
+    - from: 50%
+      to: 100%
+      color: '#ef4444'
+target:
+  at:
+    fixed: 65
+  label:
+    show: true
+entities:
+  - entity: sensor.power_usage
+    name: Power
+```
+
+When migrating legacy `severity`, remember that legacy band numbers are percentages of the active scale. Structured `bar.segments` should therefore usually use `%` values during migration. Plain numeric segment boundaries are actual scale values.
+
+`bar.fill_style` is now the preferred structured syntax for new dashboards. Existing `bar.color_mode` remains fully supported for compatibility and renders identically.
+
+For a full visual comparison, see `examples/dashboards/sensor-bar-card-plus-heritage.yaml`.
+
+### Automatic Dashboard Migration
+
+Existing dashboards do not need to be migrated. Legacy flat YAML remains fully supported. This utility is available if you want to adopt the structured configuration model for an existing Lovelace dashboard.
+
+```bash
+python tools/convert-legacy-config.py dashboard.yaml > dashboard-structured.yaml
+```
+
+```bash
+python tools/convert-legacy-config.py dashboard.yaml dashboard-structured.yaml
+```
+
+```bash
+cat dashboard.yaml | python tools/convert-legacy-config.py > dashboard-structured.yaml
+```
+
+The converter only rewrites Sensor Bar Card Plus cards. All other Lovelace cards, custom cards, `card_mod` configuration, and unrelated YAML are left unchanged.
+
+It traverses dashboards recursively, so nested Sensor Bar Card Plus cards are converted even when they appear inside wrapper cards or more complex dashboard structures.
+
+The conversion is deterministic and follows the same migration rules used by the Heritage Dashboard examples.
+
+
+## Demo Assets / Development
+
+The repository includes a full demo playground and a dedicated screenshot board:
+
+- playground dashboard: `examples/dashboards/sensor-bar-card-plus-playground.yaml`
+- heritage parity dashboard: `examples/dashboards/sensor-bar-card-plus-heritage.yaml`
+- screenshot dashboard: `examples/dashboards/sensor-bar-card-plus-screenshots.yaml`
+- helper/template package: `examples/packages/sensor_bar_card_plus_playground_package.yaml`
+
+Use them to validate fill styles, markers, dynamic scales, text states, edge cases, and responsive behavior.
+
+### Test Suite Usage
+
+Install the dev dependencies and Playwright browser once:
+
+```bash
+npm install
+npx playwright install chromium
+```
+
+Run the pure logic unit tests:
+
+```bash
+npm run test:unit
+```
+
+Run the Playwright visual regression suite:
+
+```bash
+npm run test:visual
+```
+
+Update the stored visual snapshots intentionally after a reviewed visual change:
+
+```bash
+npm run test:visual:update
+```
+
+`npm test` runs the unit suite first and then the visual regression suite.
+
+The visual regression suite covers baseline rendering, fill styles, target and peak markers, compact layouts, and clipping or rounded-edge regressions.
+
 
 ## Project Origin
 
