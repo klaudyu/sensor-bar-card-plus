@@ -349,7 +349,7 @@ describe('Sensor Bar Card Plus editor', () => {
     });
 
     dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
-    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-color"]')[0], 'orange');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0], 'orange');
 
     const finalConfig = events.at(-1).detail.config;
     expect(finalConfig.entities).toEqual([
@@ -540,7 +540,7 @@ describe('Sensor Bar Card Plus editor', () => {
     });
 
     dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
-    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-color"]')[0], '');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0], '');
 
     const finalConfig = events.at(-1).detail.config;
     expect(finalConfig.entities).toEqual([
@@ -1933,6 +1933,315 @@ describe('Sensor Bar Card Plus editor', () => {
     ]);
   });
 
+  it('card-level fill style writes bar.fill_style', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    dispatchChange(editor.shadowRoot.querySelector('#bar-fill-style'), 'soft_bands');
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      fill_style: 'soft_bands',
+    });
+  });
+
+  it('card-level color writes bar.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    dispatchInput(editor.shadowRoot.querySelector('#bar-color'), '#ff9800');
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      color: '#ff9800',
+    });
+  });
+
+  it('card-level solid fill true writes bar.solid_fill true', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    const toggle = editor.shadowRoot.querySelector('#bar-solid-fill');
+    toggle.checked = true;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      solid_fill: true,
+    });
+  });
+
+  it('card-level solid fill false removes bar.solid_fill', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        solid_fill: true,
+        fill_style: 'soft_bands',
+      },
+    });
+
+    const toggle = editor.shadowRoot.querySelector('#bar-solid-fill');
+    toggle.checked = false;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      fill_style: 'soft_bands',
+    });
+  });
+
+  it('default card-level color is suppressed', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'soft_bands',
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#bar-color'), '#4a9eff');
+
+    expect(events).toHaveLength(0);
+    expect(editor._draftConfig.bar).toEqual({
+      fill_style: 'soft_bands',
+    });
+  });
+
+  it('default card-level fill style is suppressed', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'soft_bands',
+      },
+    });
+
+    dispatchChange(editor.shadowRoot.querySelector('#bar-fill-style'), 'bands');
+
+    expect(events.at(-1).detail.config.bar).toBeUndefined();
+  });
+
+  it('editing legacy color_mode converts to bar.fill_style', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      color_mode: 'severity',
+    });
+
+    dispatchChange(editor.shadowRoot.querySelector('#bar-fill-style'), 'gradient');
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      fill_style: 'gradient',
+    });
+    expect(events.at(-1).detail.config.color_mode).toBeUndefined();
+  });
+
+  it('editing legacy color converts to bar.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      color: '#ff9800',
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#bar-color'), '#00ff00');
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      color: '#00ff00',
+    });
+    expect(events.at(-1).detail.config.color).toBeUndefined();
+  });
+
+  it('per-entity fill style writes entities[index].bar.fill_style', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entities: [{ entity: 'sensor.one', name: 'One' }] });
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchChange(editor.shadowRoot.querySelectorAll('select[data-kind="entity-bar-fill-style"]')[0], 'gradient');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', bar: { fill_style: 'gradient' } },
+    ]);
+  });
+
+  it('per-entity color writes entities[index].bar.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entities: [{ entity: 'sensor.one', name: 'One' }] });
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0], '#ff9800');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', bar: { color: '#ff9800' } },
+    ]);
+  });
+
+  it('per-entity solid fill true writes entities[index].bar.solid_fill true', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entities: [{ entity: 'sensor.one', name: 'One' }] });
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const toggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-solid-fill"]')[0];
+    toggle.checked = true;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', bar: { solid_fill: true } },
+    ]);
+  });
+
+  it('per-entity solid fill false removes entities[index].bar.solid_fill', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One', bar: { solid_fill: true, fill_style: 'gradient' } }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const toggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-solid-fill"]')[0];
+    toggle.checked = false;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', bar: { fill_style: 'gradient' } },
+    ]);
+  });
+
+  it('Bar Appearance inherit removes only managed keys', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        bar: {
+          fill_style: 'gradient',
+          color: '#ff9800',
+          solid_fill: true,
+          needle: true,
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const inheritToggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-inherit"]')[0];
+    inheritToggle.checked = true;
+    inheritToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', bar: { needle: true } },
+    ]);
+  });
+
+  it('Bar Appearance inherit preserves unrelated entity bar.segments', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        bar: {
+          fill_style: 'gradient',
+          segments: [{ from: 0, to: 10, color: '#ff9800' }],
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const inheritToggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-inherit"]')[0];
+    inheritToggle.checked = true;
+    inheritToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', bar: { segments: [{ from: 0, to: 10, color: '#ff9800' }] } },
+    ]);
+  });
+
+  it('Bar Appearance inherit preserves unknown entity-level bar keys and sibling entity config', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        icon: 'mdi:flash',
+        bar: {
+          color: '#ff9800',
+          custom_bar_key: 'keep',
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const inheritToggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-inherit"]')[0];
+    inheritToggle.checked = true;
+    inheritToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', icon: 'mdi:flash', bar: { custom_bar_key: 'keep' } },
+    ]);
+  });
+
+  it('loading flat color_mode renders the matching fill style', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      color_mode: 'gradient',
+    });
+
+    expect(editor.shadowRoot.querySelector('#bar-fill-style').value).toBe('gradient');
+  });
+
+  it('loading flat color renders the color field', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      color: '#ff9800',
+    });
+
+    expect(editor.shadowRoot.querySelector('#bar-color').value).toBe('#ff9800');
+  });
+
+  it('edited Bar Appearance config does not emit deprecated color_mode or flat color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      color_mode: 'severity',
+      color: '#ff9800',
+    });
+
+    dispatchChange(editor.shadowRoot.querySelector('#bar-fill-style'), 'soft_bands');
+    dispatchInput(editor.shadowRoot.querySelector('#bar-color'), '#00ff00');
+
+    const finalConfig = events.at(-1).detail.config;
+    expect(finalConfig.bar).toEqual({
+      fill_style: 'soft_bands',
+      color: '#00ff00',
+    });
+    expect(finalConfig.color_mode).toBeUndefined();
+    expect(finalConfig.color).toBeUndefined();
+  });
+
   it('default needle OFF does not emit bar.needle and preserves unrelated bar keys', () => {
     const editor = createEditor();
     const events = trackConfigEvents(editor);
@@ -2196,7 +2505,7 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-min"]')[0].value).toBe('0');
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-max"]')[0].value).toBe('5000');
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-height"]')[0].value).toBe('64');
-    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-color"]')[0].value).toBe('red');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0].value).toBe('red');
 
     dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-max"]')[0], '6000');
 
