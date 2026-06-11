@@ -3885,28 +3885,40 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._setCanonicalScopedValue(scope, canonicalPath, normalizedValue, options);
   }
 
-  _getResolvablePartsFromTarget(target, field) {
-    const structuredValue = this._getPathValue(target, ['scale', field]);
+  _getResolvablePartsFromTarget(target, field, options = {}) {
+    const canonicalBasePath = options.canonicalBasePath ?? ['scale', field];
+    const legacyFixedPath = options.legacyFixedPath ?? [field];
+    const legacyEntityPath = options.legacyEntityPath ?? [`${field}_entity`];
+    const structuredValue = this._getPathValue(target, canonicalBasePath);
+    const legacyFixedValue = this._getPathValue(target, legacyFixedPath);
+    const legacyEntityValue = this._getPathValue(target, legacyEntityPath);
     return {
-      fixed: structuredValue?.fixed ?? target?.[field] ?? '',
-      entity: structuredValue?.entity ?? target?.[`${field}_entity`] ?? '',
+      fixed: structuredValue?.fixed ?? ((!this._isObject(legacyFixedValue) && legacyFixedValue !== undefined) ? legacyFixedValue : ''),
+      entity: structuredValue?.entity ?? legacyEntityValue ?? '',
     };
   }
 
-  _getResolvableScopedValue(scope, field) {
+  _getResolvableScopedValue(scope, field, options = {}) {
     const target = scope?.type === 'entity'
       ? this._getEntityRawEntries()[scope.index]
       : this._draftConfig;
-    return this._getResolvablePartsFromTarget(target ?? {}, field);
+    return this._getResolvablePartsFromTarget(target ?? {}, field, options);
   }
 
   _setCanonicalResolvablePart(scope, field, part, rawValue, options = {}) {
+    const canonicalBasePath = options.canonicalBasePath ?? ['scale', field];
+    const legacyFixedPath = options.legacyFixedPath ?? [field];
+    const legacyEntityPath = options.legacyEntityPath ?? [`${field}_entity`];
+    const prunePaths = options.prunePaths ?? [canonicalBasePath, canonicalBasePath.slice(0, -1)];
     const normalizedValue = part === 'fixed'
       ? this._normalizeNumberValue(rawValue)
       : this._normalizeTextValue(rawValue).trim();
-    const deprecatedKeys = [[field], [`${field}_entity`]];
     return this._applyScopedMutation(scope, (target) => {
-      const currentParts = this._getResolvablePartsFromTarget(target ?? {}, field);
+      const currentParts = this._getResolvablePartsFromTarget(target ?? {}, field, {
+        canonicalBasePath,
+        legacyFixedPath,
+        legacyEntityPath,
+      });
       const nextParts = { ...currentParts };
 
       if (part === 'fixed') {
@@ -3921,8 +3933,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
         nextParts.entity = normalizedValue;
       }
 
-      let nextTarget = this._removePathsFromTarget(target, deprecatedKeys);
-      nextTarget = this._deletePathValue(nextTarget, ['scale', field]);
+      let nextTarget = this._cloneDeep(target);
+      nextTarget = this._deletePathValue(nextTarget, legacyEntityPath);
+      const legacyFixedValue = this._getPathValue(nextTarget, legacyFixedPath);
+      if (!this._isObject(legacyFixedValue)) {
+        nextTarget = this._deletePathValue(nextTarget, legacyFixedPath);
+      }
+      nextTarget = this._deletePathValue(nextTarget, canonicalBasePath);
 
       const hasFixed = nextParts.fixed !== undefined && nextParts.fixed !== null && nextParts.fixed !== '';
       const hasEntity = nextParts.entity !== undefined && nextParts.entity !== null && nextParts.entity !== '';
@@ -3930,21 +3947,35 @@ class SensorBarCardPlusEditor extends HTMLElement {
         const nextValue = {};
         if (hasFixed) nextValue.fixed = nextParts.fixed;
         if (hasEntity) nextValue.entity = nextParts.entity;
-        nextTarget = this._setPathValue(nextTarget, ['scale', field], nextValue);
+        nextTarget = this._setPathValue(nextTarget, canonicalBasePath, nextValue);
       }
 
-      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['scale', field]);
-      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['scale']);
+      prunePaths.forEach((path) => {
+        if (path.length) {
+          nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, path);
+        }
+      });
       return nextTarget;
     }, options);
   }
 
   _clearCanonicalResolvableValue(scope, field, options = {}) {
+    const canonicalBasePath = options.canonicalBasePath ?? ['scale', field];
+    const legacyFixedPath = options.legacyFixedPath ?? [field];
+    const legacyEntityPath = options.legacyEntityPath ?? [`${field}_entity`];
+    const prunePaths = options.prunePaths ?? [canonicalBasePath, canonicalBasePath.slice(0, -1)];
     return this._applyScopedMutation(scope, (target) => {
-      let nextTarget = this._deletePathValue(target, ['scale', field]);
-      nextTarget = this._removePathsFromTarget(nextTarget, [[field], [`${field}_entity`]]);
-      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['scale', field]);
-      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['scale']);
+      let nextTarget = this._deletePathValue(target, canonicalBasePath);
+      nextTarget = this._deletePathValue(nextTarget, legacyEntityPath);
+      const legacyFixedValue = this._getPathValue(nextTarget, legacyFixedPath);
+      if (!this._isObject(legacyFixedValue)) {
+        nextTarget = this._deletePathValue(nextTarget, legacyFixedPath);
+      }
+      prunePaths.forEach((path) => {
+        if (path.length) {
+          nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, path);
+        }
+      });
       return nextTarget;
     }, options);
   }
@@ -4134,6 +4165,110 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._getResolvableScopedValue({ type: 'card' }, key).entity;
   }
 
+  _getTargetResolvableValue(scope) {
+    return this._getResolvableScopedValue(scope, 'target', {
+      canonicalBasePath: ['target', 'at'],
+      legacyFixedPath: ['target'],
+      legacyEntityPath: ['target_entity'],
+    });
+  }
+
+  _setTargetResolvablePart(scope, part, rawValue) {
+    return this._setCanonicalResolvablePart(scope, 'target', part, rawValue, {
+      canonicalBasePath: ['target', 'at'],
+      legacyFixedPath: ['target'],
+      legacyEntityPath: ['target_entity'],
+      prunePaths: [['target', 'at'], ['target']],
+    });
+  }
+
+  _clearTargetOverride(scope) {
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._deletePathValue(target, ['target']);
+      nextTarget = this._deletePathValue(nextTarget, ['target_entity']);
+      nextTarget = this._deletePathValue(nextTarget, ['target_color']);
+      nextTarget = this._deletePathValue(nextTarget, ['show_target_label']);
+      nextTarget = this._deletePathValue(nextTarget, ['above_target_color']);
+      return nextTarget;
+    }, { rerender: true });
+  }
+
+  _getTargetColorValue(scope) {
+    return this._getScopedValue(scope, ['target', 'color'])
+      ?? this._getScopedValue(scope, ['target_color'])
+      ?? '';
+  }
+
+  _setTargetColor(scope, rawValue) {
+    const normalizedValue = this._normalizeTextValue(rawValue).trim();
+    if (!normalizedValue || normalizedValue === '#888') {
+      return this._removeCanonicalScopedValue(scope, ['target', 'color'], {
+        deprecatedKeys: [['target_color']],
+        prunePaths: [['target']],
+      });
+    }
+    return this._setCanonicalScopedTextOverride(scope, ['target', 'color'], normalizedValue, {
+      deprecatedKeys: [['target_color']],
+      prunePaths: [['target']],
+    });
+  }
+
+  _getTargetLabelShowValue(scope) {
+    const structuredValue = this._getScopedValue(scope, ['target', 'label', 'show']);
+    if (structuredValue !== undefined) {
+      return !!structuredValue;
+    }
+    return !!this._getScopedValue(scope, ['show_target_label']);
+  }
+
+  _setTargetLabelShow(scope, value) {
+    if (!value) {
+      return this._removeCanonicalScopedValue(scope, ['target', 'label', 'show'], {
+        deprecatedKeys: [['show_target_label']],
+        prunePaths: [['target', 'label'], ['target']],
+      });
+    }
+    return this._setCanonicalScopedValue(scope, ['target', 'label', 'show'], true, {
+      deprecatedKeys: [['show_target_label']],
+      prunePaths: [['target', 'label'], ['target']],
+    });
+  }
+
+  _getTargetAboveFillColorValue(scope) {
+    return this._getScopedValue(scope, ['target', 'when_exceeded', 'fill_color'])
+      ?? this._getScopedValue(scope, ['above_target_color'])
+      ?? '';
+  }
+
+  _setTargetAboveFillColor(scope, rawValue) {
+    const normalizedValue = this._normalizeTextValue(rawValue).trim();
+    if (!normalizedValue) {
+      return this._removeCanonicalScopedValue(scope, ['target', 'when_exceeded', 'fill_color'], {
+        deprecatedKeys: [['above_target_color']],
+        prunePaths: [['target', 'when_exceeded'], ['target']],
+      });
+    }
+    return this._setCanonicalScopedTextOverride(scope, ['target', 'when_exceeded', 'fill_color'], normalizedValue, {
+      deprecatedKeys: [['above_target_color']],
+      prunePaths: [['target', 'when_exceeded'], ['target']],
+    });
+  }
+
+  _hasTargetOverride(scope) {
+    const targetValue = this._getScopedValue(scope, ['target']);
+    if (this._isObject(targetValue) && Object.keys(targetValue).length) {
+      return true;
+    }
+    if (!this._isObject(targetValue) && targetValue !== undefined && targetValue !== null && targetValue !== '') {
+      return true;
+    }
+    return ['target_entity', 'target_color', 'show_target_label', 'above_target_color']
+      .some((key) => {
+        const value = this._getScopedValue(scope, [key]);
+        return value !== undefined && value !== null && value !== '' && value !== false;
+      });
+  }
+
   _isEntityOverrideExpanded(index) {
     return this._expandedEntityOverrides.has(index);
   }
@@ -4199,7 +4334,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const gradientStops = this._getGradientStopsValue();
       const segments = this._getSegmentsValue();
       const baseline = this._readFixedMarker('baseline');
-      const target = this._readFixedMarker('target');
+      const target = this._getTargetResolvableValue({ type: 'card' });
+      const targetColor = this._getTargetColorValue({ type: 'card' });
+      const targetLabelShow = this._getTargetLabelShowValue({ type: 'card' });
+      const targetAboveFillColor = this._getTargetAboveFillColorValue({ type: 'card' });
       const scaleMin = this._getScaleFixedValue('min', 'min');
       const scaleMax = this._getScaleFixedValue('max', 'max');
       const scaleMinEntity = this._getScaleEntityValue('min');
@@ -4337,6 +4475,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
                         const scope = { type: 'entity', index };
                         const minParts = this._getResolvableScopedValue(scope, 'min');
                         const maxParts = this._getResolvableScopedValue(scope, 'max');
+                        const targetParts = this._getTargetResolvableValue(scope);
+                        const targetInherited = !this._hasTargetOverride(scope);
                         const minInherited = !minParts.fixed && !minParts.entity;
                         const maxInherited = !maxParts.fixed && !maxParts.entity;
                         return `
@@ -4375,6 +4515,34 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       <div class="field-row">
                         <label for="entity-${index}-color">Color</label>
                         <input id="entity-${index}-color" type="text" data-kind="entity-override-color" data-index="${index}" value="${this._escapeAttribute(this._getScopedDisplayValue({ type: 'entity', index }, ['bar', 'color'], [['color']]))}" placeholder="inherit card default">
+                      </div>
+                      <div class="field-row">
+                        <div class="toggle">
+                          <input id="entity-${index}-target-inherit" type="checkbox" data-kind="entity-target-inherit" data-index="${index}"${targetInherited ? ' checked' : ''}>
+                          <label for="entity-${index}-target-inherit">Target inherit</label>
+                        </div>
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-target-value">Target fallback value</label>
+                        <input id="entity-${index}-target-value" type="number" step="any" data-kind="entity-target-value" data-index="${index}" value="${this._escapeAttribute(targetParts.fixed)}" placeholder="inherit card default">
+                      </div>
+                      <div class="field-row">
+                        <label>Target entity override</label>
+                        ${this._renderEntitySourceInput('entity-target-entity-source', index, targetParts.entity, 'inherit card default')}
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-target-color">Target color</label>
+                        <input id="entity-${index}-target-color" type="text" data-kind="entity-target-color" data-index="${index}" value="${this._escapeAttribute(this._getTargetColorValue(scope))}" placeholder="inherit card default">
+                      </div>
+                      <div class="field-row">
+                        <div class="toggle">
+                          <input id="entity-${index}-target-label-show" type="checkbox" data-kind="entity-target-label-show" data-index="${index}"${this._getTargetLabelShowValue(scope) ? ' checked' : ''}>
+                          <label for="entity-${index}-target-label-show">Show target label</label>
+                        </div>
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-target-above-fill">Above-target fill color</label>
+                        <input id="entity-${index}-target-above-fill" type="text" data-kind="entity-target-above-fill-color" data-index="${index}" value="${this._escapeAttribute(this._getTargetAboveFillColorValue(scope))}" placeholder="inherit card default">
                       </div>
                         `;
                       })()}
@@ -4500,17 +4668,27 @@ class SensorBarCardPlusEditor extends HTMLElement {
                 <input id="baseline-value" type="number" step="any" data-field="baseline-value" value="${this._escapeAttribute(baseline.value)}">
               </div>
             </div>
-            <div class="inline-row">
-              <div class="field-row">
-                <div class="toggle">
-                  <input id="target-enabled" type="checkbox" data-field="target-enabled"${target.enabled ? ' checked' : ''}>
-                  <label for="target-enabled">Target fixed</label>
-                </div>
+            <div class="field-row">
+              <label for="target-value">Target fallback value</label>
+              <input id="target-value" type="number" step="any" data-field="target-value" value="${this._escapeAttribute(target.fixed)}">
+            </div>
+            <div class="field-row">
+              <label>Target entity override</label>
+              ${this._renderEntitySourceInput('target-entity-source', 'card', target.entity)}
+            </div>
+            <div class="field-row">
+              <label for="target-color">Target color</label>
+              <input id="target-color" type="text" data-field="target-color" value="${this._escapeAttribute(targetColor)}" placeholder="#888">
+            </div>
+            <div class="field-row">
+              <div class="toggle">
+                <input id="target-label-show" type="checkbox" data-field="target-label-show"${targetLabelShow ? ' checked' : ''}>
+                <label for="target-label-show">Show target label</label>
               </div>
-              <div class="field-row">
-                <label for="target-value">Target value</label>
-                <input id="target-value" type="number" step="any" data-field="target-value" value="${this._escapeAttribute(target.value)}">
-              </div>
+            </div>
+            <div class="field-row">
+              <label for="target-above-fill-color">Above-target fill color</label>
+              <input id="target-above-fill-color" type="text" data-field="target-above-fill-color" value="${this._escapeAttribute(targetAboveFillColor)}">
             </div>
             <div class="field-row">
               <div class="toggle">
@@ -4569,6 +4747,12 @@ class SensorBarCardPlusEditor extends HTMLElement {
         return;
       }
 
+      if (kind === 'target-entity-source') {
+        picker.value = this._getTargetResolvableValue({ type: 'card' }).entity;
+        picker.label = 'Target entity override';
+        return;
+      }
+
       if (kind === 'entity-override-min-entity-source') {
         picker.value = this._getResolvableScopedValue({ type: 'entity', index }, 'min').entity;
         picker.label = `Entity ${index + 1} min override`;
@@ -4578,6 +4762,12 @@ class SensorBarCardPlusEditor extends HTMLElement {
       if (kind === 'entity-override-max-entity-source') {
         picker.value = this._getResolvableScopedValue({ type: 'entity', index }, 'max').entity;
         picker.label = `Entity ${index + 1} max override`;
+        return;
+      }
+
+      if (kind === 'entity-target-entity-source') {
+        picker.value = this._getTargetResolvableValue({ type: 'entity', index }).entity;
+        picker.label = `Entity ${index + 1} target override`;
       }
     };
 
@@ -4585,8 +4775,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
       'ha-entity-picker[data-kind="entity-picker"]',
       'ha-entity-picker[data-kind="scale-min-entity-source"]',
       'ha-entity-picker[data-kind="scale-max-entity-source"]',
+      'ha-entity-picker[data-kind="target-entity-source"]',
       'ha-entity-picker[data-kind="entity-override-min-entity-source"]',
       'ha-entity-picker[data-kind="entity-override-max-entity-source"]',
+      'ha-entity-picker[data-kind="entity-target-entity-source"]',
     ].forEach((selector) => {
       this.shadowRoot.querySelectorAll(selector).forEach(syncPicker);
     });
@@ -4596,8 +4788,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
           'ha-entity-picker[data-kind="entity-picker"]',
           'ha-entity-picker[data-kind="scale-min-entity-source"]',
           'ha-entity-picker[data-kind="scale-max-entity-source"]',
+          'ha-entity-picker[data-kind="target-entity-source"]',
           'ha-entity-picker[data-kind="entity-override-min-entity-source"]',
           'ha-entity-picker[data-kind="entity-override-max-entity-source"]',
+          'ha-entity-picker[data-kind="entity-target-entity-source"]',
         ].forEach((selector) => {
           this.shadowRoot?.querySelectorAll(selector).forEach(syncPicker);
         });
@@ -4711,14 +4905,12 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const enabled = !!this.shadowRoot?.querySelector('[data-field="baseline-enabled"]')?.checked;
       return void this._setFixedMarkerValue('baseline', enabled, value);
     }
-    if (field === 'target-enabled') {
-      const targetValue = this.shadowRoot?.querySelector('[data-field="target-value"]')?.value ?? '';
-      return void this._setFixedMarkerValue('target', !!value, targetValue);
-    }
     if (field === 'target-value') {
-      const enabled = !!this.shadowRoot?.querySelector('[data-field="target-enabled"]')?.checked;
-      return void this._setFixedMarkerValue('target', enabled, value);
+      return void this._setTargetResolvablePart({ type: 'card' }, 'fixed', value);
     }
+    if (field === 'target-color') return void this._setTargetColor({ type: 'card' }, value);
+    if (field === 'target-label-show') return void this._setTargetLabelShow({ type: 'card' }, value);
+    if (field === 'target-above-fill-color') return void this._setTargetAboveFillColor({ type: 'card' }, value);
     if (field === 'peak-show') return void this._setPeakShow(value);
 
     if (kind === 'entity-picker' || kind === 'entity-input') {
@@ -4749,6 +4941,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
     if (kind === 'scale-max-entity-source') {
       return void this._setCanonicalResolvablePart({ type: 'card' }, 'max', 'entity', value);
+    }
+
+    if (kind === 'target-entity-source') {
+      return void this._setTargetResolvablePart({ type: 'card' }, 'entity', value);
     }
 
     if (kind === 'entity-override-min-inherit') {
@@ -4793,6 +4989,33 @@ class SensorBarCardPlusEditor extends HTMLElement {
         deprecatedKeys: [['color']],
         prunePaths: [['bar']],
       });
+    }
+
+    if (kind === 'entity-target-inherit') {
+      if (value) {
+        return void this._clearTargetOverride({ type: 'entity', index: Number(target.dataset.index) });
+      }
+      return;
+    }
+
+    if (kind === 'entity-target-value') {
+      return void this._setTargetResolvablePart({ type: 'entity', index: Number(target.dataset.index) }, 'fixed', value);
+    }
+
+    if (kind === 'entity-target-entity-source') {
+      return void this._setTargetResolvablePart({ type: 'entity', index: Number(target.dataset.index) }, 'entity', value);
+    }
+
+    if (kind === 'entity-target-color') {
+      return void this._setTargetColor({ type: 'entity', index: Number(target.dataset.index) }, value);
+    }
+
+    if (kind === 'entity-target-label-show') {
+      return void this._setTargetLabelShow({ type: 'entity', index: Number(target.dataset.index) }, value);
+    }
+
+    if (kind === 'entity-target-above-fill-color') {
+      return void this._setTargetAboveFillColor({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
 
     if (kind?.startsWith('gradient-')) {

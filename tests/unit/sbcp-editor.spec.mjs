@@ -920,6 +920,569 @@ describe('Sensor Bar Card Plus editor', () => {
     ]);
   });
 
+  it('card-level target fallback only writes target.at.fixed', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    dispatchInput(editor.shadowRoot.querySelector('#target-value'), '2500');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      at: { fixed: 2500 },
+    });
+  });
+
+  it('card-level target entity only writes target.at.entity', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="target-entity-source"]')[0], 'sensor.dynamic_target');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      at: { entity: 'sensor.dynamic_target' },
+    });
+  });
+
+  it('card-level target fallback plus entity writes both', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    dispatchInput(editor.shadowRoot.querySelector('#target-value'), '2500');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="target-entity-source"]')[0], 'sensor.dynamic_target');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      at: { fixed: 2500, entity: 'sensor.dynamic_target' },
+    });
+  });
+
+  it('clearing target fallback preserves target entity', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        at: {
+          fixed: 2500,
+          entity: 'sensor.dynamic_target',
+        },
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#target-value'), '');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      at: { entity: 'sensor.dynamic_target' },
+    });
+  });
+
+  it('clearing target entity preserves target fallback', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        at: {
+          fixed: 2500,
+          entity: 'sensor.dynamic_target',
+        },
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="target-entity-source"]')[0], '');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      at: { fixed: 2500 },
+    });
+  });
+
+  it('clearing both card-level target values removes target.at', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        at: {
+          fixed: 2500,
+          entity: 'sensor.dynamic_target',
+        },
+        color: '#ff9800',
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#target-value'), '');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="target-entity-source"]')[0], '');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      color: '#ff9800',
+    });
+  });
+
+  it('default target color #888 is suppressed', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        at: { fixed: 2500 },
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#target-color'), '#888');
+
+    expect(events).toHaveLength(0);
+    expect(editor._draftConfig.target).toEqual({
+      at: { fixed: 2500 },
+    });
+  });
+
+  it('custom target color writes target.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    dispatchInput(editor.shadowRoot.querySelector('#target-color'), '#ff9800');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      color: '#ff9800',
+    });
+  });
+
+  it('show target label false is suppressed', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        label: { show: true },
+      },
+    });
+
+    const toggle = editor.shadowRoot.querySelector('#target-label-show');
+    toggle.checked = false;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.target).toBeUndefined();
+  });
+
+  it('show target label true writes target.label.show', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+
+    const toggle = editor.shadowRoot.querySelector('#target-label-show');
+    toggle.checked = true;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      label: { show: true },
+    });
+  });
+
+  it('above-target fill color writes target.when_exceeded.fill_color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({ entity: 'sensor.one' });
+    dispatchInput(editor.shadowRoot.querySelector('#target-above-fill-color'), '#ff0000');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      when_exceeded: {
+        fill_color: '#ff0000',
+      },
+    });
+  });
+
+  it('clearing above-target fill color removes target.when_exceeded.fill_color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        when_exceeded: {
+          fill_color: '#ff0000',
+        },
+        color: '#ff9800',
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#target-above-fill-color'), '');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      color: '#ff9800',
+    });
+  });
+
+  it('per-entity target inherit removes entire entity-level target', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [
+        {
+          entity: 'sensor.one',
+          name: 'One',
+          target: {
+            at: { fixed: 2500 },
+            color: '#ff9800',
+          },
+        },
+      ],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const inheritToggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-inherit"]')[0];
+    inheritToggle.checked = true;
+    inheritToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One' },
+    ]);
+  });
+
+  it('per-entity target fallback only writes entities[index].target.at.fixed', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-value"]')[0], '2500');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { at: { fixed: 2500 } } },
+    ]);
+  });
+
+  it('per-entity target entity only writes entities[index].target.at.entity', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-entity-source"]')[0], 'sensor.grid_target');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { at: { entity: 'sensor.grid_target' } } },
+    ]);
+  });
+
+  it('per-entity target fallback plus entity writes both', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-value"]')[0], '2500');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-entity-source"]')[0], 'sensor.grid_target');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { at: { fixed: 2500, entity: 'sensor.grid_target' } } },
+    ]);
+  });
+
+  it('clearing per-entity target fallback preserves entity', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        target: {
+          at: { fixed: 2500, entity: 'sensor.grid_target' },
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-value"]')[0], '');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { at: { entity: 'sensor.grid_target' } } },
+    ]);
+  });
+
+  it('clearing per-entity target entity preserves fallback', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        target: {
+          at: { fixed: 2500, entity: 'sensor.grid_target' },
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-entity-source"]')[0], '');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { at: { fixed: 2500 } } },
+    ]);
+  });
+
+  it('clearing both per-entity target values removes entities[index].target.at', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        target: {
+          at: { fixed: 2500, entity: 'sensor.grid_target' },
+          color: '#ff9800',
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-value"]')[0], '');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-entity-source"]')[0], '');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { color: '#ff9800' } },
+    ]);
+  });
+
+  it('empty/default per-entity target override removes empty entity-level target', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        target: {
+          color: '#ff9800',
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-color"]')[0], '#888');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One' },
+    ]);
+  });
+
+  it('custom per-entity target color writes entities[index].target.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-color"]')[0], '#ff9800');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { color: '#ff9800' } },
+    ]);
+  });
+
+  it('per-entity target show label true writes entities[index].target.label.show', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const toggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-label-show"]')[0];
+    toggle.checked = true;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { label: { show: true } } },
+    ]);
+  });
+
+  it('per-entity target above-target fill color writes entities[index].target.when_exceeded.fill_color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-above-fill-color"]')[0], '#ff0000');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { when_exceeded: { fill_color: '#ff0000' } } },
+    ]);
+  });
+
+  it('per-entity target preserves unrelated entity keys', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        custom_entity_key: 'keep',
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-value"]')[0], '2500');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', custom_entity_key: 'keep', target: { at: { fixed: 2500 } } },
+    ]);
+  });
+
+  it('loading flat target config renders correctly', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: 2500,
+      target_entity: 'sensor.dynamic_target',
+      target_color: '#ff9800',
+      show_target_label: true,
+      above_target_color: '#ff0000',
+    });
+
+    expect(editor.shadowRoot.querySelector('#target-value').value).toBe('2500');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="target-entity-source"]')[0].value).toBe('sensor.dynamic_target');
+    expect(editor.shadowRoot.querySelector('#target-color').value).toBe('#ff9800');
+    expect(editor.shadowRoot.querySelector('#target-label-show').checked).toBe(true);
+    expect(editor.shadowRoot.querySelector('#target-above-fill-color').value).toBe('#ff0000');
+  });
+
+  it('editing a flat-loaded target fallback converts only that edited field to structured config', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: 2500,
+      target_entity: 'sensor.dynamic_target',
+      target_color: '#ff9800',
+      custom_top_level: 'keep',
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#target-value'), '3000');
+
+    const finalConfig = events.at(-1).detail.config;
+    expect(finalConfig.target).toEqual({
+      at: { fixed: 3000, entity: 'sensor.dynamic_target' },
+    });
+    expect(finalConfig.target_entity).toBeUndefined();
+    expect(finalConfig.target_color).toBe('#ff9800');
+    expect(finalConfig.custom_top_level).toBe('keep');
+  });
+
+  it('editing a flat-loaded target entity converts only that edited field to structured config', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: 2500,
+      target_entity: 'sensor.dynamic_target',
+      above_target_color: '#ff0000',
+    });
+
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="target-entity-source"]')[0], 'sensor.updated_target');
+
+    const finalConfig = events.at(-1).detail.config;
+    expect(finalConfig.target).toEqual({
+      at: { fixed: 2500, entity: 'sensor.updated_target' },
+    });
+    expect(finalConfig.target_entity).toBeUndefined();
+    expect(finalConfig.above_target_color).toBe('#ff0000');
+  });
+
+  it('per-entity flat target config converts correctly when edited', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.grid_power',
+        target: 2500,
+        target_entity: 'sensor.grid_target',
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-target-value"]')[0], '3000');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.grid_power',
+        target: {
+          at: {
+            fixed: 3000,
+            entity: 'sensor.grid_target',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('fake ha-entity-picker value-changed works for card-level target entity', () => {
+    const editor = createEditor({ withEntityPicker: true });
+    const events = trackConfigEvents(editor);
+
+    editor.hass = { states: {} };
+    editor.setConfig({ entity: 'sensor.one' });
+
+    const picker = editor.shadowRoot.querySelectorAll('ha-entity-picker[data-kind="target-entity-source"]')[0];
+    expect(picker.hass).toEqual({ states: {} });
+    dispatchValueChanged(picker, 'sensor.dynamic_target');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      at: { entity: 'sensor.dynamic_target' },
+    });
+  });
+
+  it('fake ha-entity-picker value-changed works for per-entity target entity', () => {
+    const editor = createEditor({ withEntityPicker: true });
+    const events = trackConfigEvents(editor);
+
+    editor.hass = { states: {} };
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const picker = editor.shadowRoot.querySelectorAll('ha-entity-picker[data-kind="entity-target-entity-source"]')[0];
+    expect(picker.hass).toEqual({ states: {} });
+    dispatchValueChanged(picker, 'sensor.grid_target');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', target: { at: { entity: 'sensor.grid_target' } } },
+    ]);
+  });
+
   it('default needle OFF does not emit bar.needle and preserves unrelated bar keys', () => {
     const editor = createEditor();
     const events = trackConfigEvents(editor);
