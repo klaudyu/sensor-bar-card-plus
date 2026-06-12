@@ -191,6 +191,7 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-group-scale')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-layout')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting')).not.toBeNull();
+    expect(editor.shadowRoot.querySelector('#entity-0-group-peak')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-target')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-baseline')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-bar')).not.toBeNull();
@@ -211,6 +212,7 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-group-scale').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-layout').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-baseline').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-bar').getAttribute('aria-expanded')).toBe('false');
@@ -232,6 +234,7 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-group-scale').getAttribute('aria-expanded')).toBe('true');
     expect(editor.shadowRoot.querySelector('#entity-0-group-layout').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-baseline').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-bar').getAttribute('aria-expanded')).toBe('false');
@@ -252,6 +255,24 @@ describe('Sensor Bar Card Plus editor', () => {
 
     expect(editor.shadowRoot.querySelector('#entity-0-group-scale').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('true');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('opening peak subsection does not open other subsections', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [
+        { entity: 'sensor.one', name: 'One' },
+      ],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+
+    expect(editor.shadowRoot.querySelector('#entity-0-group-scale').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('true');
     expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
   });
 
@@ -398,6 +419,7 @@ describe('Sensor Bar Card Plus editor', () => {
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-scale'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-layout'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-formatting'));
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-target'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-baseline'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-bar'));
@@ -410,6 +432,8 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-label-width')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-formatting-unit')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-formatting-decimal')).not.toBeNull();
+    expect(editor.shadowRoot.querySelector('#entity-0-peak-enabled')).not.toBeNull();
+    expect(editor.shadowRoot.querySelector('#entity-0-peak-color')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-target-value')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-target-color')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-baseline-value')).not.toBeNull();
@@ -496,6 +520,19 @@ describe('Sensor Bar Card Plus editor', () => {
 
     dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
     expect(editor.shadowRoot.querySelector('#entity-0-layout-inherit').checked).toBe(false);
+  });
+
+  it('entity peak override renders Peak inherit unchecked', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [
+        { entity: 'sensor.one', peak: { enabled: true } },
+      ],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    expect(editor.shadowRoot.querySelector('#entity-0-peak-inherit').checked).toBe(false);
   });
 
   it('entity target override renders Target inherit unchecked', () => {
@@ -3799,6 +3836,61 @@ describe('Sensor Bar Card Plus editor', () => {
     });
   });
 
+  it('peak color input writes structured peak.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      peak: {
+        enabled: true,
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#peak-color'), '#ff9800');
+
+    expect(events.at(-1).detail.config.peak).toEqual({
+      enabled: true,
+      color: '#ff9800',
+    });
+  });
+
+  it('peak reads legacy flat config', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      show_peak: true,
+      peak_color: '#ff9800',
+    });
+
+    expect(editor.shadowRoot.querySelector('#peak-show').checked).toBe(true);
+    expect(editor.shadowRoot.querySelector('#peak-color').value).toBe('#ff9800');
+  });
+
+  it('editing flat-loaded peak color converts to structured peak.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      show_peak: true,
+      peak_color: '#ff9800',
+      custom_top_level: 'keep',
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#peak-color'), '#00ff00');
+
+    const finalConfig = events.at(-1).detail.config;
+    expect(finalConfig.peak).toEqual({
+      enabled: true,
+      color: '#00ff00',
+    });
+    expect(finalConfig.show_peak).toBeUndefined();
+    expect(finalConfig.peak_color).toBeUndefined();
+    expect(finalConfig.custom_top_level).toBe('keep');
+  });
+
   it('peak disabled/default removes entire peak block if empty', () => {
     const editor = createEditor();
     const events = trackConfigEvents(editor);
@@ -3849,6 +3941,167 @@ describe('Sensor Bar Card Plus editor', () => {
       enabled: true,
       custom_peak_key: 'keep',
     });
+  });
+
+  it('per-entity peak group is collapsed by default', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('per-entity peak summary renders inherited', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    expect(editor.shadowRoot.innerHTML).toContain('id="entity-0-group-peak-summary"');
+    expect(editor.shadowRoot.innerHTML).toContain('>Inherited</span>');
+  });
+
+  it('per-entity peak summary renders enabled custom color', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', peak: { enabled: true, color: '#ff9800' } }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    expect(editor.shadowRoot.innerHTML).toContain('Enabled, custom color</span>');
+  });
+
+  it('per-entity peak enabled writes entities[index].peak.enabled true', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+    const toggle = editor.shadowRoot.querySelector('#entity-0-peak-enabled');
+    toggle.checked = true;
+    toggle.dispatchEvent({
+      type: 'change',
+      bubbles: true,
+      composed: true,
+    });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', peak: { enabled: true } },
+    ]);
+  });
+
+  it('per-entity peak disabled override writes entities[index].peak.enabled false', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      peak: { enabled: true },
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+    const toggle = editor.shadowRoot.querySelector('#entity-0-peak-enabled');
+    toggle.checked = false;
+    toggle.dispatchEvent({
+      type: 'change',
+      bubbles: true,
+      composed: true,
+    });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', peak: { enabled: false } },
+    ]);
+  });
+
+  it('per-entity peak custom color writes entities[index].peak.color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One', peak: { enabled: true } }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+    dispatchInput(editor.shadowRoot.querySelector('#entity-0-peak-color'), '#ff9800');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', name: 'One', peak: { enabled: true, color: '#ff9800' } },
+    ]);
+  });
+
+  it('per-entity peak inherit removes only managed peak keys and preserves unrelated keys', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        name: 'One',
+        peak: { enabled: true, color: '#ff9800', custom_peak_key: 'keep' },
+        custom_entity_key: 'keep',
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+    const toggle = editor.shadowRoot.querySelector('#entity-0-peak-inherit');
+    toggle.checked = true;
+    toggle.dispatchEvent({
+      type: 'change',
+      bubbles: true,
+      composed: true,
+    });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        name: 'One',
+        peak: { custom_peak_key: 'keep' },
+        custom_entity_key: 'keep',
+      },
+    ]);
+  });
+
+  it('per-entity peak reads legacy flat config', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', show_peak: true, peak_color: '#ff9800' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+    expect(editor.shadowRoot.querySelector('#entity-0-peak-enabled').checked).toBe(true);
+    expect(editor.shadowRoot.querySelector('#entity-0-peak-color').value).toBe('#ff9800');
+  });
+
+  it('editing flat-loaded per-entity peak color converts to structured config', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', show_peak: true, peak_color: '#ff9800' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+    dispatchInput(editor.shadowRoot.querySelector('#entity-0-peak-color'), '#00ff00');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      { entity: 'sensor.one', peak: { enabled: true, color: '#00ff00' } },
+    ]);
   });
 
   it('loading flat config still renders editable values and editing converts them to structured config', () => {

@@ -4198,6 +4198,164 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._setScopedNeedleMode({ type: 'card' }, value ? 'enabled' : 'disabled');
   }
 
+  _getScopedPeakConfig(scope) {
+    const rawPeak = this._getScopedValue(scope, ['peak']);
+    const rawPeakMarker = this._getScopedValue(scope, ['peak_marker']);
+    const rawLegacyShow = this._getScopedValue(scope, ['show_peak']);
+    const rawLegacyColor = this._getScopedValue(scope, ['peak_color']);
+    const defaultColor = '#888';
+    let mode = scope?.type === 'entity' ? 'inherit' : 'disabled';
+    let color = '';
+
+    if (this._isObject(rawPeak)) {
+      if (rawPeak.enabled === true) {
+        mode = 'enabled';
+      } else if (rawPeak.enabled === false) {
+        mode = 'disabled';
+      }
+      color = rawPeak.color ?? color;
+    }
+
+    if (this._isObject(rawPeakMarker)) {
+      if (rawPeakMarker.show === true) {
+        mode = 'enabled';
+      } else if (rawPeakMarker.show === false) {
+        mode = 'disabled';
+      } else if (scope?.type !== 'entity') {
+        mode = 'disabled';
+      }
+      color = rawPeakMarker.color ?? color;
+    }
+
+    if (rawLegacyShow === true) {
+      mode = 'enabled';
+    } else if (rawLegacyShow === false) {
+      mode = 'disabled';
+    }
+
+    color = color || rawLegacyColor || '';
+    if (color && this._normalizeColorComparisonValue(color) === this._normalizeColorComparisonValue(defaultColor)) {
+      color = '';
+    }
+
+    return { mode, color };
+  }
+
+  _hasPeakOverride(scope) {
+    const peakValue = this._getScopedValue(scope, ['peak']) ?? {};
+    if (this._isObject(peakValue) && (
+      Object.prototype.hasOwnProperty.call(peakValue, 'enabled')
+      || Object.prototype.hasOwnProperty.call(peakValue, 'color')
+    )) {
+      return true;
+    }
+
+    const peakMarkerValue = this._getScopedValue(scope, ['peak_marker']) ?? {};
+    if (this._isObject(peakMarkerValue) && (
+      Object.prototype.hasOwnProperty.call(peakMarkerValue, 'show')
+      || Object.prototype.hasOwnProperty.call(peakMarkerValue, 'color')
+    )) {
+      return true;
+    }
+
+    return this._getScopedValue(scope, ['show_peak']) !== undefined
+      || this._getScopedValue(scope, ['peak_color']) !== undefined;
+  }
+
+  _getPeakSummary(scope) {
+    const peak = this._getScopedPeakConfig(scope);
+    if (peak.mode === 'enabled') return peak.color ? 'Enabled, custom color' : 'Enabled';
+    if (peak.mode === 'disabled') return 'Disabled override';
+    return 'Inherited';
+  }
+
+  _clearPeakOverride(scope) {
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._deletePathValue(target, ['peak', 'enabled']);
+      nextTarget = this._deletePathValue(nextTarget, ['peak', 'color']);
+      nextTarget = this._deletePathValue(nextTarget, ['show_peak']);
+      nextTarget = this._deletePathValue(nextTarget, ['peak_color']);
+      nextTarget = this._deletePathValue(nextTarget, ['peak_marker']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['peak']);
+      return nextTarget;
+    }, { rerender: true });
+  }
+
+  _setScopedPeakEnabled(scope, value) {
+    const boolValue = !!value;
+    const defaultColor = '#888';
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._cloneDeep(target);
+      const currentPeak = this._isObject(this._getPathValue(nextTarget, ['peak']))
+        ? this._cloneDeep(this._getPathValue(nextTarget, ['peak']))
+        : {};
+      const currentColor = currentPeak.color
+        ?? (this._isObject(this._getPathValue(nextTarget, ['peak_marker'])) ? this._getPathValue(nextTarget, ['peak_marker', 'color']) : undefined)
+        ?? this._getPathValue(nextTarget, ['peak_color'])
+        ?? defaultColor;
+
+      if (scope?.type === 'entity' || boolValue) {
+        currentPeak.enabled = boolValue;
+      } else {
+        delete currentPeak.enabled;
+      }
+
+      if (currentColor && this._normalizeColorComparisonValue(currentColor) !== this._normalizeColorComparisonValue(defaultColor)) {
+        currentPeak.color = currentColor;
+      } else {
+        delete currentPeak.color;
+      }
+
+      if (Object.keys(currentPeak).length) {
+        nextTarget = this._setPathValue(nextTarget, ['peak'], currentPeak);
+      } else {
+        nextTarget = this._deletePathValue(nextTarget, ['peak']);
+      }
+
+      nextTarget = this._deletePathValue(nextTarget, ['show_peak']);
+      nextTarget = this._deletePathValue(nextTarget, ['peak_color']);
+      nextTarget = this._deletePathValue(nextTarget, ['peak_marker']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['peak']);
+      return nextTarget;
+    });
+  }
+
+  _setScopedPeakColor(scope, rawValue) {
+    const normalizedValue = this._normalizeTextValue(rawValue).trim();
+    const defaultColor = '#888';
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._cloneDeep(target);
+      const currentPeak = this._isObject(this._getPathValue(nextTarget, ['peak']))
+        ? this._cloneDeep(this._getPathValue(nextTarget, ['peak']))
+        : {};
+      const currentConfig = this._getScopedPeakConfig(scope);
+
+      delete currentPeak.color;
+      if (normalizedValue && this._normalizeColorComparisonValue(normalizedValue) !== this._normalizeColorComparisonValue(defaultColor)) {
+        currentPeak.color = normalizedValue;
+      }
+
+      if (scope?.type === 'entity') {
+        if (currentConfig.mode === 'enabled') currentPeak.enabled = true;
+        if (currentConfig.mode === 'disabled') currentPeak.enabled = false;
+      } else if (currentConfig.mode === 'enabled') {
+        currentPeak.enabled = true;
+      }
+
+      if (Object.keys(currentPeak).length) {
+        nextTarget = this._setPathValue(nextTarget, ['peak'], currentPeak);
+      } else {
+        nextTarget = this._deletePathValue(nextTarget, ['peak']);
+      }
+
+      nextTarget = this._deletePathValue(nextTarget, ['show_peak']);
+      nextTarget = this._deletePathValue(nextTarget, ['peak_color']);
+      nextTarget = this._deletePathValue(nextTarget, ['peak_marker']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['peak']);
+      return nextTarget;
+    });
+  }
+
   _setFixedMarkerValue(rootKey, enabled, value) {
     const numericValue = this._normalizeNumberValue(value);
     if (!enabled || numericValue === null) {
@@ -4214,38 +4372,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _setPeakShow(value) {
-    const defaultPeakColor = '#888';
-    const currentColor = this._getPathValue(this._draftConfig, ['peak', 'color'])
-      ?? this._getPathValue(this._draftConfig, ['peak_marker', 'color'])
-      ?? this._draftConfig.peak_color
-      ?? defaultPeakColor;
-    return this._applyScopedMutation({ type: 'card' }, (target) => {
-      let nextTarget = this._cloneDeep(target);
-      const existingPeak = this._isObject(this._getPathValue(nextTarget, ['peak']))
-        ? this._cloneDeep(this._getPathValue(nextTarget, ['peak']))
-        : {};
-
-      if (!value) {
-        delete existingPeak.enabled;
-      } else {
-        existingPeak.enabled = true;
-      }
-
-      if (currentColor && currentColor !== defaultPeakColor) {
-        existingPeak.color = currentColor;
-      } else {
-        delete existingPeak.color;
-      }
-
-      if (Object.keys(existingPeak).length) {
-        nextTarget = this._setPathValue(nextTarget, ['peak'], existingPeak);
-      } else {
-        nextTarget = this._deletePathValue(nextTarget, ['peak']);
-      }
-      nextTarget = this._removePathsFromTarget(nextTarget, [['show_peak'], ['peak_color'], ['peak_marker']]);
-      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['peak']);
-      return nextTarget;
-    });
+    return this._setScopedPeakEnabled({ type: 'card' }, value);
   }
 
   _readFixedMarker(rootKey) {
@@ -4525,13 +4652,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _getPeakShowValue() {
-    if (this._isObject(this._draftConfig.peak)) {
-      return !!this._draftConfig.peak.enabled;
-    }
-    if (this._isObject(this._draftConfig.peak_marker)) {
-      return !!this._draftConfig.peak_marker.show;
-    }
-    return !!this._draftConfig.show_peak;
+    return this._getScopedPeakConfig({ type: 'card' }).mode === 'enabled';
   }
 
   _getScaleFixedValue(key, fallbackKey) {
@@ -5002,6 +5123,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const targetAboveFillColor = this._getTargetAboveFillColorValue({ type: 'card' });
       const formattingUnit = this._getScopedFormattingValue({ type: 'card' }, 'unit');
       const formattingDecimal = this._getScopedFormattingValue({ type: 'card' }, 'decimal');
+      const cardPeak = this._getScopedPeakConfig({ type: 'card' });
       const scaleMin = this._getScaleFixedValue('min', 'min');
       const scaleMax = this._getScaleFixedValue('max', 'max');
       const scaleMinEntity = this._getScaleEntityValue('min');
@@ -5223,6 +5345,9 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .override-group[data-group="layout"] {
 	          --override-group-accent: #6e90ff;
 	        }
+	        .override-group[data-group="peak"] {
+	          --override-group-accent: #f08b3e;
+	        }
 	        .override-group-toggle {
 	          display: flex;
 	          justify-content: space-between;
@@ -5332,8 +5457,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                        const targetInherited = !this._hasTargetOverride(scope);
 	                        const formattingInherited = !this._hasFormattingOverride(scope);
 	                        const layoutInherited = !this._hasLayoutOverride(scope);
+	                        const peakInherited = !this._hasPeakOverride(scope);
 	                        const minInherited = !this._hasResolvableOverride(minParts);
 	                        const maxInherited = !this._hasResolvableOverride(maxParts);
+	                        const entityPeak = this._getScopedPeakConfig(scope);
 	                        const scaleGroup = this._renderOverrideGroup({
 	                          index,
 	                          group: 'scale',
@@ -5492,6 +5619,37 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       </div>
 	                          `,
 	                        });
+	                        const peakGroup = this._renderOverrideGroup({
+	                          index,
+	                          group: 'peak',
+	                          title: 'Peak',
+	                          summary: this._getPeakSummary(scope),
+	                          content: `
+	                      <div class="field-row">
+	                        <div class="toggle">
+	                          <input id="entity-${index}-peak-inherit" type="checkbox" data-kind="entity-peak-inherit" data-index="${index}"${peakInherited ? ' checked' : ''}>
+                          <label for="entity-${index}-peak-inherit">Peak inherit</label>
+                        </div>
+                      </div>
+                      <div class="field-row">
+                        <div class="toggle">
+                          <input id="entity-${index}-peak-enabled" type="checkbox" data-kind="entity-peak-enabled" data-index="${index}"${entityPeak.mode === 'enabled' ? ' checked' : ''}>
+                          <label for="entity-${index}-peak-enabled">Peak enabled</label>
+                        </div>
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-peak-color">Peak color</label>
+                        ${this._renderColorInput({
+                          id: `entity-${index}-peak-color`,
+                          kind: 'entity-peak-color',
+                          index,
+                          value: entityPeak.color,
+                          fallbackHex: '#888',
+                          placeholder: 'inherit card default',
+                        })}
+                      </div>
+	                          `,
+	                        });
 	                        const baselineGroup = this._renderOverrideGroup({
 	                          index,
 	                          group: 'baseline',
@@ -5590,6 +5748,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          ${scaleGroup}
 	                          ${layoutGroup}
 	                          ${formattingGroup}
+	                          ${peakGroup}
 	                          ${targetGroup}
 	                          ${baselineGroup}
 	                          ${barGroup}
@@ -5755,8 +5914,32 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
 	        <div class="section">
 	          <div class="section-head">
+	            <h3>Peak Marker</h3>
+	          </div>
+	          <div class="inline-row editor-grid">
+            <div class="field-row">
+              <div class="toggle">
+                <input id="peak-show" type="checkbox" data-field="peak-show"${cardPeak.mode === 'enabled' ? ' checked' : ''}>
+                <label for="peak-show">Peak enabled</label>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="peak-color">Peak color</label>
+              ${this._renderColorInput({
+                id: 'peak-color',
+                field: 'peak-color',
+                value: cardPeak.color,
+                fallbackHex: '#888',
+                placeholder: '#888',
+              })}
+            </div>
+          </div>
+	        </div>
+
+	        <div class="section">
+	          <div class="section-head">
 	            <h3>Markers</h3>
-	            <div class="section-note">Baseline, target, and peak configuration.</div>
+	            <div class="section-note">Baseline and target configuration.</div>
 	          </div>
 	          <div class="field-grid">
             <div class="field-row">
@@ -5817,12 +6000,6 @@ class SensorBarCardPlusEditor extends HTMLElement {
                 value: targetAboveFillColor,
                 fallbackHex: '#000000',
               })}
-            </div>
-            <div class="field-row">
-              <div class="toggle">
-                <input id="peak-show" type="checkbox" data-field="peak-show"${this._getPeakShowValue() ? ' checked' : ''}>
-                <label for="peak-show">Show peak</label>
-              </div>
             </div>
           </div>
         </div>
@@ -6065,6 +6242,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
     if (field === 'target-label-show') return void this._setTargetLabelShow({ type: 'card' }, value);
     if (field === 'target-above-fill-color') return void this._setTargetAboveFillColor({ type: 'card' }, value);
     if (field === 'peak-show') return void this._setPeakShow(value);
+    if (field === 'peak-color') return void this._setScopedPeakColor({ type: 'card' }, value);
 
     if (kind === 'entity-picker' || kind === 'entity-input') {
       const index = Number(target.dataset.index);
@@ -6166,6 +6344,21 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
     if (kind === 'entity-formatting-decimal') {
       return void this._setScopedFormattingDecimal({ type: 'entity', index: Number(target.dataset.index) }, value);
+    }
+
+    if (kind === 'entity-peak-inherit') {
+      if (value) {
+        return void this._clearPeakOverride({ type: 'entity', index: Number(target.dataset.index) });
+      }
+      return;
+    }
+
+    if (kind === 'entity-peak-enabled') {
+      return void this._setScopedPeakEnabled({ type: 'entity', index: Number(target.dataset.index) }, value);
+    }
+
+    if (kind === 'entity-peak-color') {
+      return void this._setScopedPeakColor({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
 
     if (kind === 'entity-bar-inherit') {
