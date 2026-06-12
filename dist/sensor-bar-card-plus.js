@@ -4213,7 +4213,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _setScopedBarColor(scope, rawValue) {
     const normalizedValue = this._normalizeTextValue(rawValue).trim();
-    if (!normalizedValue || normalizedValue === '#4a9eff') {
+    if (!normalizedValue || this._normalizeColorComparisonValue(normalizedValue) === this._normalizeColorComparisonValue('#4a9eff')) {
       return this._removeCanonicalScopedValue(scope, ['bar', 'color'], {
         deprecatedKeys: [['color']],
         prunePaths: [['bar']],
@@ -4328,7 +4328,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._applyScopedMutation(scope, (target) => {
       let nextTarget = this._cloneDeep(target);
       const current = this._getScopedNeedleConfig(scope);
-      const hasCustomColor = normalizedValue && normalizedValue !== '#ffffff';
+      const hasCustomColor = normalizedValue
+        && this._normalizeColorComparisonValue(normalizedValue) !== this._normalizeColorComparisonValue('#ffffff');
 
       nextTarget = this._deletePathValue(nextTarget, ['bar', 'needle', 'color']);
 
@@ -4428,7 +4429,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _setTargetColor(scope, rawValue) {
     const normalizedValue = this._normalizeTextValue(rawValue).trim();
-    if (!normalizedValue || normalizedValue === '#888') {
+    if (!normalizedValue || this._normalizeColorComparisonValue(normalizedValue) === this._normalizeColorComparisonValue('#888')) {
       return this._removeCanonicalScopedValue(scope, ['target', 'color'], {
         deprecatedKeys: [['target_color']],
         prunePaths: [['target']],
@@ -4636,6 +4637,54 @@ class SensorBarCardPlusEditor extends HTMLElement {
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
+  }
+
+  _isHexColorValue(value) {
+    return typeof value === 'string' && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim());
+  }
+
+  _expandHexColor(value) {
+    if (!this._isHexColorValue(value)) {
+      return null;
+    }
+    const normalized = value.trim().toLowerCase();
+    if (normalized.length === 7) {
+      return normalized;
+    }
+    return `#${normalized.slice(1).split('').map((char) => char + char).join('')}`;
+  }
+
+  _normalizeColorComparisonValue(value) {
+    const normalizedText = this._normalizeTextValue(value).trim().toLowerCase();
+    if (!normalizedText) {
+      return '';
+    }
+    return this._expandHexColor(normalizedText) ?? normalizedText;
+  }
+
+  _getColorPickerValue(value, fallbackHex = '#000000') {
+    return this._expandHexColor(value) ?? this._expandHexColor(fallbackHex) ?? '#000000';
+  }
+
+  _renderColorInput({ id, field = null, kind = null, index = null, value = '', fallbackHex = '#000000', placeholder = '' }) {
+    const controlValue = this._normalizeTextValue(value).trim();
+    const pickerValue = this._getColorPickerValue(controlValue, fallbackHex);
+    const baseAttrs = field
+      ? `data-field="${field}"`
+      : `data-kind="${kind}" data-index="${index}"`;
+    const fallbackAttrs = field
+      ? `data-field="${field}-text-fallback"`
+      : `data-kind="${kind}-text-fallback" data-index="${index}"`;
+
+    return `
+      <div class="field-grid">
+        <input id="${id}" type="color" ${baseAttrs} value="${this._escapeAttribute(pickerValue)}">
+        ${controlValue && !this._isHexColorValue(controlValue)
+          ? `<input type="text" ${fallbackAttrs} value="${this._escapeAttribute(controlValue)}" placeholder="${this._escapeAttribute(placeholder || 'CSS color value')}">`
+          : ''
+        }
+      </div>
+    `;
   }
 
   _renderListRows(items, renderItem) {
@@ -4862,7 +4911,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-bar-color">Bar color</label>
-                        <input id="entity-${index}-bar-color" type="text" data-kind="entity-bar-color" data-index="${index}" value="${this._escapeAttribute(this._getScopedBarColorValue(scope))}" placeholder="inherit card default">
+                        ${this._renderColorInput({
+                          id: `entity-${index}-bar-color`,
+                          kind: 'entity-bar-color',
+                          index,
+                          value: this._getScopedBarColorValue(scope),
+                          fallbackHex: '#4a9eff',
+                          placeholder: 'inherit card default',
+                        })}
                       </div>
                       <div class="field-row">
                         <div class="toggle">
@@ -4880,7 +4936,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-needle-color">Needle color</label>
-                        <input id="entity-${index}-needle-color" type="text" data-kind="entity-needle-color" data-index="${index}" value="${this._escapeAttribute(entityNeedle.color)}" placeholder="#ffffff">
+                        ${this._renderColorInput({
+                          id: `entity-${index}-needle-color`,
+                          kind: 'entity-needle-color',
+                          index,
+                          value: entityNeedle.color,
+                          fallbackHex: '#ffffff',
+                          placeholder: '#ffffff',
+                        })}
                       </div>
                       <div class="field-row">
                         <div class="toggle">
@@ -4898,11 +4961,25 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-baseline-above-color">Above-baseline fill color</label>
-                        <input id="entity-${index}-baseline-above-color" type="text" data-kind="entity-baseline-above-color" data-index="${index}" value="${this._escapeAttribute(this._getBaselineDirectionalColorValue(scope, 'above'))}" placeholder="inherit card default">
+                        ${this._renderColorInput({
+                          id: `entity-${index}-baseline-above-color`,
+                          kind: 'entity-baseline-above-color',
+                          index,
+                          value: this._getBaselineDirectionalColorValue(scope, 'above'),
+                          fallbackHex: '#000000',
+                          placeholder: 'inherit card default',
+                        })}
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-baseline-below-color">Below-baseline fill color</label>
-                        <input id="entity-${index}-baseline-below-color" type="text" data-kind="entity-baseline-below-color" data-index="${index}" value="${this._escapeAttribute(this._getBaselineDirectionalColorValue(scope, 'below'))}" placeholder="inherit card default">
+                        ${this._renderColorInput({
+                          id: `entity-${index}-baseline-below-color`,
+                          kind: 'entity-baseline-below-color',
+                          index,
+                          value: this._getBaselineDirectionalColorValue(scope, 'below'),
+                          fallbackHex: '#000000',
+                          placeholder: 'inherit card default',
+                        })}
                       </div>
                       <div class="field-row">
                         <div class="toggle">
@@ -4920,7 +4997,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-target-color">Target color</label>
-                        <input id="entity-${index}-target-color" type="text" data-kind="entity-target-color" data-index="${index}" value="${this._escapeAttribute(this._getTargetColorValue(scope))}" placeholder="inherit card default">
+                        ${this._renderColorInput({
+                          id: `entity-${index}-target-color`,
+                          kind: 'entity-target-color',
+                          index,
+                          value: this._getTargetColorValue(scope),
+                          fallbackHex: '#888',
+                          placeholder: 'inherit card default',
+                        })}
                       </div>
                       <div class="field-row">
                         <div class="toggle">
@@ -4930,7 +5014,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-target-above-fill">Above-target fill color</label>
-                        <input id="entity-${index}-target-above-fill" type="text" data-kind="entity-target-above-fill-color" data-index="${index}" value="${this._escapeAttribute(this._getTargetAboveFillColorValue(scope))}" placeholder="inherit card default">
+                        ${this._renderColorInput({
+                          id: `entity-${index}-target-above-fill`,
+                          kind: 'entity-target-above-fill-color',
+                          index,
+                          value: this._getTargetAboveFillColorValue(scope),
+                          fallbackHex: '#000000',
+                          placeholder: 'inherit card default',
+                        })}
                       </div>
                         `;
                       })()}
@@ -5001,7 +5092,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
               </div>
               <div class="field-row">
                 <label for="bar-color">Bar color</label>
-                <input id="bar-color" type="color" data-field="bar-color" value="${this._escapeAttribute(barColor)}">
+                ${this._renderColorInput({
+                  id: 'bar-color',
+                  field: 'bar-color',
+                  value: barColor,
+                  fallbackHex: '#4a9eff',
+                  placeholder: '#4a9eff',
+                })}
               </div>
             </div>
             <div class="field-row">
@@ -5019,7 +5116,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
             </div>
             <div class="field-row">
               <label for="bar-needle-color">Needle color</label>
-              <input id="bar-needle-color" type="text" data-field="bar-needle-color" value="${this._escapeAttribute(cardNeedle.color)}" placeholder="#ffffff">
+              ${this._renderColorInput({
+                id: 'bar-needle-color',
+                field: 'bar-needle-color',
+                value: cardNeedle.color,
+                fallbackHex: '#ffffff',
+                placeholder: '#ffffff',
+              })}
             </div>
             <div class="field-row">
               <label>Gradient stops</label>
@@ -5065,11 +5168,21 @@ class SensorBarCardPlusEditor extends HTMLElement {
             </div>
             <div class="field-row">
               <label for="baseline-above-color">Above-baseline fill color</label>
-              <input id="baseline-above-color" type="text" data-field="baseline-above-color" value="${this._escapeAttribute(baselineAboveColor)}">
+              ${this._renderColorInput({
+                id: 'baseline-above-color',
+                field: 'baseline-above-color',
+                value: baselineAboveColor,
+                fallbackHex: '#000000',
+              })}
             </div>
             <div class="field-row">
               <label for="baseline-below-color">Below-baseline fill color</label>
-              <input id="baseline-below-color" type="text" data-field="baseline-below-color" value="${this._escapeAttribute(baselineBelowColor)}">
+              ${this._renderColorInput({
+                id: 'baseline-below-color',
+                field: 'baseline-below-color',
+                value: baselineBelowColor,
+                fallbackHex: '#000000',
+              })}
             </div>
             <div class="field-row">
               <label for="target-value">Target fallback value</label>
@@ -5081,7 +5194,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
             </div>
             <div class="field-row">
               <label for="target-color">Target color</label>
-              <input id="target-color" type="text" data-field="target-color" value="${this._escapeAttribute(targetColor)}" placeholder="#888">
+              ${this._renderColorInput({
+                id: 'target-color',
+                field: 'target-color',
+                value: targetColor,
+                fallbackHex: '#888',
+                placeholder: '#888',
+              })}
             </div>
             <div class="field-row">
               <div class="toggle">
@@ -5091,7 +5210,12 @@ class SensorBarCardPlusEditor extends HTMLElement {
             </div>
             <div class="field-row">
               <label for="target-above-fill-color">Above-target fill color</label>
-              <input id="target-above-fill-color" type="text" data-field="target-above-fill-color" value="${this._escapeAttribute(targetAboveFillColor)}">
+              ${this._renderColorInput({
+                id: 'target-above-fill-color',
+                field: 'target-above-fill-color',
+                value: targetAboveFillColor,
+                fallbackHex: '#000000',
+              })}
             </div>
             <div class="field-row">
               <div class="toggle">
@@ -5303,8 +5427,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _handleFieldEvent(event) {
     const target = event.target;
-    const field = target?.dataset?.field;
-    const kind = target?.dataset?.kind;
+    const rawField = target?.dataset?.field;
+    const rawKind = target?.dataset?.kind;
+    const field = rawField?.endsWith('-text-fallback') ? rawField.slice(0, -14) : rawField;
+    const kind = rawKind?.endsWith('-text-fallback') ? rawKind.slice(0, -14) : rawKind;
     const detailValue = event.detail?.value;
     const value = detailValue ?? (target?.type === 'checkbox' ? target.checked : target?.value);
 

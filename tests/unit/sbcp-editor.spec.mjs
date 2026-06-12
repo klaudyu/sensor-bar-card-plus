@@ -349,11 +349,13 @@ describe('Sensor Bar Card Plus editor', () => {
     });
 
     dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
-    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0], 'orange');
+    const colorInput = editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0];
+    expect(colorInput.type).toBe('color');
+    dispatchInput(colorInput, '#ffa500');
 
     const finalConfig = events.at(-1).detail.config;
     expect(finalConfig.entities).toEqual([
-      { entity: 'sensor.one', name: 'One', bar: { color: 'orange' } },
+      { entity: 'sensor.one', name: 'One', bar: { color: '#ffa500' } },
     ]);
     expectNoDeprecatedEditedKeys(finalConfig.entities[0]);
   });
@@ -1046,7 +1048,9 @@ describe('Sensor Bar Card Plus editor', () => {
     const events = trackConfigEvents(editor);
 
     editor.setConfig({ entity: 'sensor.one' });
-    dispatchInput(editor.shadowRoot.querySelector('#target-color'), '#ff9800');
+    const colorInput = editor.shadowRoot.querySelector('#target-color');
+    expect(colorInput.type).toBe('color');
+    dispatchInput(colorInput, '#ff9800');
 
     expect(events.at(-1).detail.config.target).toEqual({
       color: '#ff9800',
@@ -1091,7 +1095,9 @@ describe('Sensor Bar Card Plus editor', () => {
     const events = trackConfigEvents(editor);
 
     editor.setConfig({ entity: 'sensor.one' });
-    dispatchInput(editor.shadowRoot.querySelector('#target-above-fill-color'), '#ff0000');
+    const colorInput = editor.shadowRoot.querySelector('#target-above-fill-color');
+    expect(colorInput.type).toBe('color');
+    dispatchInput(colorInput, '#ff0000');
 
     expect(events.at(-1).detail.config.target).toEqual({
       when_exceeded: {
@@ -1581,7 +1587,9 @@ describe('Sensor Bar Card Plus editor', () => {
     const events = trackConfigEvents(editor);
 
     editor.setConfig({ entity: 'sensor.one' });
-    dispatchInput(editor.shadowRoot.querySelector('#baseline-above-color'), '#00ff00');
+    const colorInput = editor.shadowRoot.querySelector('#baseline-above-color');
+    expect(colorInput.type).toBe('color');
+    dispatchInput(colorInput, '#00ff00');
 
     expect(events.at(-1).detail.config.baseline).toEqual({
       above: { color: '#00ff00' },
@@ -1593,7 +1601,9 @@ describe('Sensor Bar Card Plus editor', () => {
     const events = trackConfigEvents(editor);
 
     editor.setConfig({ entity: 'sensor.one' });
-    dispatchInput(editor.shadowRoot.querySelector('#baseline-below-color'), '#ff0000');
+    const colorInput = editor.shadowRoot.querySelector('#baseline-below-color');
+    expect(colorInput.type).toBe('color');
+    dispatchInput(colorInput, '#ff0000');
 
     expect(events.at(-1).detail.config.baseline).toEqual({
       below: { color: '#ff0000' },
@@ -1950,7 +1960,9 @@ describe('Sensor Bar Card Plus editor', () => {
     const events = trackConfigEvents(editor);
 
     editor.setConfig({ entity: 'sensor.one' });
-    dispatchInput(editor.shadowRoot.querySelector('#bar-color'), '#ff9800');
+    const colorInput = editor.shadowRoot.querySelector('#bar-color');
+    expect(colorInput.type).toBe('color');
+    dispatchInput(colorInput, '#ff9800');
 
     expect(events.at(-1).detail.config.bar).toEqual({
       color: '#ff9800',
@@ -2282,7 +2294,9 @@ describe('Sensor Bar Card Plus editor', () => {
 
     dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[0], '0%');
     dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[0], '20%');
-    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-color"]')[0], '#c4bc00');
+    const segmentColor = editor.shadowRoot.querySelectorAll('input[data-kind="segment-color"]')[0];
+    expect(segmentColor.type).toBe('color');
+    dispatchInput(segmentColor, '#c4bc00');
 
     expect(events.at(-1).detail.config.bar).toEqual({
       segments: [
@@ -2399,7 +2413,9 @@ describe('Sensor Bar Card Plus editor', () => {
       },
     });
 
-    dispatchInput(editor.shadowRoot.querySelector('#bar-needle-color'), '#ff9800');
+    const colorInput = editor.shadowRoot.querySelector('#bar-needle-color');
+    expect(colorInput.type).toBe('color');
+    dispatchInput(colorInput, '#ff9800');
 
     expect(events.at(-1).detail.config.bar).toEqual({
       needle: {
@@ -2429,6 +2445,79 @@ describe('Sensor Bar Card Plus editor', () => {
       needle: {
         show: true,
       },
+    });
+  });
+
+  it('shorthand target default color displays safely as #888888', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        color: '#888',
+      },
+    });
+
+    expect(editor.shadowRoot.querySelector('#target-color').value).toBe('#888888');
+  });
+
+  it('default-equivalent target colors are still suppressed after color picker conversion', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      target: {
+        at: {
+          fixed: 2500,
+        },
+        color: '#ff9800',
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#target-color'), '#888888');
+
+    expect(events.at(-1).detail.config.target).toEqual({
+      at: {
+        fixed: 2500,
+      },
+    });
+  });
+
+  it('non-hex colors are preserved on open and exposed through fallback text inputs', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        color: 'red',
+      },
+      target: {
+        color: 'var(--accent-color)',
+      },
+    });
+
+    expect(editor._draftConfig.bar.color).toBe('red');
+    expect(editor._draftConfig.target.color).toBe('var(--accent-color)');
+    expect(editor.shadowRoot.querySelector('[data-field="bar-color-text-fallback"]').value).toBe('red');
+    expect(editor.shadowRoot.querySelector('[data-field="target-color-text-fallback"]').value).toBe('var(--accent-color)');
+  });
+
+  it('changing a non-hex color through the picker writes the selected hex color', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        color: 'red',
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#bar-color'), '#00ff00');
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      color: '#00ff00',
     });
   });
 
@@ -2940,7 +3029,8 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-min"]')[0].value).toBe('0');
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-max"]')[0].value).toBe('5000');
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-height"]')[0].value).toBe('64');
-    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0].value).toBe('red');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color"]')[0].value).toBe('#4a9eff');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-bar-color-text-fallback"]')[0].value).toBe('red');
 
     dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-override-max"]')[0], '6000');
 
