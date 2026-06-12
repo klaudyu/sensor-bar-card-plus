@@ -408,6 +408,7 @@ describe('Sensor Bar Card Plus logic', () => {
     });
 
     expect(cfg.target_marker).toEqual({
+      enabled: null,
       source: {
         fixed: 2000,
         entity: 'sensor.dynamic_target',
@@ -430,6 +431,31 @@ describe('Sensor Bar Card Plus logic', () => {
     });
 
     expect(cfg.bar.above_target_color).toBe('#dc2626');
+  });
+
+  it('preserves omitted target enabled state as auto', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      target: { at: { fixed: 65 } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.target_marker.enabled).toBeNull();
+  });
+
+  it('normalizes explicit target enabled states', () => {
+    const card = createCard();
+    const enabledCfg = card.normalizeCardConfig({
+      target: { enabled: true, at: { fixed: 65 } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const disabledCfg = card.normalizeCardConfig({
+      target: { enabled: false, at: { fixed: 65 } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(enabledCfg.target_marker.enabled).toBe(true);
+    expect(disabledCfg.target_marker.enabled).toBe(false);
   });
 
   it('accepts structured peak input and normalizes to peak_marker', () => {
@@ -1550,6 +1576,43 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(html).not.toContain('needle-marker');
   });
 
+  it('card-level baseline.enabled false suppresses baseline despite baseline.at.fixed', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      baseline: { enabled: false, at: { fixed: 0 } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const row = cfg.entities[0];
+
+    expect(row.baseline.enabled).toBe(false);
+    expect(card._resolveBaselinePct(row, 0, 100)).toBeNull();
+  });
+
+  it('entity-level baseline.enabled false suppresses inherited baseline', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      baseline: { at: { fixed: 0 } },
+      entities: [{ entity: 'sensor.row', baseline: { enabled: false } }],
+    });
+    const row = cfg.entities[0];
+
+    expect(row.baseline.enabled).toBe(false);
+    expect(card._resolveBaselinePct(row, 0, 100)).toBeNull();
+  });
+
+  it('disabled baseline does not suppress needle', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      baseline: { enabled: false, at: { fixed: 0 } },
+      bar: { needle: true },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const row = cfg.entities[0];
+    const baselinePct = card._resolveBaselinePct(row, 0, 100);
+
+    expect(card._getNeedleRenderState(50, row, 0, 100, baselinePct)).toMatchObject({ show: true });
+  });
+
   it('keeps the needle visible when no baseline is active', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
@@ -1854,6 +1917,7 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(row.scale.max).toEqual({ fixed: 120, entity: null });
     expect(row.formatting).toEqual({ decimal: 2, unit: 'kW' });
     expect(row.target_marker).toEqual({
+      enabled: null,
       source: { fixed: 80, entity: null },
       color: '#ff00ff',
       show_label: false,
@@ -1931,6 +1995,7 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(row.scale.max).toEqual({ fixed: 120, entity: null });
     expect(row.formatting).toEqual({ decimal: 3, unit: 'kW' });
     expect(row.target_marker).toEqual({
+      enabled: null,
       source: { fixed: 75, entity: null },
       color: '#ff0000',
       show_label: true,
@@ -2008,6 +2073,7 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(row.scale.max).toEqual({ fixed: 200, entity: null });
     expect(row.formatting).toEqual({ decimal: 2, unit: 'kW' });
     expect(row.target_marker).toEqual({
+      enabled: null,
       source: { fixed: 80, entity: null },
       color: '#ff00ff',
       show_label: true,
@@ -2062,6 +2128,52 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(card._getNormalizedResolvableNumericValue(row.target_marker.source)).toBe(77);
 
     delete card._hass.states['sensor.dynamic_target'];
+    expect(card._getNormalizedResolvableNumericValue(row.target_marker.source)).toBe(50);
+  });
+
+  it('card-level target.enabled false suppresses target marker behavior despite target.at.fixed', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      target: {
+        enabled: false,
+        at: { fixed: 50 },
+        label: { show: true },
+        when_exceeded: { fill_color: '#ff0000' },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const row = cfg.entities[0];
+    const targetVal = row.target_marker.enabled === false ? null : card._getNormalizedResolvableNumericValue(row.target_marker.source, 0, 100);
+    const targetPct = targetVal === null ? null : card._toScalePct(targetVal, 0, 100);
+    const fillState = card._getFillRenderState(75, 38, row, '#2563eb', targetPct, null, 0, 100, false);
+
+    expect(row.target_marker.enabled).toBe(false);
+    expect(targetPct).toBeNull();
+    expect(fillState.paintLayers.find(layer => layer.id === 'above-target')).toMatchObject({
+      visible: false,
+    });
+  });
+
+  it('entity-level target.enabled false suppresses inherited card-level target', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      target: { at: { fixed: 50 } },
+      entities: [{ entity: 'sensor.row', target: { enabled: false } }],
+    });
+    const row = cfg.entities[0];
+    const targetVal = row.target_marker.enabled === false ? null : card._getNormalizedResolvableNumericValue(row.target_marker.source, 0, 100);
+    expect(row.target_marker.enabled).toBe(false);
+    expect(targetVal).toBeNull();
+  });
+
+  it('entity-level target.enabled true can use inherited target source', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      target: { enabled: false, at: { fixed: 50 } },
+      entities: [{ entity: 'sensor.row', target: { enabled: true } }],
+    });
+    const row = cfg.entities[0];
+    expect(row.target_marker.enabled).toBe(true);
     expect(card._getNormalizedResolvableNumericValue(row.target_marker.source)).toBe(50);
   });
 
@@ -2237,6 +2349,26 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(shorthandCfg.baseline.below.color).toBe('#ef4444');
     expect(expandedCfg.baseline.above.color).toBe('#34d399');
     expect(expandedCfg.baseline.below.color).toBe('#ef4444');
+  });
+
+  it('preserves omitted baseline enabled state as auto and accepts explicit enabled states', () => {
+    const card = createCard();
+    const autoCfg = card.normalizeCardConfig({
+      baseline: { at: { fixed: 0 } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const enabledCfg = card.normalizeCardConfig({
+      baseline: { enabled: true, at: { fixed: 0 } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const disabledCfg = card.normalizeCardConfig({
+      baseline: { enabled: false, at: { fixed: 0 } },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(autoCfg.baseline.enabled).toBeNull();
+    expect(enabledCfg.baseline.enabled).toBe(true);
+    expect(disabledCfg.baseline.enabled).toBe(false);
   });
 
   it('converts scale values to percent and clamps out-of-range values', () => {

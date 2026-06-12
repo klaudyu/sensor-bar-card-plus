@@ -358,6 +358,7 @@ class SensorBarCard extends HTMLElement {
     const cardBaseline = cardConfig?.baseline;
     const rawBaseline = entityConfig?.baseline;
     const inherited = {
+      enabled: this._normalizeOptionalEnabled(cardBaseline?.enabled),
       at: cardBaseline?.at ? { ...cardBaseline.at } : this.normalizeResolvableValue(null, null),
       above: this.normalizeBaselineDirectionConfig(undefined, cardBaseline?.above),
       below: this.normalizeBaselineDirectionConfig(undefined, cardBaseline?.below),
@@ -369,6 +370,7 @@ class SensorBarCard extends HTMLElement {
 
     if (rawBaseline === null) {
       return {
+        enabled: null,
         at: this.normalizeResolvableValue(null, null),
         above: { color: null },
         below: { color: null },
@@ -377,6 +379,7 @@ class SensorBarCard extends HTMLElement {
 
     if (typeof rawBaseline !== 'object' || Array.isArray(rawBaseline)) {
       return {
+        enabled: inherited.enabled,
         at: this.normalizeStructuredResolvableValue(rawBaseline, inherited.at, null),
         above: inherited.above,
         below: inherited.below,
@@ -384,6 +387,7 @@ class SensorBarCard extends HTMLElement {
     }
 
     return {
+      enabled: this._normalizeOptionalEnabled(rawBaseline.enabled) ?? inherited.enabled,
       at: this.normalizeStructuredResolvableValue(rawBaseline.at, inherited.at, null, { allowPercent: true }),
       above: this.normalizeBaselineDirectionConfig(rawBaseline.above, inherited.above),
       below: this.normalizeBaselineDirectionConfig(rawBaseline.below, inherited.below),
@@ -667,6 +671,7 @@ class SensorBarCard extends HTMLElement {
       ? null
       : cardConfig?.target ?? null;
     const inheritedTarget = cardTarget ?? {
+      enabled: null,
       source: this.normalizeResolvableValue(null, null),
       color: cardConfig?.target_color ?? '#888',
       show_label: cardConfig?.show_target_label ?? false,
@@ -674,6 +679,7 @@ class SensorBarCard extends HTMLElement {
 
     if (rawTarget && typeof rawTarget === 'object' && !Array.isArray(rawTarget)) {
       return {
+        enabled: this._normalizeOptionalEnabled(rawTarget.enabled) ?? inheritedTarget.enabled ?? null,
         source: this.normalizeStructuredResolvableValue(rawTarget.at, inheritedTarget.source, null, { allowPercent: true }),
         color: rawTarget.color ?? entityConfig.target_color ?? inheritedTarget.color,
         show_label: rawTarget.label?.show ?? entityConfig.show_target_label ?? inheritedTarget.show_label,
@@ -686,6 +692,7 @@ class SensorBarCard extends HTMLElement {
       ? inheritedTarget.source?.percent ?? null
       : null;
     return {
+      enabled: inheritedTarget.enabled ?? null,
       source: this.normalizeResolvableValue(value, entity, percent),
       color: entityConfig.target_color ?? inheritedTarget.color ?? cardConfig?.target_color ?? '#888',
       show_label: entityConfig.show_target_label ?? inheritedTarget.show_label ?? cardConfig?.show_target_label ?? false,
@@ -699,6 +706,10 @@ class SensorBarCard extends HTMLElement {
       show: entityPeak?.enabled ?? entityConfig.show_peak ?? cardPeak?.show ?? cardConfig?.show_peak ?? false,
       color: entityPeak?.color ?? entityConfig.peak_color ?? cardPeak?.color ?? cardConfig?.peak_color ?? '#888',
     };
+  }
+
+  _normalizeOptionalEnabled(value) {
+    return value === true ? true : value === false ? false : null;
   }
 
   set hass(hass) {
@@ -1253,6 +1264,7 @@ class SensorBarCard extends HTMLElement {
   }
 
   _resolveBaselinePct(ecfg, safeMin, safeMax) {
+    if (ecfg.baseline?.enabled === false) return null;
     const baselineValue = this._getNormalizedResolvableNumericValue(ecfg.baseline?.at, safeMin, safeMax);
     if (!Number.isFinite(baselineValue)) return null;
     return this._toScalePct(baselineValue, safeMin, safeMax);
@@ -3073,6 +3085,7 @@ _getAboveTargetLayerGeometry(targetPct = null) {
     const name = ecfg.name
       || this._hass?.states[entityCfg.entity]?.attributes?.friendly_name
       || entityCfg.entity;
+    const targetEnabled = targetMarkerCfg?.enabled !== false;
     const peakMarkerColor = peakColor || '#888';
     const targetMarkerColor = targetColor || '#888';
     const peakContrastColor = this._getMarkerContrastColor(peakMarkerColor);
@@ -3094,7 +3107,7 @@ _getAboveTargetLayerGeometry(targetPct = null) {
         <div class="target-inset"></div>
         <div class="target-outset"></div>
       </div>`;
-    const targetValueLabel = targetMarkerCfg.show_label ? `
+    const targetValueLabel = targetEnabled && targetMarkerCfg.show_label ? `
       <div class="target-value-label" style="left:${targetPct !== null ? targetPct : 0}%;">
         ${targetDisplay !== null ? targetDisplay : ''}
       </div>` : '';
@@ -3165,7 +3178,9 @@ ${paintLayers}
     const maxVal = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
     const safeMin = Number.isFinite(minVal) ? minVal : 0;
     const safeMax = Number.isFinite(maxVal) ? maxVal : 100;
-    const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source, safeMin, safeMax);
+    const targetVal = ecfg.target_marker?.enabled === false
+      ? null
+      : this._getNormalizedResolvableNumericValue(ecfg.target_marker.source, safeMin, safeMax);
     const isNumericState = Number.isFinite(rawVal);
     const pct = Number.isFinite(rawVal)
       ? this._toScalePct(rawVal, safeMin, safeMax)
@@ -3301,7 +3316,9 @@ ${paintLayers}
         const maxVal    = this._getNormalizedResolvableNumericValue(ecfg.scale.max);
         const safeMin   = Number.isFinite(minVal) ? minVal : 0;
         const safeMax   = Number.isFinite(maxVal) ? maxVal : 100;
-        const targetVal = this._getNormalizedResolvableNumericValue(ecfg.target_marker.source, safeMin, safeMax);
+        const targetVal = ecfg.target_marker?.enabled === false
+          ? null
+          : this._getNormalizedResolvableNumericValue(ecfg.target_marker.source, safeMin, safeMax);
         const isNumericState = Number.isFinite(rawVal);
         const pct = Number.isFinite(rawVal)
           ? this._toScalePct(rawVal, safeMin, safeMax)
@@ -3544,6 +3561,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _normalizeTextValue(value) {
     return typeof value === 'string' ? value : value == null ? '' : String(value);
+  }
+
+  _normalizeOptionalEnabled(value) {
+    return value === true ? true : value === false ? false : null;
   }
 
   _normalizeNumberValue(value) {
@@ -4604,7 +4625,16 @@ class SensorBarCardPlusEditor extends HTMLElement {
         nextNeedle.color = existingColor;
       }
       nextTarget = this._setPathValue(nextTarget, ['bar', 'needle'], nextNeedle);
-      nextTarget = this._deletePathValue(nextTarget, ['baseline']);
+      const baselineEnabled = this._getPathValue(nextTarget, ['baseline', 'enabled']);
+      const baselineParts = this._getResolvablePartsFromTarget(nextTarget ?? {}, 'baseline', {
+        canonicalBasePath: ['baseline', 'at'],
+        legacyFixedPath: ['baseline'],
+        legacyEntityPath: ['baseline', 'at', 'entity'],
+      });
+      const baselineActive = baselineEnabled === true || (baselineEnabled !== false && this._hasResolvableOverride(baselineParts));
+      if (baselineActive) {
+        nextTarget = this._deletePathValue(nextTarget, ['baseline']);
+      }
       nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar']);
       return nextTarget;
     });
@@ -4679,6 +4709,32 @@ class SensorBarCardPlusEditor extends HTMLElement {
       canonicalBasePath: ['target', 'at'],
       legacyFixedPath: ['target'],
       legacyEntityPath: ['target_entity'],
+    });
+  }
+
+  _getTargetMode(scope) {
+    const enabled = this._getScopedValue(scope, ['target', 'enabled']);
+    if (scope?.type === 'entity') {
+      if (enabled === false) return 'disabled';
+      if (enabled === true || this._hasTargetOverride(scope)) return 'enabled';
+      return 'inherit';
+    }
+    if (enabled === true) return 'enabled';
+    if (enabled === false) return 'disabled';
+    return 'auto';
+  }
+
+  _setTargetMode(scope, mode) {
+    if (scope?.type === 'entity' && mode === 'inherit') {
+      return this._clearTargetOverride(scope);
+    }
+    if (mode === 'auto') {
+      return this._removeCanonicalScopedValue(scope, ['target', 'enabled'], {
+        prunePaths: [['target']],
+      });
+    }
+    return this._setCanonicalScopedValue(scope, ['target', 'enabled'], mode === 'enabled', {
+      prunePaths: [['target']],
     });
   }
 
@@ -4786,6 +4842,47 @@ class SensorBarCardPlusEditor extends HTMLElement {
     });
   }
 
+  _getBaselineMode(scope) {
+    const enabled = this._getScopedValue(scope, ['baseline', 'enabled']);
+    if (scope?.type === 'entity') {
+      if (enabled === false) return 'disabled';
+      if (enabled === true || this._hasBaselineOverride(scope)) return 'enabled';
+      return 'inherit';
+    }
+    if (enabled === true) return 'enabled';
+    if (enabled === false) return 'disabled';
+    return 'auto';
+  }
+
+  _setBaselineMode(scope, mode) {
+    if (scope?.type === 'entity' && mode === 'inherit') {
+      return this._clearBaselineOverride(scope);
+    }
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._cloneDeep(target);
+      if (mode === 'auto') {
+        nextTarget = this._deletePathValue(nextTarget, ['baseline', 'enabled']);
+      } else {
+        nextTarget = this._setPathValue(nextTarget, ['baseline', 'enabled'], mode === 'enabled');
+      }
+
+      const baselineParts = this._getResolvablePartsFromTarget(nextTarget ?? {}, 'baseline', {
+        canonicalBasePath: ['baseline', 'at'],
+        legacyFixedPath: ['baseline'],
+        legacyEntityPath: ['baseline', 'at', 'entity'],
+      });
+      const baselineActive = mode === 'enabled'
+        || (mode === 'auto' && this._hasResolvableOverride(baselineParts));
+      if (baselineActive) {
+        nextTarget = this._deletePathValue(nextTarget, ['bar', 'needle']);
+      }
+
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['baseline']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar']);
+      return nextTarget;
+    });
+  }
+
   _setBaselineResolvablePart(scope, part, rawValue) {
     const normalizedValue = part === 'fixed'
       ? this._normalizeNumberValue(rawValue)
@@ -4811,12 +4908,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
       }
 
       let nextTarget = this._cloneDeep(target);
-      const baselineValue = this._getPathValue(nextTarget, ['baseline']);
-      if (this._isObject(baselineValue)) {
-        nextTarget = this._deletePathValue(nextTarget, ['baseline', 'at']);
-      } else {
-        nextTarget = this._deletePathValue(nextTarget, ['baseline']);
-      }
+      nextTarget = this._deletePathValue(nextTarget, ['baseline', 'at']);
+      const baselineEnabled = this._getPathValue(nextTarget, ['baseline', 'enabled']);
 
       const hasFixed = nextParts.fixed !== undefined && nextParts.fixed !== null && nextParts.fixed !== '';
       const hasEntity = nextParts.entity !== undefined && nextParts.entity !== null && nextParts.entity !== '';
@@ -4825,7 +4918,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
         if (hasFixed) nextValue.fixed = nextParts.fixed;
         if (hasEntity) nextValue.entity = nextParts.entity;
         nextTarget = this._setPathValue(nextTarget, ['baseline', 'at'], nextValue);
-        nextTarget = this._deletePathValue(nextTarget, ['bar', 'needle']);
+        const baselineActive = baselineEnabled === true || (baselineEnabled !== false && (hasFixed || hasEntity));
+        if (baselineActive) {
+          nextTarget = this._deletePathValue(nextTarget, ['bar', 'needle']);
+        }
       }
 
       nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['baseline', 'at']);
@@ -4853,7 +4949,16 @@ class SensorBarCardPlusEditor extends HTMLElement {
     }
     return this._applyScopedMutation(scope, (target) => {
       let nextTarget = this._setPathValue(target, path, normalizedValue);
-      nextTarget = this._deletePathValue(nextTarget, ['bar', 'needle']);
+      const baselineEnabled = this._getPathValue(nextTarget, ['baseline', 'enabled']);
+      const baselineParts = this._getResolvablePartsFromTarget(nextTarget ?? {}, 'baseline', {
+        canonicalBasePath: ['baseline', 'at'],
+        legacyFixedPath: ['baseline'],
+        legacyEntityPath: ['baseline', 'at', 'entity'],
+      });
+      const baselineActive = baselineEnabled === true || (baselineEnabled !== false && this._hasResolvableOverride(baselineParts));
+      if (baselineActive) {
+        nextTarget = this._deletePathValue(nextTarget, ['bar', 'needle']);
+      }
       nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar']);
       return nextTarget;
     });
@@ -4956,6 +5061,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _getTargetOverrideSummary(scope) {
+    const mode = this._getTargetMode(scope);
+    if (mode === 'disabled') return 'Disabled override';
     const parts = [];
     const target = this._getTargetResolvableValue(scope);
     if (target.fixed !== '' && target.fixed !== undefined) parts.push(`Fixed ${target.fixed}`);
@@ -4967,6 +5074,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _getBaselineOverrideSummary(scope) {
+    const mode = this._getBaselineMode(scope);
+    if (mode === 'disabled') return 'Disabled override';
     const parts = [];
     const baseline = this._getBaselineResolvableValue(scope);
     if (baseline.fixed !== '' && baseline.fixed !== undefined) parts.push(`Fixed ${baseline.fixed}`);
@@ -5147,9 +5256,11 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const gradientStops = this._getGradientStopsValue();
       const segments = this._getSegmentsValue();
       const baseline = this._getBaselineResolvableValue({ type: 'card' });
+      const baselineMode = this._getBaselineMode({ type: 'card' });
       const baselineAboveColor = this._getBaselineDirectionalColorValue({ type: 'card' }, 'above');
       const baselineBelowColor = this._getBaselineDirectionalColorValue({ type: 'card' }, 'below');
       const target = this._getTargetResolvableValue({ type: 'card' });
+      const targetMode = this._getTargetMode({ type: 'card' });
       const targetColor = this._getTargetColorValue({ type: 'card' });
       const targetLabelShow = this._getTargetLabelShowValue({ type: 'card' });
       const targetAboveFillColor = this._getTargetAboveFillColorValue({ type: 'card' });
@@ -5487,9 +5598,9 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                        const barAppearanceInherited = !this._hasEntityBarAppearanceOverride(scope);
 	                        const entityNeedle = this._getScopedNeedleConfig(scope);
 	                        const baselineParts = this._getBaselineResolvableValue(scope);
-	                        const baselineInherited = !this._hasBaselineOverride(scope);
+	                        const baselineMode = this._getBaselineMode(scope);
 	                        const targetParts = this._getTargetResolvableValue(scope);
-	                        const targetInherited = !this._hasTargetOverride(scope);
+	                        const targetMode = this._getTargetMode(scope);
 	                        const formattingInherited = !this._hasFormattingOverride(scope);
 	                        const layoutInherited = !this._hasLayoutOverride(scope);
 	                        const peakInherited = !this._hasPeakOverride(scope);
@@ -5722,10 +5833,12 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          summary: this._getBaselineOverrideSummary(scope),
 	                          content: `
 	                      <div class="field-row">
-	                        <div class="toggle">
-	                          <input id="entity-${index}-baseline-inherit" type="checkbox" data-kind="entity-baseline-inherit" data-index="${index}"${baselineInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-baseline-inherit">Baseline inherit</label>
-                        </div>
+	                        <label for="entity-${index}-baseline-mode">Baseline mode</label>
+	                        <select id="entity-${index}-baseline-mode" data-kind="entity-baseline-mode" data-index="${index}" value="${this._escapeAttribute(baselineMode)}">
+                          <option value="inherit"${baselineMode === 'inherit' ? ' selected' : ''}>inherit</option>
+                          <option value="enabled"${baselineMode === 'enabled' ? ' selected' : ''}>enabled</option>
+                          <option value="disabled"${baselineMode === 'disabled' ? ' selected' : ''}>disabled</option>
+                        </select>
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-baseline-value">Baseline fallback value</label>
@@ -5766,10 +5879,12 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          summary: this._getTargetOverrideSummary(scope),
 	                          content: `
 	                      <div class="field-row">
-	                        <div class="toggle">
-	                          <input id="entity-${index}-target-inherit" type="checkbox" data-kind="entity-target-inherit" data-index="${index}"${targetInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-target-inherit">Target inherit</label>
-                        </div>
+	                        <label for="entity-${index}-target-mode">Target mode</label>
+	                        <select id="entity-${index}-target-mode" data-kind="entity-target-mode" data-index="${index}" value="${this._escapeAttribute(targetMode)}">
+                          <option value="inherit"${targetMode === 'inherit' ? ' selected' : ''}>inherit</option>
+                          <option value="enabled"${targetMode === 'enabled' ? ' selected' : ''}>enabled</option>
+                          <option value="disabled"${targetMode === 'disabled' ? ' selected' : ''}>disabled</option>
+                        </select>
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-target-value">Target fallback value</label>
@@ -6009,6 +6124,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	          </div>
 	          <div class="field-grid">
             <div class="field-row">
+              <label for="baseline-mode">Baseline mode</label>
+              <select id="baseline-mode" data-field="baseline-mode" value="${this._escapeAttribute(baselineMode)}">
+                <option value="auto"${baselineMode === 'auto' ? ' selected' : ''}>auto</option>
+                <option value="enabled"${baselineMode === 'enabled' ? ' selected' : ''}>enabled</option>
+                <option value="disabled"${baselineMode === 'disabled' ? ' selected' : ''}>disabled</option>
+              </select>
+            </div>
+            <div class="field-row">
               <label for="baseline-value">Baseline fallback value</label>
               <input id="baseline-value" type="number" step="any" data-field="baseline-value" value="${this._escapeAttribute(baseline.fixed)}">
             </div>
@@ -6033,6 +6156,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
                 value: baselineBelowColor,
                 fallbackHex: '#000000',
               })}
+            </div>
+            <div class="field-row">
+              <label for="target-mode">Target mode</label>
+              <select id="target-mode" data-field="target-mode" value="${this._escapeAttribute(targetMode)}">
+                <option value="auto"${targetMode === 'auto' ? ' selected' : ''}>auto</option>
+                <option value="enabled"${targetMode === 'enabled' ? ' selected' : ''}>enabled</option>
+                <option value="disabled"${targetMode === 'disabled' ? ' selected' : ''}>disabled</option>
+              </select>
             </div>
             <div class="field-row">
               <label for="target-value">Target fallback value</label>
@@ -6309,11 +6440,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
     if (field === 'bar-solid-fill') return void this._setScopedBarSolidFill({ type: 'card' }, value);
     if (field === 'bar-needle-mode') return void this._setScopedNeedleMode({ type: 'card' }, value);
     if (field === 'bar-needle-color') return void this._setScopedNeedleColor({ type: 'card' }, value);
+    if (field === 'baseline-mode') return void this._setBaselineMode({ type: 'card' }, value);
     if (field === 'baseline-value') {
       return void this._setBaselineResolvablePart({ type: 'card' }, 'fixed', value);
     }
     if (field === 'baseline-above-color') return void this._setBaselineDirectionalColor({ type: 'card' }, 'above', value);
     if (field === 'baseline-below-color') return void this._setBaselineDirectionalColor({ type: 'card' }, 'below', value);
+    if (field === 'target-mode') return void this._setTargetMode({ type: 'card' }, value);
     if (field === 'target-value') {
       return void this._setTargetResolvablePart({ type: 'card' }, 'fixed', value);
     }
@@ -6474,11 +6607,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return void this._setScopedNeedleColor({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
 
-    if (kind === 'entity-baseline-inherit') {
-      if (value) {
-        return void this._clearBaselineOverride({ type: 'entity', index: Number(target.dataset.index) });
-      }
-      return;
+    if (kind === 'entity-baseline-mode') {
+      return void this._setBaselineMode({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
 
     if (kind === 'entity-baseline-value') {
@@ -6497,11 +6627,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return void this._setBaselineDirectionalColor({ type: 'entity', index: Number(target.dataset.index) }, 'below', value);
     }
 
-    if (kind === 'entity-target-inherit') {
-      if (value) {
-        return void this._clearTargetOverride({ type: 'entity', index: Number(target.dataset.index) });
-      }
-      return;
+    if (kind === 'entity-target-mode') {
+      return void this._setTargetMode({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
 
     if (kind === 'entity-target-value') {
