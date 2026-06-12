@@ -192,6 +192,7 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-group-layout')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-peak')).not.toBeNull();
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-segments')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-target')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-group-baseline')).not.toBeNull();
@@ -214,6 +215,7 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-group-layout').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-segments').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-baseline').getAttribute('aria-expanded')).toBe('false');
@@ -237,6 +239,7 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-group-layout').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-segments').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-baseline').getAttribute('aria-expanded')).toBe('false');
@@ -258,6 +261,7 @@ describe('Sensor Bar Card Plus editor', () => {
 
     expect(editor.shadowRoot.querySelector('#entity-0-group-scale').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('true');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
   });
 
@@ -276,7 +280,26 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-group-scale').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-formatting').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('true');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
     expect(editor.shadowRoot.querySelector('#entity-0-group-target').getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('opening gradient stops subsection does not open other subsections', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [
+        { entity: 'sensor.one', name: 'One' },
+      ],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops'));
+
+    expect(editor.shadowRoot.querySelector('#entity-0-group-scale').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-peak').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops').getAttribute('aria-expanded')).toBe('true');
+    expect(editor.shadowRoot.querySelector('#entity-0-group-segments').getAttribute('aria-expanded')).toBe('false');
   });
 
   it('opening segments subsection does not open other subsections', () => {
@@ -441,6 +464,7 @@ describe('Sensor Bar Card Plus editor', () => {
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-layout'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-formatting'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-peak'));
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-segments'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-target'));
     dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-baseline'));
@@ -456,6 +480,8 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelector('#entity-0-formatting-decimal')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-peak-enabled')).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-peak-color')).not.toBeNull();
+    expect(editor.shadowRoot.querySelector('#entity-0-gradient-stops-inherit')).not.toBeNull();
+    expect(editor.shadowRoot.querySelectorAll('button[data-action="add-entity-gradient-stop"]')[0]).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-segments-inherit')).not.toBeNull();
     expect(editor.shadowRoot.querySelectorAll('button[data-action="add-entity-segment"]')[0]).not.toBeNull();
     expect(editor.shadowRoot.querySelector('#entity-0-target-value')).not.toBeNull();
@@ -4305,6 +4331,362 @@ describe('Sensor Bar Card Plus editor', () => {
 
     expect(events.at(-1).detail.config.entities).toEqual([
       { entity: 'sensor.one', peak: { enabled: true, color: '#00ff00' } },
+    ]);
+  });
+
+  it('card-level gradient stops subgroup is collapsed by default', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      bar: {
+        fill_style: 'gradient',
+        gradient_stops: [
+          { pos: 0, color: '#4CAF50' },
+          { pos: 100, color: '#F44336' },
+        ],
+      },
+    });
+
+    expect(editor.shadowRoot.querySelector('#card-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('card-level gradient stops subgroup toggles open and shows inactive note when fill style is not gradient', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      bar: {
+        fill_style: 'solid',
+        gradient_stops: [
+          { pos: 0, color: '#4CAF50' },
+          { pos: 100, color: '#F44336' },
+        ],
+      },
+    });
+
+    expect(editor.shadowRoot.innerHTML).toContain('id="card-group-gradient-stops-summary"');
+    expect(editor.shadowRoot.innerHTML).toContain('Inactive fill style');
+    dispatchClick(editor.shadowRoot.querySelector('#card-group-gradient-stops'));
+    expect(editor.shadowRoot.querySelector('#card-group-gradient-stops').getAttribute('aria-expanded')).toBe('true');
+    expect(editor.shadowRoot.innerHTML).toContain('Only used with Gradient fill style');
+  });
+
+  it('card-level gradient stop edits write canonical structured bar.gradient_stops', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      bar: {
+        fill_style: 'gradient',
+        gradient_stops: [
+          { pos: 0, color: '#4CAF50' },
+          { pos: 100, color: '#F44336' },
+        ],
+      },
+      custom_top_level: 'keep',
+    });
+
+    dispatchClick(editor.shadowRoot.querySelector('#card-group-gradient-stops'));
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-pos"]')[1], '50');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-color"]')[1], '#ff9800');
+
+    expect(events.at(-1).detail.config.bar.gradient_stops).toEqual([
+      { pos: 0, color: '#4CAF50' },
+      { pos: 50, color: '#ff9800' },
+    ]);
+    expect(events.at(-1).detail.config.gradient_stops).toBeUndefined();
+    expect(events.at(-1).detail.config.custom_top_level).toBe('keep');
+  });
+
+  it('card-level Add stop uses midpoint defaults and Remove stop updates the structured output', async () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      bar: {
+        fill_style: 'gradient',
+        gradient_stops: [
+          { pos: 0, color: '#4CAF50' },
+          { pos: 100, color: '#F44336' },
+        ],
+      },
+    });
+
+    dispatchClick(editor.shadowRoot.querySelector('#card-group-gradient-stops'));
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="add-gradient-stop"]')[0]);
+    await flushTimers();
+
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-pos"]')[2].value).toBe('50');
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="remove-gradient-stop"]')[2]);
+
+    expect(events.at(-1).detail.config.bar.gradient_stops).toEqual([
+      { pos: 0, color: '#4CAF50' },
+      { pos: 100, color: '#F44336' },
+    ]);
+  });
+
+  it('card-level gradient stop serialization sorts ascending by pos', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      bar: {
+        fill_style: 'gradient',
+        gradient_stops: [
+          { pos: 80, color: '#F44336' },
+          { pos: 20, color: '#4CAF50' },
+        ],
+      },
+    });
+
+    dispatchClick(editor.shadowRoot.querySelector('#card-group-gradient-stops'));
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-pos"]')[0], '60');
+
+    expect(events.at(-1).detail.config.bar.gradient_stops).toEqual([
+      { pos: 20, color: '#4CAF50' },
+      { pos: 60, color: '#F44336' },
+    ]);
+  });
+
+  it('card-level default gradient is suppressed from emitted config', async () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      bar: {
+        fill_style: 'gradient',
+        gradient_stops: [
+          { pos: 0, color: '#4CAF50' },
+          { pos: 100, color: '#0000ff' },
+        ],
+      },
+      unknown_key: 'keep',
+    });
+
+    dispatchClick(editor.shadowRoot.querySelector('#card-group-gradient-stops'));
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-pos"]')[1], '50');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-color"]')[1], '#FF9800');
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="add-gradient-stop"]')[0]);
+    await flushTimers();
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-pos"]')[2], '100');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-color"]')[2], '#F44336');
+
+    expect(events.at(-1).detail.config.bar?.gradient_stops).toBeUndefined();
+    expect(events.at(-1).detail.config.gradient_stops).toBeUndefined();
+    expect(events.at(-1).detail.config.unknown_key).toBe('keep');
+  });
+
+  it('card-level flat gradient_stops read compatibility works and edits convert to structured config', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      fill_style: 'gradient',
+      gradient_stops: [
+        { pos: 0, color: '#4CAF50' },
+        { pos: 100, color: '#F44336' },
+      ],
+      custom_key: 'keep',
+    });
+
+    dispatchClick(editor.shadowRoot.querySelector('#card-group-gradient-stops'));
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-pos"]')[0].value).toBe('0');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-color"]')[1], '#ff9800');
+
+    expect(events.at(-1).detail.config.bar.gradient_stops).toEqual([
+      { pos: 0, color: '#4CAF50' },
+      { pos: 100, color: '#ff9800' },
+    ]);
+    expect(events.at(-1).detail.config.gradient_stops).toBeUndefined();
+    expect(events.at(-1).detail.config.custom_key).toBe('keep');
+  });
+
+  it('invalid gradient rows are pruned from emitted config', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      bar: {
+        fill_style: 'gradient',
+        gradient_stops: [
+          { pos: 0, color: '#4CAF50' },
+          { pos: 'bad', color: '#F44336' },
+        ],
+      },
+    });
+
+    dispatchClick(editor.shadowRoot.querySelector('#card-group-gradient-stops'));
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="gradient-color"]')[0], '#00ff00');
+
+    expect(events.at(-1).detail.config.bar?.gradient_stops).toBeUndefined();
+  });
+
+  it('per-entity gradient stops subsection is collapsed by default and keeps independent state', () => {
+    const editor = createEditor();
+
+    editor.setConfig({
+      entities: [
+        { entity: 'sensor.one', bar: { gradient_stops: [{ pos: 0, color: '#4CAF50' }, { pos: 100, color: '#F44336' }] } },
+        { entity: 'sensor.two', bar: { gradient_stops: [{ pos: 0, color: '#4CAF50' }, { pos: 100, color: '#F44336' }] } },
+      ],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[1]);
+
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
+    expect(editor.shadowRoot.querySelector('#entity-1-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
+
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops'));
+
+    expect(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops').getAttribute('aria-expanded')).toBe('true');
+    expect(editor.shadowRoot.querySelector('#entity-1-group-gradient-stops').getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('per-entity gradient stop edits write canonical structured entities[index].bar.gradient_stops', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        bar: {
+          gradient_stops: [
+            { pos: 0, color: '#4CAF50' },
+            { pos: 100, color: '#F44336' },
+          ],
+          color: '#123456',
+        },
+        custom_entity_key: 'keep',
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops'));
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-gradient-pos"]')[1], '25');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-gradient-color"]')[1], '#ff9800');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        bar: {
+          gradient_stops: [
+            { pos: 0, color: '#4CAF50' },
+            { pos: 25, color: '#ff9800' },
+          ],
+          color: '#123456',
+        },
+        custom_entity_key: 'keep',
+      },
+    ]);
+  });
+
+  it('per-entity Add stop and Remove stop reuse gradient row defaults cleanly', async () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        bar: {
+          gradient_stops: [
+            { pos: 0, color: '#4CAF50' },
+            { pos: 100, color: '#F44336' },
+          ],
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops'));
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="add-entity-gradient-stop"]')[0]);
+    await flushTimers();
+
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-gradient-pos"]')[2].value).toBe('50');
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="remove-entity-gradient-stop"]')[2]);
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        bar: {
+          gradient_stops: [
+            { pos: 0, color: '#4CAF50' },
+            { pos: 100, color: '#F44336' },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it('per-entity gradient stops inherit removes only managed keys and preserves unrelated bar keys', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        bar: {
+          gradient_stops: [
+            { pos: 0, color: '#4CAF50' },
+            { pos: 100, color: '#F44336' },
+          ],
+          color: '#ff9800',
+          fill_style: 'gradient',
+          custom_bar_key: 'keep',
+        },
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops'));
+    const toggle = editor.shadowRoot.querySelector('#entity-0-gradient-stops-inherit');
+    toggle.checked = true;
+    toggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        bar: {
+          color: '#ff9800',
+          fill_style: 'gradient',
+          custom_bar_key: 'keep',
+        },
+      },
+    ]);
+  });
+
+  it('per-entity gradient stops read legacy flat config and edits convert to structured config', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{
+        entity: 'sensor.one',
+        gradient_stops: [
+          { pos: 0, color: '#4CAF50' },
+          { pos: 100, color: '#F44336' },
+        ],
+        custom_entity_key: 'keep',
+      }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-gradient-stops'));
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-gradient-pos"]')[1].value).toBe('100');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-gradient-color"]')[1], '#ff9800');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        custom_entity_key: 'keep',
+        bar: {
+          gradient_stops: [
+            { pos: 0, color: '#4CAF50' },
+            { pos: 100, color: '#ff9800' },
+          ],
+        },
+      },
     ]);
   });
 

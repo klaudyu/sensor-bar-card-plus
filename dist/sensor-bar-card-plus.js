@@ -3409,6 +3409,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
     this._shadowListenersAttached = false;
     this._expandedEntityOverrides = new Set();
     this._expandedOverrideGroups = new Set();
+    this._expandedCardGroups = new Set();
+    this._gradientStopsDrafts = new Map();
     this._boundHandleClick = (event) => this._handleClick(event);
     this._boundHandleChange = (event) => this._handleChange(event);
     this._boundHandleInput = (event) => this._handleInput(event);
@@ -3433,6 +3435,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
     const shouldRender = !this.shadowRoot?.innerHTML || nextConfigJson !== this._lastRenderedConfigJson;
     this._config = nextConfig;
     this._draftConfig = this._cloneDeep(nextConfig);
+    this._gradientStopsDrafts = new Map();
 
     if (shouldRender) {
       this._render();
@@ -4201,12 +4204,92 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _setGradientStops(stops, options = {}) {
-    const path = this._preferStructuredPath(['bar', 'gradient_stops'], ['gradient_stops']);
-    this._setValueAtPath(path, stops, options);
+    return this._setScopedGradientStops({ type: 'card' }, stops, options);
   }
 
   _setSegments(segments, options = {}) {
     return this._setScopedSegments({ type: 'card' }, segments, options);
+  }
+
+  _getDefaultGradientStops() {
+    return [
+      { pos: 0, color: '#4CAF50' },
+      { pos: 50, color: '#FF9800' },
+      { pos: 100, color: '#F44336' },
+    ];
+  }
+
+  _normalizeGradientStopPosValue(rawValue) {
+    const numericValue = this._normalizeNumberValue(rawValue);
+    if (numericValue === null || !Number.isFinite(numericValue)) {
+      return null;
+    }
+    if (numericValue < 0 || numericValue > 100) {
+      return null;
+    }
+    return numericValue;
+  }
+
+  _sanitizeGradientStopsForEmit(stops) {
+    if (!Array.isArray(stops)) {
+      return [];
+    }
+
+    return stops
+      .map((stop) => {
+        if (!this._isObject(stop)) {
+          return null;
+        }
+        const pos = this._normalizeGradientStopPosValue(stop.pos);
+        const color = this._normalizeTextValue(stop.color).trim();
+        if (pos === null || !color) {
+          return null;
+        }
+        return {
+          ...stop,
+          pos,
+          color,
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.pos - right.pos);
+  }
+
+  _isDefaultGradientStops(stops) {
+    const sanitizedStops = this._sanitizeGradientStopsForEmit(stops);
+    const defaultStops = this._getDefaultGradientStops();
+    if (sanitizedStops.length !== defaultStops.length) {
+      return false;
+    }
+    return sanitizedStops.every((stop, index) => (
+      stop.pos === defaultStops[index].pos
+      && this._normalizeColorComparisonValue(stop.color) === this._normalizeColorComparisonValue(defaultStops[index].color)
+    ));
+  }
+
+  _setScopedGradientStops(scope, stops, options = {}) {
+    const sanitizedStops = this._sanitizeGradientStopsForEmit(stops);
+    const shouldRemove = sanitizedStops.length < 2 || this._isDefaultGradientStops(sanitizedStops);
+    this._gradientStopsDrafts.set(this._getGradientStopsDraftKey(scope), this._cloneDeep(Array.isArray(stops) ? stops : []));
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._deletePathValue(target, ['gradient_stops']);
+      nextTarget = this._deletePathValue(nextTarget, ['bar', 'gradient_stops']);
+      if (!shouldRemove) {
+        nextTarget = this._setPathValue(nextTarget, ['bar', 'gradient_stops'], sanitizedStops);
+      }
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar']);
+      return nextTarget;
+    }, options);
+  }
+
+  _clearGradientStopsOverride(scope) {
+    this._gradientStopsDrafts.delete(this._getGradientStopsDraftKey(scope));
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._deletePathValue(target, ['bar', 'gradient_stops']);
+      nextTarget = this._deletePathValue(nextTarget, ['gradient_stops']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar']);
+      return nextTarget;
+    }, { rerender: true });
   }
 
   _setScopedSegments(scope, segments, options = {}) {
@@ -4426,9 +4509,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _getGradientStopsValue() {
-    return this._getPathValue(this._draftConfig, ['bar', 'gradient_stops'])
-      ?? this._draftConfig.gradient_stops
-      ?? [];
+    return this._getScopedGradientStopsValue({ type: 'card' });
   }
 
   _getSegmentsValue() {
@@ -4475,6 +4556,35 @@ class SensorBarCardPlusEditor extends HTMLElement {
       from: previousTo ?? '0%',
       to: '100%',
       color: '#4a9eff',
+    };
+  }
+
+  _getNewGradientStopDefaults(scope = { type: 'card' }) {
+    const stops = this._sanitizeGradientStopsForEmit(this._getScopedGradientStopsValue(scope));
+    if (!stops.length) {
+      return { ...this._getDefaultGradientStops()[0] };
+    }
+    if (stops.length >= 2) {
+      let largestGap = null;
+      for (let index = 0; index < stops.length - 1; index += 1) {
+        const current = stops[index];
+        const next = stops[index + 1];
+        const gap = next.pos - current.pos;
+        if (gap > 0 && (!largestGap || gap > largestGap.gap)) {
+          largestGap = { gap, left: current, right: next };
+        }
+      }
+      if (largestGap) {
+        return {
+          pos: largestGap.left.pos + (largestGap.gap / 2),
+          color: largestGap.left.color ?? '#4a9eff',
+        };
+      }
+    }
+    const previous = stops[stops.length - 1];
+    return {
+      pos: Math.min(previous.pos + 25, 100),
+      color: previous?.color ?? '#4a9eff',
     };
   }
 
@@ -5012,6 +5122,19 @@ class SensorBarCardPlusEditor extends HTMLElement {
     this._expandedOverrideGroups = nextGroups;
   }
 
+  _isCardGroupExpanded(group) {
+    return this._expandedCardGroups.has(group);
+  }
+
+  _toggleCardGroupExpanded(group) {
+    if (this._expandedCardGroups.has(group)) {
+      this._expandedCardGroups.delete(group);
+    } else {
+      this._expandedCardGroups.add(group);
+    }
+    this._render();
+  }
+
   _getOverrideGroupKey(index, group) {
     return `${index}:${group}`;
   }
@@ -5116,6 +5239,56 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return `${segments.length} segments`;
   }
 
+  _getEffectiveFillStyleValue(scope) {
+    if (scope?.type === 'entity') {
+      const hasEntityFillStyle =
+        this._getScopedValue(scope, ['bar', 'fill_style']) !== undefined
+        || this._getScopedValue(scope, ['bar', 'color_mode']) !== undefined
+        || this._getScopedValue(scope, ['color_mode']) !== undefined;
+      if (hasEntityFillStyle) {
+        return this._getScopedFillStyleValue(scope);
+      }
+      return this._getFillStyleValue();
+    }
+    return this._getScopedFillStyleValue(scope);
+  }
+
+  _getScopedGradientStopsValue(scope) {
+    const draftKey = this._getGradientStopsDraftKey(scope);
+    if (this._gradientStopsDrafts.has(draftKey)) {
+      return this._cloneDeep(this._gradientStopsDrafts.get(draftKey));
+    }
+    return this._getScopedValue(scope, ['bar', 'gradient_stops'])
+      ?? this._getScopedValue(scope, ['gradient_stops'])
+      ?? [];
+  }
+
+  _getGradientStopsDraftKey(scope) {
+    return scope?.type === 'entity' ? `entity:${scope.index}` : 'card';
+  }
+
+  _hasGradientStopsOverride(scope) {
+    return this._getScopedValue(scope, ['bar', 'gradient_stops']) !== undefined
+      || this._getScopedValue(scope, ['gradient_stops']) !== undefined;
+  }
+
+  _getGradientStopsSummary(scope) {
+    if (scope?.type === 'entity' && !this._hasGradientStopsOverride(scope)) {
+      return 'Inherited';
+    }
+    const gradientStops = this._sanitizeGradientStopsForEmit(this._getScopedGradientStopsValue(scope));
+    if (this._getEffectiveFillStyleValue(scope) !== 'gradient') {
+      return 'Inactive fill style';
+    }
+    if (!gradientStops.length) {
+      return scope?.type === 'entity' ? 'Inherited' : 'Default gradient';
+    }
+    if (this._isDefaultGradientStops(gradientStops)) {
+      return 'Default gradient';
+    }
+    return `${gradientStops.length} stops`;
+  }
+
   _getNeedleSummary(scope) {
     const needle = this._getScopedNeedleConfig(scope);
     if (needle.mode === 'enabled') return needle.color ? 'Enabled, custom color' : 'Enabled';
@@ -5159,6 +5332,28 @@ class SensorBarCardPlusEditor extends HTMLElement {
             data-index="${index}"
             data-group="${group}"
           >${this._escapeAttribute(summary)}</span>
+        </button>
+        <div class="override-group-body" style="display:${expanded ? 'grid' : 'none'};">
+          ${content}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderCardGroup({ group, title, summary, content, inactive = false }) {
+    const expanded = this._isCardGroupExpanded(group);
+    return `
+      <div class="override-group card-subgroup${inactive ? ' is-inactive' : ''}" data-group="${group}" data-expanded="${expanded ? 'true' : 'false'}">
+        <button
+          type="button"
+          id="card-group-${group}"
+          class="override-group-toggle"
+          data-action="toggle-card-group"
+          data-group="${group}"
+          aria-expanded="${expanded ? 'true' : 'false'}"
+        >
+          <span id="card-group-${group}-title" class="override-group-title">${expanded ? '▾' : '▸'} ${title}</span>
+          <span id="card-group-${group}-summary" class="override-group-summary">${this._escapeAttribute(summary)}</span>
         </button>
         <div class="override-group-body" style="display:${expanded ? 'grid' : 'none'};">
           ${content}
@@ -5216,15 +5411,18 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._expandHexColor(value) ?? this._expandHexColor(fallbackHex) ?? '#000000';
   }
 
-  _renderColorInput({ id, field = null, kind = null, index = null, value = '', fallbackHex = '#000000', placeholder = '' }) {
+  _renderColorInput({ id, field = null, kind = null, index = null, value = '', fallbackHex = '#000000', placeholder = '', extraDataset = {} }) {
     const controlValue = this._normalizeTextValue(value).trim();
     const pickerValue = this._getColorPickerValue(controlValue, fallbackHex);
+    const extraAttrs = Object.entries(extraDataset)
+      .map(([key, entry]) => `data-${key}="${this._escapeAttribute(entry)}"`)
+      .join(' ');
     const baseAttrs = field
-      ? `data-field="${field}"`
-      : `data-kind="${kind}" data-index="${index}"`;
+      ? `data-field="${field}"${extraAttrs ? ` ${extraAttrs}` : ''}`
+      : `data-kind="${kind}" data-index="${index}"${extraAttrs ? ` ${extraAttrs}` : ''}`;
     const fallbackAttrs = field
-      ? `data-field="${field}-text-fallback"`
-      : `data-kind="${kind}-text-fallback" data-index="${index}"`;
+      ? `data-field="${field}-text-fallback"${extraAttrs ? ` ${extraAttrs}` : ''}`
+      : `data-kind="${kind}-text-fallback" data-index="${index}"${extraAttrs ? ` ${extraAttrs}` : ''}`;
 
     return `
       <div class="field-grid">
@@ -5271,6 +5469,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const scaleMax = this._getScaleFixedValue('max', 'max');
       const scaleMinEntity = this._getScaleEntityValue('min');
       const scaleMaxEntity = this._getScaleEntityValue('max');
+      const gradientStopsSummary = this._getGradientStopsSummary({ type: 'card' });
+      const gradientStopsInactive = this._getEffectiveFillStyleValue({ type: 'card' }) !== 'gradient';
       this._syncExpandedEntityOverrides(entities.length);
 
       this.shadowRoot.innerHTML = `
@@ -5377,6 +5577,9 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        }
 	        .list-row.triple {
 	          grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+	        }
+	        .list-row.gradient-stop-row {
+	          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 	        }
 	        .entity-shell {
 	          display: grid;
@@ -5494,6 +5697,19 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .override-group[data-group="segments"] {
 	          --override-group-accent: #d2a53a;
 	        }
+	        .override-group[data-group="gradient-stops"] {
+	          --override-group-accent: #48b978;
+	        }
+	        .card-subgroup {
+	          margin-top: 2px;
+	        }
+	        .override-group.is-inactive .override-group-summary,
+	        .override-group.is-inactive .section-note {
+	          color: var(--secondary-text-color, #666);
+	        }
+	        .override-group.is-inactive .override-group-body {
+	          opacity: 0.92;
+	        }
 	        .override-group-toggle {
 	          display: flex;
 	          justify-content: space-between;
@@ -5604,10 +5820,12 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                        const formattingInherited = !this._hasFormattingOverride(scope);
 	                        const layoutInherited = !this._hasLayoutOverride(scope);
 	                        const peakInherited = !this._hasPeakOverride(scope);
+	                        const gradientStopsInherited = !this._hasGradientStopsOverride(scope);
 	                        const segmentsInherited = !this._hasSegmentsOverride(scope);
 	                        const minInherited = !this._hasResolvableOverride(minParts);
 	                        const maxInherited = !this._hasResolvableOverride(maxParts);
 	                        const entityPeak = this._getScopedPeakConfig(scope);
+	                        const entityGradientStops = this._getScopedGradientStopsValue(scope);
 	                        const entitySegments = this._getScopedSegmentsValue(scope);
 	                        const scaleGroup = this._renderOverrideGroup({
 	                          index,
@@ -5826,6 +6044,45 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       </div>
 	                          `,
 	                        });
+	                        const gradientStopsGroup = this._renderOverrideGroup({
+	                          index,
+	                          group: 'gradient-stops',
+	                          title: 'Gradient Stops',
+	                          summary: this._getGradientStopsSummary(scope),
+	                          content: `
+	                      <div class="field-row">
+	                        <div class="toggle">
+	                          <input id="entity-${index}-gradient-stops-inherit" type="checkbox" data-kind="entity-gradient-stops-inherit" data-index="${index}"${gradientStopsInherited ? ' checked' : ''}>
+                          <label for="entity-${index}-gradient-stops-inherit">Gradient stops inherit</label>
+                        </div>
+                      </div>
+                      ${this._getEffectiveFillStyleValue(scope) !== 'gradient'
+                        ? '<div class="section-note">Only used with Gradient fill style</div>'
+                        : ''
+                      }
+                      <div class="field-row">
+                        <label>Gradient stops</label>
+                        <div class="list">
+                          ${this._renderListRows(entityGradientStops, (stop, stopIndex) => `
+                            <div class="list-row gradient-stop-row">
+                              <input type="number" min="0" max="100" step="any" data-kind="entity-gradient-pos" data-index="${index}" data-stop-index="${stopIndex}" value="${this._escapeAttribute(stop?.pos ?? '')}" placeholder="0">
+                              ${this._renderColorInput({
+                                id: `entity-${index}-gradient-color-${stopIndex}`,
+                                kind: 'entity-gradient-color',
+                                index,
+                                value: stop?.color ?? '#4a9eff',
+                                fallbackHex: '#4CAF50',
+                                placeholder: 'CSS color value',
+                                extraDataset: { 'stop-index': stopIndex },
+                              })}
+                              <button type="button" data-action="remove-entity-gradient-stop" data-index="${index}" data-stop-index="${stopIndex}">Remove</button>
+                            </div>
+                          `)}
+                          <button type="button" data-action="add-entity-gradient-stop" data-index="${index}">Add stop</button>
+                        </div>
+                      </div>
+	                          `,
+	                        });
 	                        const baselineGroup = this._renderOverrideGroup({
 	                          index,
 	                          group: 'baseline',
@@ -5929,6 +6186,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          ${layoutGroup}
 	                          ${formattingGroup}
 	                          ${peakGroup}
+	                          ${gradientStopsGroup}
 	                          ${segmentsGroup}
 	                          ${targetGroup}
 	                          ${baselineGroup}
@@ -6062,20 +6320,38 @@ class SensorBarCardPlusEditor extends HTMLElement {
                 placeholder: '#ffffff',
               })}
             </div>
-            <div class="field-row">
-              <label>Gradient stops</label>
-              <div class="list">
-                ${this._renderListRows(gradientStops, (stop, index) => `
-                  <div class="list-row triple">
-                    <input type="number" step="1" data-kind="gradient-pos" data-index="${index}" value="${this._escapeAttribute(stop?.pos ?? '')}" placeholder="0">
-                    <input type="color" data-kind="gradient-color" data-index="${index}" value="${this._escapeAttribute(stop?.color ?? '#4a9eff')}">
-                    <div></div>
-                    <button type="button" data-action="remove-gradient-stop" data-index="${index}">Remove</button>
+            ${this._renderCardGroup({
+              group: 'gradient-stops',
+              title: 'Gradient Stops',
+              summary: gradientStopsSummary,
+              inactive: gradientStopsInactive,
+              content: `
+                ${gradientStopsInactive
+                  ? '<div class="section-note">Only used with Gradient fill style</div>'
+                  : ''
+                }
+                <div class="field-row">
+                  <label>Gradient stops</label>
+                  <div class="list">
+                    ${this._renderListRows(gradientStops, (stop, index) => `
+                      <div class="list-row gradient-stop-row">
+                        <input type="number" min="0" max="100" step="any" data-kind="gradient-pos" data-index="${index}" value="${this._escapeAttribute(stop?.pos ?? '')}" placeholder="0">
+                        ${this._renderColorInput({
+                          id: `gradient-color-${index}`,
+                          kind: 'gradient-color',
+                          index,
+                          value: stop?.color ?? '#4a9eff',
+                          fallbackHex: '#4CAF50',
+                          placeholder: 'CSS color value',
+                        })}
+                        <button type="button" data-action="remove-gradient-stop" data-index="${index}">Remove</button>
+                      </div>
+                    `)}
+                    <button type="button" data-action="add-gradient-stop">Add stop</button>
                   </div>
-                `)}
-                <button type="button" data-action="add-gradient-stop">Add stop</button>
-              </div>
-            </div>
+                </div>
+              `,
+            })}
             <div class="field-row">
               <label>Segments</label>
               <div class="list">
@@ -6353,6 +6629,11 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return;
     }
 
+    if (action === 'toggle-card-group') {
+      this._toggleCardGroupExpanded(target.dataset.group);
+      return;
+    }
+
     if (action === 'remove-entity') {
       const index = Number(target.dataset.index);
       const nextEntities = this._getEntitiesValue().filter((_, entryIndex) => entryIndex !== index);
@@ -6366,13 +6647,26 @@ class SensorBarCardPlusEditor extends HTMLElement {
     }
 
     if (action === 'add-gradient-stop') {
-      this._setGradientStops([...this._getGradientStopsValue(), { pos: 100, color: '#4a9eff' }], { rerender: true });
+      this._setGradientStops([...this._getGradientStopsValue(), this._getNewGradientStopDefaults()], { rerender: true });
       return;
     }
 
     if (action === 'remove-gradient-stop') {
       const index = Number(target.dataset.index);
       this._setGradientStops(this._getGradientStopsValue().filter((_, stopIndex) => stopIndex !== index), { rerender: true });
+      return;
+    }
+
+    if (action === 'add-entity-gradient-stop') {
+      const scope = { type: 'entity', index: Number(target.dataset.index) };
+      this._setScopedGradientStops(scope, [...this._getScopedGradientStopsValue(scope), this._getNewGradientStopDefaults(scope)], { rerender: true });
+      return;
+    }
+
+    if (action === 'remove-entity-gradient-stop') {
+      const scope = { type: 'entity', index: Number(target.dataset.index) };
+      const stopIndex = Number(target.dataset.stopIndex);
+      this._setScopedGradientStops(scope, this._getScopedGradientStopsValue(scope).filter((_, index) => index !== stopIndex), { rerender: true });
       return;
     }
 
@@ -6397,6 +6691,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const scope = { type: 'entity', index: Number(target.dataset.index) };
       const segmentIndex = Number(target.dataset.segmentIndex);
       this._setScopedSegments(scope, this._getScopedSegmentsValue(scope).filter((_, index) => index !== segmentIndex), { rerender: true });
+      return;
     }
   }
 
@@ -6580,6 +6875,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return;
     }
 
+    if (kind === 'entity-gradient-stops-inherit') {
+      if (value) {
+        return void this._clearGradientStopsOverride({ type: 'entity', index: Number(target.dataset.index) });
+      }
+      return;
+    }
+
     if (kind === 'entity-bar-inherit') {
       if (value) {
         return void this._clearEntityBarAppearance({ type: 'entity', index: Number(target.dataset.index) });
@@ -6655,13 +6957,40 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const index = Number(target.dataset.index);
       const nextStops = this._getGradientStopsValue().map((stop, stopIndex) => {
         if (stopIndex !== index) return stop;
+        const nextPos = kind === 'gradient-pos'
+          ? this._normalizeGradientStopPosValue(value)
+          : this._normalizeGradientStopPosValue(stop?.pos);
+        if (kind === 'gradient-pos' && nextPos === null) {
+          return stop;
+        }
         return {
           ...stop,
-          pos: kind === 'gradient-pos' ? this._normalizeNumberValue(value) ?? 0 : stop?.pos ?? 0,
+          pos: nextPos ?? 0,
           color: kind === 'gradient-color' ? value : stop?.color ?? '#4a9eff',
         };
       });
       this._setGradientStops(nextStops);
+      return;
+    }
+
+    if (kind?.startsWith('entity-gradient-')) {
+      const scope = { type: 'entity', index: Number(target.dataset.index) };
+      const stopIndex = Number(target.dataset.stopIndex);
+      const nextStops = this._getScopedGradientStopsValue(scope).map((stop, currentStopIndex) => {
+        if (currentStopIndex !== stopIndex) return stop;
+        const nextPos = kind === 'entity-gradient-pos'
+          ? this._normalizeGradientStopPosValue(value)
+          : this._normalizeGradientStopPosValue(stop?.pos);
+        if (kind === 'entity-gradient-pos' && nextPos === null) {
+          return stop;
+        }
+        return {
+          ...stop,
+          pos: nextPos ?? 0,
+          color: kind === 'entity-gradient-color' ? value : stop?.color ?? '#4a9eff',
+        };
+      });
+      this._setScopedGradientStops(scope, nextStops);
       return;
     }
 
@@ -6703,6 +7032,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
         };
       });
       this._setScopedSegments(scope, nextSegments);
+      return;
     }
   }
 }
