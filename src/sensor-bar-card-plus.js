@@ -4036,8 +4036,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _setSegments(segments, options = {}) {
-    const path = this._preferStructuredPath(['bar', 'segments'], ['segments']);
-    this._setValueAtPath(path, segments, options);
+    return this._applyScopedMutation({ type: 'card' }, (target) => {
+      let nextTarget = this._setPathValue(target, ['bar', 'segments'], segments);
+      nextTarget = this._deletePathValue(nextTarget, ['segments']);
+      nextTarget = this._deletePathValue(nextTarget, ['severity']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar']);
+      return nextTarget;
+    }, options);
   }
 
   _setNeedle(value) {
@@ -4120,6 +4125,49 @@ class SensorBarCardPlusEditor extends HTMLElement {
       ?? this._draftConfig.segments
       ?? this._draftConfig.severity
       ?? [];
+  }
+
+  _parseSegmentBoundaryInput(rawValue) {
+    const normalizedValue = this._normalizeTextValue(rawValue).trim();
+    if (!normalizedValue) {
+      return null;
+    }
+    const percentMatch = normalizedValue.match(/^\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*%\s*$/);
+    const percent = percentMatch ? parseFloat(percentMatch[1]) : null;
+    if (Number.isFinite(percent)) {
+      return `${percent}%`;
+    }
+    const numericValue = this._normalizeNumberValue(normalizedValue);
+    return numericValue === null ? null : numericValue;
+  }
+
+  _formatSegmentBoundaryValue(value) {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+    if (this._isObject(value)) {
+      if (Number.isFinite(value.percent)) {
+        return `${value.percent}%`;
+      }
+      if (Number.isFinite(this._getFiniteNumber(value.fixed))) {
+        return String(this._getFiniteNumber(value.fixed));
+      }
+    }
+    return '';
+  }
+
+  _getNewSegmentDefaults() {
+    const segments = this._getSegmentsValue();
+    const previous = segments[segments.length - 1];
+    const previousTo = previous?.to ?? null;
+    return {
+      from: previousTo ?? '0%',
+      to: '100%',
+      color: '#4a9eff',
+    };
   }
 
   _getFillStyleValue() {
@@ -4992,8 +5040,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
               <div class="list">
                 ${this._renderListRows(segments, (segment, index) => `
                   <div class="list-row triple">
-                    <input type="number" step="any" data-kind="segment-from" data-index="${index}" value="${this._escapeAttribute(segment?.from ?? '')}" placeholder="0">
-                    <input type="number" step="any" data-kind="segment-to" data-index="${index}" value="${this._escapeAttribute(segment?.to ?? '')}" placeholder="100">
+                    <input type="text" data-kind="segment-from" data-index="${index}" value="${this._escapeAttribute(this._formatSegmentBoundaryValue(segment?.from))}" placeholder="0%">
+                    <input type="text" data-kind="segment-to" data-index="${index}" value="${this._escapeAttribute(this._formatSegmentBoundaryValue(segment?.to))}" placeholder="100%">
                     <input type="color" data-kind="segment-color" data-index="${index}" value="${this._escapeAttribute(segment?.color ?? '#4a9eff')}">
                     <button type="button" data-action="remove-segment" data-index="${index}">Remove</button>
                   </div>
@@ -5225,7 +5273,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
     }
 
     if (action === 'add-segment') {
-      this._setSegments([...this._getSegmentsValue(), { from: 0, to: 100, color: '#4a9eff' }], { rerender: true });
+      this._setSegments([...this._getSegmentsValue(), this._getNewSegmentDefaults()], { rerender: true });
       return;
     }
 
@@ -5453,10 +5501,15 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const index = Number(target.dataset.index);
       const nextSegments = this._getSegmentsValue().map((segment, segmentIndex) => {
         if (segmentIndex !== index) return segment;
+        const nextFrom = kind === 'segment-from' ? this._parseSegmentBoundaryInput(value) : segment?.from;
+        const nextTo = kind === 'segment-to' ? this._parseSegmentBoundaryInput(value) : segment?.to;
+        if ((kind === 'segment-from' && nextFrom === null) || (kind === 'segment-to' && nextTo === null)) {
+          return segment;
+        }
         return {
           ...segment,
-          from: kind === 'segment-from' ? this._normalizeNumberValue(value) : segment?.from,
-          to: kind === 'segment-to' ? this._normalizeNumberValue(value) : segment?.to,
+          from: nextFrom,
+          to: nextTo,
           color: kind === 'segment-color' ? value : segment?.color ?? '#4a9eff',
         };
       });

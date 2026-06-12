@@ -2242,6 +2242,105 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(finalConfig.color).toBeUndefined();
   });
 
+  it('Add segment creates a new row with smart defaults', async () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        segments: [
+          { from: '0%', to: '20%', color: '#c4bc00' },
+        ],
+      },
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="add-segment"]')[0]);
+    await flushTimers();
+
+    const finalConfig = events.at(-1).detail.config;
+    expect(finalConfig.bar.segments).toEqual([
+      { from: '0%', to: '20%', color: '#c4bc00' },
+      { from: '20%', to: '100%', color: '#4a9eff' },
+    ]);
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[1].value).toBe('20%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[1].value).toBe('100%');
+  });
+
+  it('segment rows accept percent input and emit structured bar.segments', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        segments: [
+          { from: 0, to: 100, color: '#4a9eff' },
+        ],
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[0], '0%');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[0], '20%');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-color"]')[0], '#c4bc00');
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      segments: [
+        { from: '0%', to: '20%', color: '#c4bc00' },
+      ],
+    });
+    expect(events.at(-1).detail.config.segments).toBeUndefined();
+    expect(events.at(-1).detail.config.severity).toBeUndefined();
+  });
+
+  it('Remove segment removes the selected row', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        segments: [
+          { from: '0%', to: '20%', color: '#c4bc00' },
+          { from: '20%', to: '100%', color: '#4a9eff' },
+        ],
+      },
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="remove-segment"]')[0]);
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      segments: [
+        { from: '20%', to: '100%', color: '#4a9eff' },
+      ],
+    });
+  });
+
+  it('editing flat-loaded segments converts them to structured bar.segments', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      segments: [
+        { from: 0, to: 20, color: '#c4bc00' },
+      ],
+      custom_top_level: 'keep',
+    });
+
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[0], '25%');
+
+    const finalConfig = events.at(-1).detail.config;
+    expect(finalConfig.bar).toEqual({
+      segments: [
+        { from: 0, to: '25%', color: '#c4bc00' },
+      ],
+    });
+    expect(finalConfig.segments).toBeUndefined();
+    expect(finalConfig.severity).toBeUndefined();
+    expect(finalConfig.custom_top_level).toBe('keep');
+  });
+
   it('disabling card-level needle removes bar.needle and preserves unrelated bar keys', () => {
     const editor = createEditor();
     const events = trackConfigEvents(editor);
