@@ -1820,18 +1820,33 @@ The visual regression suite covers baseline rendering, fill styles, target and p
 
 ## Home Assistant Tile Bar Gauge vs Sensor Bar Card Plus
 
-Home Assistant Tile Bar Gauge is a great fit for simple native Tile dashboards where you want a compact built-in bar without much configuration overhead.
+Home Assistant’s native Tile Bar Gauge is excellent for simple, compact Tile dashboards. Sensor Bar Card Plus is designed for advanced standalone and multi-entity visualization.
 
-Sensor Bar Card Plus focuses on advanced standalone and multi-entity visualization. It is the better fit when you want:
+| Capability | HA Tile Bar Gauge | Sensor Bar Card Plus |
+|---|---:|---:|
+| Native Tile card feature | ✅ | Planned |
+| Standalone card | ❌ | ✅ |
+| Multi-entity support | ❌ | ✅ |
+| Visual editor | Basic/native | Advanced |
+| Structured YAML output | N/A | ✅ |
+| Per-entity overrides | ❌ | ✅ |
+| Dynamic min/max entities | ❌ | ✅ |
+| Dynamic target entities | ❌ | ✅ |
+| Dynamic baseline entities | ❌ | ✅ |
+| Target marker | ❌ | ✅ |
+| Baseline support | ❌ | ✅ |
+| Peak marker | ❌ | ✅ |
+| Needle mode | ❌ | ✅ |
+| Segments / bands | Limited | ✅ |
+| Soft bands | ❌ | ✅ |
+| Band gradients | ❌ | ✅ |
+| Custom gradient stops | ❌ | ✅ |
+| Gradient and segment previews | ❌ | ✅ |
+| Entity row management | ❌ | ✅ |
 
-- multi-entity bar layouts in one card
-- structured per-entity overrides
-- dynamic scale, target, and baseline entities
-- advanced marker behavior such as peak and needle modes
-- segment-based and gradient-based color systems with previews
-- finer control over formatting, layout, and semantic color behavior
+The native Tile Bar Gauge is the right choice when you want a lightweight built-in Tile feature. Sensor Bar Card Plus is the better fit when you need richer visualization, multiple entities, dynamic references, markers, gradients, per-entity overrides, and fine-grained dashboard control.
 
-If Home Assistant’s native Tile ecosystem continues to evolve, a Tile-oriented SBCP variant may be considered later. For now, SBCP is intentionally optimized as a dedicated advanced visualization card.
+A Tile-oriented SBCP variant may be considered later, but the current card is intentionally optimized as a dedicated advanced visualization card.
 
 
 ## Project Origin
