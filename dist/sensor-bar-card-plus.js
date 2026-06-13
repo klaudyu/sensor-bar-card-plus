@@ -4466,6 +4466,26 @@ class SensorBarCardPlusEditor extends HTMLElement {
     this._gradientStopsUiRows.set(this._getGradientStopsDraftKey(scope), this._cloneDeep(stops));
   }
 
+  _getStoredScopedGradientStops(scope = { type: 'card' }) {
+    const structuredValue = this._getScopedValue(scope, ['bar', 'gradient_stops']);
+    if (structuredValue !== undefined) {
+      return structuredValue;
+    }
+    const legacyValue = this._getScopedValue(scope, ['gradient_stops']);
+    if (legacyValue !== undefined) {
+      return legacyValue;
+    }
+    return null;
+  }
+
+  _getFallbackGradientStops(scope = { type: 'card' }) {
+    if (scope?.type === 'entity') {
+      const inheritedStops = this._sanitizeGradientStopsForEmit(this._getScopedGradientStopsValue({ type: 'card' }));
+      return inheritedStops.length ? inheritedStops : this._getDefaultGradientStops();
+    }
+    return this._getDefaultGradientStops();
+  }
+
   _createGradientStopDraftState(scope = { type: 'card' }) {
     const suggestedPos = this._getNextSuggestedGradientStopPos(scope);
     return {
@@ -5655,18 +5675,23 @@ class SensorBarCardPlusEditor extends HTMLElement {
     if (Array.isArray(localRows)) {
       return localRows;
     }
-    return this._getScopedValue(scope, ['bar', 'gradient_stops'])
-      ?? this._getScopedValue(scope, ['gradient_stops'])
-      ?? [];
+    const storedStops = this._getStoredScopedGradientStops(scope);
+    if (storedStops !== null) {
+      return this._sanitizeGradientStopsForEmit(storedStops);
+    }
+    return this._cloneDeep(this._getFallbackGradientStops(scope));
   }
 
   _hasGradientStopsOverride(scope) {
-    const localRows = this._getGradientStopsUiRows(scope);
-    if (Array.isArray(localRows) && localRows.length > 0) {
+    if (this._getStoredScopedGradientStops(scope) !== null) {
       return true;
     }
-    return this._getScopedValue(scope, ['bar', 'gradient_stops']) !== undefined
-      || this._getScopedValue(scope, ['gradient_stops']) !== undefined;
+    const localRows = this._getGradientStopsUiRows(scope);
+    if (!Array.isArray(localRows)) {
+      return false;
+    }
+    return this._serializeConfig(this._sanitizeGradientStopsForEmit(localRows))
+      !== this._serializeConfig(this._sanitizeGradientStopsForEmit(this._getFallbackGradientStops(scope)));
   }
 
   _getGradientStopsSummary(scope) {
