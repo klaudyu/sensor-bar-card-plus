@@ -6791,17 +6791,19 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .field-row {
 	          display: grid;
 	          gap: 8px;
+	          min-width: 0;
 	        }
 	        .inline-row {
 	          display: grid;
 	          gap: 12px;
-	          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 	          align-items: end;
 	        }
 	        label {
 	          font-size: 0.9rem;
 	          font-weight: 500;
 	          color: var(--primary-text-color, #111);
+	          min-width: 0;
 	        }
 	        input,
 	        select,
@@ -6840,26 +6842,30 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	          display: flex;
 	          gap: 8px;
 	          align-items: center;
+	          flex-wrap: wrap;
 	        }
 	        .list {
 	          display: grid;
 	          gap: 10px;
+	          min-width: 0;
 	        }
 	        .list-row {
 	          display: grid;
 	          gap: 10px;
 	          grid-template-columns: minmax(0, 1fr) auto;
 	          align-items: end;
+	          min-width: 0;
 	        }
 	        .list-row.triple {
-	          grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+	          grid-template-columns: repeat(3, minmax(120px, 1fr)) auto;
 	        }
 	        .list-row.gradient-stop-row {
-	          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+	          grid-template-columns: minmax(110px, 1fr) minmax(120px, 1fr) auto;
 	        }
 	        .gradient-stop-list {
 	          display: grid;
 	          gap: 10px;
+	          min-width: 0;
 	        }
 	        .gradient-stop-draft {
 	          padding-top: 10px;
@@ -6868,10 +6874,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .gradient-preview {
 	          display: grid;
 	          gap: 8px;
+	          min-width: 0;
 	        }
 	        .gradient-preview-track {
 	          position: relative;
+	          width: 100%;
 	          min-height: 28px;
+	          min-width: 0;
 	          border-radius: 999px;
 	          border: 1px solid color-mix(in srgb, var(--divider-color, #888) 28%, transparent);
 	          background: linear-gradient(to right, #4CAF50 0%, #FF9800 50%, #F44336 100%);
@@ -6892,6 +6901,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	          display: grid;
 	          gap: 10px;
 	          padding: 12px;
+	          min-width: 0;
 	          background: color-mix(in srgb, var(--secondary-background-color, var(--card-background-color, #fff)) 68%, transparent);
 	          border: 1px solid color-mix(in srgb, var(--divider-color, #888) 30%, transparent);
 	          border-radius: 14px;
@@ -6900,15 +6910,16 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	          display: grid;
 	          gap: 10px;
 	          padding: 10px 12px 12px;
+	          min-width: 0;
 	          border-radius: 12px;
 	          background: color-mix(in srgb, var(--card-background-color, #fff) 90%, transparent);
 	          border: 1px solid color-mix(in srgb, var(--divider-color, #888) 22%, transparent);
 	        }
 	        .entity-header {
-	          display: flex;
-	          justify-content: space-between;
+	          display: grid;
 	          gap: 12px;
-	          align-items: baseline;
+	          grid-template-columns: minmax(0, 1fr) auto;
+	          align-items: start;
 	          padding-bottom: 4px;
 	          border-bottom: 1px solid color-mix(in srgb, var(--divider-color, #888) 24%, transparent);
 	        }
@@ -6926,6 +6937,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .entity-subtitle {
 	          font-size: 0.8rem;
 	          color: var(--secondary-text-color, #666);
+	          min-width: 0;
 	          overflow: hidden;
 	          text-overflow: ellipsis;
 	          white-space: nowrap;
@@ -6934,16 +6946,20 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	          display: flex;
 	          flex-wrap: wrap;
 	          justify-content: flex-end;
+	          align-items: center;
 	          gap: 8px;
 	          flex: 0 0 auto;
+	          min-width: min(100%, 240px);
 	        }
 	        .entity-actions button {
 	          min-height: 34px;
 	          padding: 6px 10px;
+	          flex: 0 1 auto;
 	        }
 	        .entity-fields {
 	          display: grid;
 	          gap: 10px;
+	          min-width: 0;
 	        }
 	        .override-toggle {
 	          display: inline-flex;
@@ -6972,6 +6988,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	          display: grid;
 	          gap: 12px;
 	          padding: 12px 14px;
+	          min-width: 0;
 	          border-radius: 12px;
 	          border: 1px solid color-mix(in srgb, var(--divider-color, #888) 28%, transparent);
 	          border-left: 4px solid color-mix(in srgb, var(--accent-color, var(--primary-color, #03a9f4)) 65%, transparent);
@@ -6988,6 +7005,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .override-group {
 	          display: grid;
 	          gap: 10px;
+	          min-width: 0;
 	          --override-group-accent: var(--accent-color, var(--primary-color, #03a9f4));
 	          border-radius: 12px;
 	          border: 1px solid color-mix(in srgb, var(--divider-color, #888) 24%, transparent);
@@ -7037,7 +7055,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .override-group-toggle {
 	          display: flex;
 	          justify-content: space-between;
-	          align-items: center;
+	          align-items: flex-start;
 	          gap: 12px;
 	          width: 100%;
 	          text-align: left;
@@ -7045,6 +7063,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	          border-radius: 0;
 	          background: transparent;
 	          padding: 10px 12px;
+	          min-width: 0;
 	        }
 	        .override-group-toggle:hover,
 	        .override-group-toggle:focus {
@@ -7057,16 +7076,24 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        .override-group-title {
 	          font-weight: 700;
 	          color: var(--primary-text-color, #111);
+	          min-width: 0;
+	          overflow-wrap: anywhere;
 	        }
 	        .override-group-summary {
 	          font-size: 0.82rem;
 	          color: var(--secondary-text-color, #666);
 	          text-align: right;
+	          min-width: 0;
+	          max-width: 42%;
+	          white-space: nowrap;
+	          overflow: hidden;
+	          text-overflow: ellipsis;
 	        }
 	        .override-group-body {
 	          display: grid;
 	          gap: 12px;
 	          padding: 0 12px 12px;
+	          min-width: 0;
 	          background: color-mix(in srgb, var(--secondary-background-color, var(--card-background-color, #fff)) 78%, transparent);
 	        }
 	        button {
@@ -7084,10 +7111,51 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	        }
 	        .field-row .field-grid {
 	          gap: 8px;
+	          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	          align-items: end;
+	        }
+	        .field-row .field-grid > * {
+	          min-width: 0;
+	        }
+	        ha-entity-picker {
+	          min-width: 0;
+	          width: 100%;
+	        }
+	        @media (max-width: 720px) {
+	          .section {
+	            gap: 12px;
+	          }
+	          .inline-row {
+	            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	          }
+	          .override-group-toggle {
+	            flex-wrap: wrap;
+	          }
+	          .override-group-summary {
+	            max-width: 100%;
+	            flex: 1 1 100%;
+	            text-align: left;
+	          }
+	          .entity-actions {
+	            min-width: 0;
+	            justify-content: flex-start;
+	          }
+	          .list-row.triple,
+	          .list-row.gradient-stop-row {
+	            grid-template-columns: repeat(2, minmax(0, 1fr));
+	          }
+	          .list-row.triple > button,
+	          .list-row.gradient-stop-row > button {
+	            grid-column: 1 / -1;
+	            width: 100%;
+	          }
 	        }
 	        @media (max-width: 480px) {
 	          .section {
 	            padding: 12px;
+	          }
+	          .inline-row {
+	            grid-template-columns: minmax(0, 1fr);
 	          }
 	          .entity-shell,
 	          .entity-main,
@@ -7096,7 +7164,25 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	            padding-right: 10px;
 	          }
 	          .entity-header {
-	            display: grid;
+	            grid-template-columns: minmax(0, 1fr);
+	          }
+	          .entity-actions {
+	            width: 100%;
+	          }
+	          .entity-actions button {
+	            flex: 1 1 120px;
+	          }
+	          .list-row {
+	            grid-template-columns: minmax(0, 1fr);
+	          }
+	          .list-row.triple,
+	          .list-row.gradient-stop-row {
+	            grid-template-columns: minmax(0, 1fr);
+	          }
+	          .list-row > button,
+	          .list-row.triple > button,
+	          .list-row.gradient-stop-row > button {
+	            width: 100%;
 	          }
 	        }
 	      </style>
