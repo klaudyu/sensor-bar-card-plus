@@ -3846,6 +3846,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
         nextNeedle = { show: true };
       } else if (rawNeedle.show === false) {
         nextNeedle = scope?.type === 'entity' ? { show: false } : null;
+      } else if (scope?.type === 'entity' && color && this._normalizeColorComparisonValue(color) !== defaultColor) {
+        nextNeedle = {};
       }
       if (nextNeedle && color && this._normalizeColorComparisonValue(color) !== defaultColor) {
         nextNeedle.color = color;
@@ -4551,6 +4553,18 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._getResolvablePartsFromTarget(target ?? {}, field, options);
   }
 
+  _getEffectiveResolvableScopedValue(scope, field, options = {}) {
+    const localValue = this._getResolvableScopedValue(scope, field, options);
+    if (scope?.type !== 'entity') {
+      return localValue;
+    }
+    const inheritedValue = this._getResolvableScopedValue({ type: 'card' }, field, options);
+    return {
+      fixed: this._hasExplicitOverrideValue(localValue.fixed) ? localValue.fixed : inheritedValue.fixed,
+      entity: this._hasExplicitOverrideValue(localValue.entity) ? localValue.entity : inheritedValue.entity,
+    };
+  }
+
   _setCanonicalResolvablePart(scope, field, part, rawValue, options = {}) {
     const canonicalBasePath = options.canonicalBasePath ?? ['scale', field];
     const legacyFixedPath = options.legacyFixedPath ?? [field];
@@ -4637,10 +4651,33 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return '';
   }
 
+  _getEffectiveScopedDisplayValue(scope, canonicalPath, fallbackPaths = []) {
+    const valuesToTry = [canonicalPath, ...fallbackPaths];
+    for (const path of valuesToTry) {
+      const value = this._getScopedValue(scope, path);
+      if (value !== undefined && value !== null && value !== '') {
+        return value;
+      }
+    }
+    if (scope?.type === 'entity') {
+      for (const path of valuesToTry) {
+        const value = this._getScopedValue({ type: 'card' }, path);
+        if (value !== undefined && value !== null && value !== '') {
+          return value;
+        }
+      }
+    }
+    return '';
+  }
+
   _getScopedFormattingValue(scope, key) {
     return this._getScopedValue(scope, ['formatting', key])
       ?? this._getScopedValue(scope, [key])
       ?? '';
+  }
+
+  _getEffectiveScopedFormattingValue(scope, key) {
+    return this._getEffectiveScopedDisplayValue(scope, ['formatting', key], [[key]]);
   }
 
   _setScopedFormattingUnit(scope, rawValue) {
@@ -4705,6 +4742,19 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return this._getScopedValue(scope, ['layout', 'label', 'width'])
         ?? this._getScopedValue(scope, ['label_width'])
         ?? '';
+    }
+    return '';
+  }
+
+  _getEffectiveScopedLayoutValue(scope, key) {
+    if (key === 'height') {
+      return this._getEffectiveScopedDisplayValue(scope, ['layout', 'height'], [['height']]);
+    }
+    if (key === 'position') {
+      return this._getEffectiveScopedDisplayValue(scope, ['layout', 'label', 'position'], [['label_position']]);
+    }
+    if (key === 'width') {
+      return this._getEffectiveScopedDisplayValue(scope, ['layout', 'label', 'width'], [['label_width']]);
     }
     return '';
   }
@@ -4797,6 +4847,19 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _setScaleBound(key, value) {
     return this._setCanonicalResolvablePart({ type: 'card' }, key, 'fixed', value);
+  }
+
+  _clearScaleOverride(scope) {
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._deletePathValue(target, ['scale', 'min']);
+      nextTarget = this._deletePathValue(nextTarget, ['scale', 'max']);
+      nextTarget = this._deletePathValue(nextTarget, ['min']);
+      nextTarget = this._deletePathValue(nextTarget, ['max']);
+      nextTarget = this._deletePathValue(nextTarget, ['min_entity']);
+      nextTarget = this._deletePathValue(nextTarget, ['max_entity']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['scale']);
+      return nextTarget;
+    }, { rerender: true });
   }
 
   _setBarFillStyle(value) {
@@ -5081,6 +5144,9 @@ class SensorBarCardPlusEditor extends HTMLElement {
     if (applied === false && options?.rerender && this._serializeConfig(sanitizedStops) !== previousUiRowsJson) {
       this._render();
     }
+    if (applied !== false && !options?.rerender) {
+      this._refreshGradientDraftUi(scope);
+    }
     return applied;
   }
 
@@ -5175,6 +5241,21 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return { mode, color };
   }
 
+  _getEffectiveScopedPeakConfig(scope) {
+    const localPeak = this._getScopedPeakConfig(scope);
+    if (scope?.type !== 'entity') {
+      return localPeak;
+    }
+    if (!this._hasPeakOverride(scope)) {
+      return this._getScopedPeakConfig({ type: 'card' });
+    }
+    const inheritedPeak = this._getScopedPeakConfig({ type: 'card' });
+    return {
+      mode: localPeak.mode === 'inherit' ? inheritedPeak.mode : localPeak.mode,
+      color: localPeak.color || inheritedPeak.color,
+    };
+  }
+
   _hasPeakOverride(scope) {
     const peakValue = this._getScopedValue(scope, ['peak']) ?? {};
     if (this._isObject(peakValue) && (
@@ -5197,9 +5278,11 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _getPeakSummary(scope) {
+    if (scope?.type === 'entity' && !this._hasPeakOverride(scope)) return 'Inherited';
     const peak = this._getScopedPeakConfig(scope);
-    if (peak.mode === 'enabled') return peak.color ? 'Enabled, custom color' : 'Enabled';
-    if (peak.mode === 'disabled') return 'Disabled override';
+    if (peak.mode === 'disabled') return peak.color ? 'Disabled • Custom color' : 'Disabled';
+    if (peak.mode === 'enabled') return peak.color ? 'Enabled • Custom color' : 'Enabled';
+    if (peak.color) return 'Custom color';
     return 'Inherited';
   }
 
@@ -5587,6 +5670,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._getFillStyleFromColorMode(colorMode);
   }
 
+  _getEffectiveScopedFillStyleValue(scope) {
+    if (scope?.type !== 'entity') {
+      return this._getScopedFillStyleValue(scope);
+    }
+    return this._getEffectiveFillStyleValue(scope);
+  }
+
   _setScopedBarFillStyle(scope, rawValue) {
     const normalizedValue = this._normalizeTextValue(rawValue).trim();
     if (!normalizedValue || normalizedValue === 'bands') {
@@ -5607,6 +5697,11 @@ class SensorBarCardPlusEditor extends HTMLElement {
       ?? '#4a9eff';
   }
 
+  _getEffectiveScopedBarColorValue(scope) {
+    const value = this._getEffectiveScopedDisplayValue(scope, ['bar', 'color'], [['color']]);
+    return value || '#4a9eff';
+  }
+
   _setScopedBarColor(scope, rawValue) {
     const normalizedValue = this._normalizeTextValue(rawValue).trim();
     if (!normalizedValue || this._normalizeColorComparisonValue(normalizedValue) === this._normalizeColorComparisonValue('#4a9eff')) {
@@ -5623,6 +5718,17 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _getScopedBarSolidFillValue(scope) {
     return !!this._getScopedValue(scope, ['bar', 'solid_fill']);
+  }
+
+  _getEffectiveScopedBarSolidFillValue(scope) {
+    if (scope?.type !== 'entity') {
+      return this._getScopedBarSolidFillValue(scope);
+    }
+    const localValue = this._getScopedValue(scope, ['bar', 'solid_fill']);
+    if (localValue !== undefined) {
+      return !!localValue;
+    }
+    return this._getScopedBarSolidFillValue({ type: 'card' });
   }
 
   _setScopedBarSolidFill(scope, value) {
@@ -5687,6 +5793,25 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return { mode, color };
   }
 
+  _hasNeedleOverride(scope) {
+    return this._getScopedValue(scope, ['bar', 'needle']) !== undefined;
+  }
+
+  _getEffectiveScopedNeedleConfig(scope) {
+    const localNeedle = this._getScopedNeedleConfig(scope);
+    if (scope?.type !== 'entity') {
+      return localNeedle;
+    }
+    if (!this._hasNeedleOverride(scope)) {
+      return this._getScopedNeedleConfig({ type: 'card' });
+    }
+    const inheritedNeedle = this._getScopedNeedleConfig({ type: 'card' });
+    return {
+      mode: localNeedle.mode === 'inherit' ? inheritedNeedle.mode : localNeedle.mode,
+      color: localNeedle.color || inheritedNeedle.color,
+    };
+  }
+
   _setScopedNeedleMode(scope, mode) {
     return this._applyScopedMutation(scope, (target) => {
       let nextTarget = this._cloneDeep(target);
@@ -5737,12 +5862,6 @@ class SensorBarCardPlusEditor extends HTMLElement {
         && this._normalizeColorComparisonValue(normalizedValue) !== this._normalizeColorComparisonValue('#ffffff');
 
       nextTarget = this._deletePathValue(nextTarget, ['bar', 'needle', 'color']);
-
-      if (scope?.type === 'entity' && current.mode === 'inherit') {
-        nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar', 'needle']);
-        nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar']);
-        return nextTarget;
-      }
 
       if (scope?.type !== 'entity' && current.mode === 'disabled') {
         nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['bar', 'needle']);
@@ -5800,6 +5919,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
     });
   }
 
+  _getEffectiveTargetResolvableValue(scope) {
+    return this._getEffectiveResolvableScopedValue(scope, 'target', {
+      canonicalBasePath: ['target', 'at'],
+      legacyFixedPath: ['target'],
+      legacyEntityPath: ['target_entity'],
+    });
+  }
+
   _getTargetMode(scope) {
     const enabled = this._getScopedValue(scope, ['target', 'enabled']);
     if (scope?.type === 'entity') {
@@ -5810,6 +5937,23 @@ class SensorBarCardPlusEditor extends HTMLElement {
     if (enabled === true) return 'enabled';
     if (enabled === false) return 'disabled';
     return 'auto';
+  }
+
+  _getEffectiveTargetMode(scope) {
+    const mode = this._getTargetMode(scope);
+    if (scope?.type !== 'entity' || mode !== 'inherit') {
+      return mode;
+    }
+    const cardMode = this._getTargetMode({ type: 'card' });
+    if (cardMode === 'disabled') return 'disabled';
+    if (cardMode === 'enabled') return 'enabled';
+    const cardTarget = this._getTargetResolvableValue({ type: 'card' });
+    return this._hasResolvableOverride(cardTarget)
+      || this._hasCustomTargetColor({ type: 'card' })
+      || this._getTargetLabelShowValue({ type: 'card' })
+      || !!this._getTargetAboveFillColorValue({ type: 'card' })
+      ? 'enabled'
+      : 'disabled';
   }
 
   _setTargetMode(scope, mode) {
@@ -5837,11 +5981,24 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _clearTargetOverride(scope) {
     return this._applyScopedMutation(scope, (target) => {
-      let nextTarget = this._deletePathValue(target, ['target']);
+      let nextTarget = this._cloneDeep(target);
+      const rawTarget = this._getPathValue(nextTarget, ['target']);
+      if (this._isObject(rawTarget)) {
+        nextTarget = this._deletePathValue(nextTarget, ['target', 'enabled']);
+        nextTarget = this._deletePathValue(nextTarget, ['target', 'at']);
+        nextTarget = this._deletePathValue(nextTarget, ['target', 'color']);
+        nextTarget = this._deletePathValue(nextTarget, ['target', 'label', 'show']);
+        nextTarget = this._deletePathValue(nextTarget, ['target', 'when_exceeded', 'fill_color']);
+      } else {
+        nextTarget = this._deletePathValue(nextTarget, ['target']);
+      }
       nextTarget = this._deletePathValue(nextTarget, ['target_entity']);
       nextTarget = this._deletePathValue(nextTarget, ['target_color']);
       nextTarget = this._deletePathValue(nextTarget, ['show_target_label']);
       nextTarget = this._deletePathValue(nextTarget, ['above_target_color']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['target', 'label']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['target', 'when_exceeded']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['target']);
       return nextTarget;
     }, { rerender: true });
   }
@@ -5850,6 +6007,15 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._getScopedValue(scope, ['target', 'color'])
       ?? this._getScopedValue(scope, ['target_color'])
       ?? '';
+  }
+
+  _getEffectiveTargetColorValue(scope) {
+    return this._getEffectiveScopedDisplayValue(scope, ['target', 'color'], [['target_color']]);
+  }
+
+  _hasCustomTargetColor(scope) {
+    const color = this._getTargetColorValue(scope);
+    return !!color && this._normalizeColorComparisonValue(color) !== this._normalizeColorComparisonValue('#888');
   }
 
   _setTargetColor(scope, rawValue) {
@@ -5874,6 +6040,21 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return !!this._getScopedValue(scope, ['show_target_label']);
   }
 
+  _getEffectiveTargetLabelShowValue(scope) {
+    const structuredValue = this._getScopedValue(scope, ['target', 'label', 'show']);
+    if (structuredValue !== undefined) {
+      return !!structuredValue;
+    }
+    const legacyValue = this._getScopedValue(scope, ['show_target_label']);
+    if (legacyValue !== undefined) {
+      return !!legacyValue;
+    }
+    if (scope?.type === 'entity') {
+      return this._getTargetLabelShowValue({ type: 'card' });
+    }
+    return false;
+  }
+
   _setTargetLabelShow(scope, value) {
     if (!value) {
       return this._removeCanonicalScopedValue(scope, ['target', 'label', 'show'], {
@@ -5891,6 +6072,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._getScopedValue(scope, ['target', 'when_exceeded', 'fill_color'])
       ?? this._getScopedValue(scope, ['above_target_color'])
       ?? '';
+  }
+
+  _getEffectiveTargetAboveFillColorValue(scope) {
+    return this._getEffectiveScopedDisplayValue(scope, ['target', 'when_exceeded', 'fill_color'], [['above_target_color']]);
   }
 
   _setTargetAboveFillColor(scope, rawValue) {
@@ -5930,6 +6115,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
     });
   }
 
+  _getEffectiveBaselineResolvableValue(scope) {
+    return this._getEffectiveResolvableScopedValue(scope, 'baseline', {
+      canonicalBasePath: ['baseline', 'at'],
+      legacyFixedPath: ['baseline'],
+      legacyEntityPath: ['baseline', 'at', 'entity'],
+    });
+  }
+
   _getBaselineMode(scope) {
     const enabled = this._getScopedValue(scope, ['baseline', 'enabled']);
     if (scope?.type === 'entity') {
@@ -5940,6 +6133,22 @@ class SensorBarCardPlusEditor extends HTMLElement {
     if (enabled === true) return 'enabled';
     if (enabled === false) return 'disabled';
     return 'auto';
+  }
+
+  _getEffectiveBaselineMode(scope) {
+    const mode = this._getBaselineMode(scope);
+    if (scope?.type !== 'entity' || mode !== 'inherit') {
+      return mode;
+    }
+    const cardMode = this._getBaselineMode({ type: 'card' });
+    if (cardMode === 'disabled') return 'disabled';
+    if (cardMode === 'enabled') return 'enabled';
+    const cardBaseline = this._getBaselineResolvableValue({ type: 'card' });
+    return this._hasResolvableOverride(cardBaseline)
+      || !!this._getBaselineDirectionalColorValue({ type: 'card' }, 'above')
+      || !!this._getBaselineDirectionalColorValue({ type: 'card' }, 'below')
+      ? 'enabled'
+      : 'disabled';
   }
 
   _setBaselineMode(scope, mode) {
@@ -6056,10 +6265,27 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._getScopedValue(scope, ['baseline', direction, 'color']) ?? '';
   }
 
+  _getEffectiveBaselineDirectionalColorValue(scope, direction) {
+    return this._getEffectiveScopedDisplayValue(scope, ['baseline', direction, 'color']);
+  }
+
   _clearBaselineOverride(scope) {
-    return this._applyScopedMutation(scope, (target) => (
-      this._deletePathValue(target, ['baseline'])
-    ), { rerender: true });
+    return this._applyScopedMutation(scope, (target) => {
+      let nextTarget = this._cloneDeep(target);
+      const rawBaseline = this._getPathValue(nextTarget, ['baseline']);
+      if (this._isObject(rawBaseline)) {
+        nextTarget = this._deletePathValue(nextTarget, ['baseline', 'enabled']);
+        nextTarget = this._deletePathValue(nextTarget, ['baseline', 'at']);
+        nextTarget = this._deletePathValue(nextTarget, ['baseline', 'above', 'color']);
+        nextTarget = this._deletePathValue(nextTarget, ['baseline', 'below', 'color']);
+      } else {
+        nextTarget = this._deletePathValue(nextTarget, ['baseline']);
+      }
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['baseline', 'above']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['baseline', 'below']);
+      nextTarget = this._pruneEmptyObjectsInTarget(nextTarget, ['baseline']);
+      return nextTarget;
+    }, { rerender: true });
   }
 
   _hasBaselineOverride(scope) {
@@ -6143,11 +6369,11 @@ class SensorBarCardPlusEditor extends HTMLElement {
     const parts = [];
     const min = this._getResolvableScopedValue(scope, 'min');
     const max = this._getResolvableScopedValue(scope, 'max');
-    if (min.entity) parts.push('Min dynamic');
+    if (min.entity) parts.push('Min entity');
     else if (min.fixed !== '' && min.fixed !== undefined) parts.push(`Min ${min.fixed}`);
-    if (max.entity) parts.push('Max dynamic');
+    if (max.entity) parts.push('Max entity');
     else if (max.fixed !== '' && max.fixed !== undefined) parts.push(`Max ${max.fixed}`);
-    return parts.length ? parts.join(', ') : 'Inherited';
+    return parts.length ? parts.join(' • ') : 'Inherited';
   }
 
   _getLayoutSummary(scope) {
@@ -6163,27 +6389,27 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
   _getTargetOverrideSummary(scope) {
     const mode = this._getTargetMode(scope);
-    if (mode === 'disabled') return 'Disabled override';
+    if (mode === 'disabled') return 'Disabled';
     const parts = [];
     const target = this._getTargetResolvableValue(scope);
-    if (target.fixed !== '' && target.fixed !== undefined) parts.push(`Fixed ${target.fixed}`);
-    if (target.entity) parts.push(target.fixed !== '' && target.fixed !== undefined ? 'entity' : 'Dynamic');
-    if (this._getTargetColorValue(scope)) parts.push('Custom color');
+    if (target.fixed !== '' && target.fixed !== undefined) parts.push(`Target ${target.fixed}`);
+    if (target.entity) parts.push('Entity');
+    if (this._hasCustomTargetColor(scope)) parts.push('Custom color');
     if (this._getTargetLabelShowValue(scope)) parts.push('Label');
-    if (this._getTargetAboveFillColorValue(scope)) parts.push('Above fill');
-    return parts.length ? parts.join(', ') : 'Inherited';
+    if (this._getTargetAboveFillColorValue(scope)) parts.push('Above');
+    return parts.length ? parts.join(' • ') : 'Inherited';
   }
 
   _getBaselineOverrideSummary(scope) {
     const mode = this._getBaselineMode(scope);
-    if (mode === 'disabled') return 'Disabled override';
+    if (mode === 'disabled') return 'Disabled';
     const parts = [];
     const baseline = this._getBaselineResolvableValue(scope);
-    if (baseline.fixed !== '' && baseline.fixed !== undefined) parts.push(`Fixed ${baseline.fixed}`);
-    if (baseline.entity) parts.push(baseline.fixed !== '' && baseline.fixed !== undefined ? 'entity' : 'Dynamic');
-    if (this._getBaselineDirectionalColorValue(scope, 'above')) parts.push('Above color');
-    if (this._getBaselineDirectionalColorValue(scope, 'below')) parts.push('Below color');
-    return parts.length ? parts.join(', ') : 'Inherited';
+    if (baseline.fixed !== '' && baseline.fixed !== undefined) parts.push(`Baseline ${baseline.fixed}`);
+    if (baseline.entity) parts.push('Entity');
+    if (this._getBaselineDirectionalColorValue(scope, 'above')) parts.push('Above');
+    if (this._getBaselineDirectionalColorValue(scope, 'below')) parts.push('Below');
+    return parts.length ? parts.join(' • ') : 'Inherited';
   }
 
   _getBarAppearanceSummary(scope) {
@@ -6191,9 +6417,10 @@ class SensorBarCardPlusEditor extends HTMLElement {
     const fillStyle = this._getScopedFillStyleValue(scope);
     const color = this._getScopedValue(scope, ['bar', 'color']) ?? this._getScopedValue(scope, ['color']);
     if (fillStyle && fillStyle !== 'bands') parts.push(fillStyle.replace(/_/g, ' '));
-    if (color) parts.push('Custom color');
-    if (this._getScopedBarSolidFillValue(scope)) parts.push('Solid fill');
-    return parts.length ? parts.join(', ') : 'Inherited';
+    if (color && this._normalizeColorComparisonValue(color) !== this._normalizeColorComparisonValue('#4a9eff')) {
+      parts.push('Custom color');
+    }
+    return parts.length ? parts.join(' • ') : 'Inherited';
   }
 
   _getScopedSegmentsValue(scope) {
@@ -6334,9 +6561,11 @@ class SensorBarCardPlusEditor extends HTMLElement {
   }
 
   _getNeedleSummary(scope) {
+    if (scope?.type === 'entity' && !this._hasNeedleOverride(scope)) return 'Inherited';
     const needle = this._getScopedNeedleConfig(scope);
-    if (needle.mode === 'enabled') return needle.color ? 'Enabled, custom color' : 'Enabled';
-    if (needle.mode === 'disabled') return 'Disabled override';
+    if (needle.mode === 'disabled') return needle.color ? 'Disabled • Custom color' : 'Disabled';
+    if (needle.mode === 'enabled') return needle.color ? 'Enabled • Custom color' : 'Enabled';
+    if (needle.color) return 'Custom color';
     return 'Inherited';
   }
 
@@ -6344,8 +6573,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
     const parts = [];
     const unit = this._getScopedFormattingValue(scope, 'unit');
     const decimal = this._getScopedFormattingValue(scope, 'decimal');
-    if (unit !== '') parts.push(`unit ${unit}`);
-    if (decimal !== '') parts.push(`${decimal} decimals`);
+    if (unit !== '') parts.push(`Unit ${unit}`);
+    if (decimal !== '') parts.push(`${decimal} ${Number(decimal) === 1 ? 'decimal' : 'decimals'}`);
     return parts.length ? parts.join(' • ') : 'Inherited';
   }
 
@@ -6874,16 +7103,22 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	      <div class="editor">
 	        <div class="section">
 	          <div class="section-head">
-	            <h3>General</h3>
-	            <div class="section-note">Basic card identity and entity rows.</div>
+	            <h3>Basics</h3>
 	          </div>
-	          <div class="field-grid">
+	          <div class="inline-row editor-grid">
             <div class="field-row">
               <label for="title">Title</label>
               <input id="title" type="text" data-field="title" value="${this._escapeAttribute(this._draftConfig.title ?? '')}">
             </div>
-            <div class="field-row">
-              <label>Entities</label>
+	          </div>
+	        </div>
+
+	        <div class="section">
+	          <div class="section-head">
+	            <h3>Entities</h3>
+	            <div class="section-note">Overrides replace card defaults only for this entity.</div>
+	          </div>
+	          <div class="field-grid">
               <div class="list">
 	                ${this._renderListRows(entities, (entry, index) => `
 	                  <div class="entity-shell" data-entity-shell-index="${index}">
@@ -6910,24 +7145,28 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                      ${this._isEntityOverrideExpanded(index) ? '▾' : '▸'} Overrides
 	                    </button>
                     <div class="override-panel" style="display:${this._isEntityOverrideExpanded(index) ? 'grid' : 'none'};">
+                      <div class="section-note">Overrides replace card defaults only for this entity.</div>
                       ${(() => {
                         const scope = { type: 'entity', index };
-                        const minParts = this._getResolvableScopedValue(scope, 'min');
-                        const maxParts = this._getResolvableScopedValue(scope, 'max');
+                        const minParts = this._getEffectiveResolvableScopedValue(scope, 'min');
+                        const maxParts = this._getEffectiveResolvableScopedValue(scope, 'max');
 	                        const barAppearanceInherited = !this._hasEntityBarAppearanceOverride(scope);
-	                        const entityNeedle = this._getScopedNeedleConfig(scope);
-	                        const baselineParts = this._getBaselineResolvableValue(scope);
-	                        const baselineMode = this._getBaselineMode(scope);
-	                        const targetParts = this._getTargetResolvableValue(scope);
-	                        const targetMode = this._getTargetMode(scope);
+	                        const needleInherited = !this._hasNeedleOverride(scope);
+	                        const entityNeedle = this._getEffectiveScopedNeedleConfig(scope);
+	                        const baselineInherited = !this._hasBaselineOverride(scope);
+	                        const baselineParts = this._getEffectiveBaselineResolvableValue(scope);
+	                        const baselineMode = this._getEffectiveBaselineMode(scope);
+	                        const targetInherited = !this._hasTargetOverride(scope);
+	                        const targetParts = this._getEffectiveTargetResolvableValue(scope);
+	                        const targetMode = this._getEffectiveTargetMode(scope);
 	                        const formattingInherited = !this._hasFormattingOverride(scope);
 	                        const layoutInherited = !this._hasLayoutOverride(scope);
 	                        const peakInherited = !this._hasPeakOverride(scope);
 	                        const gradientStopsInherited = !this._hasGradientStopsOverride(scope);
 	                        const segmentsInherited = !this._hasSegmentsOverride(scope);
-	                        const minInherited = !this._hasResolvableOverride(minParts);
-	                        const maxInherited = !this._hasResolvableOverride(maxParts);
-	                        const entityPeak = this._getScopedPeakConfig(scope);
+	                        const scaleInherited = !this._hasResolvableOverride(this._getResolvableScopedValue(scope, 'min'))
+	                          && !this._hasResolvableOverride(this._getResolvableScopedValue(scope, 'max'));
+	                        const entityPeak = this._getEffectiveScopedPeakConfig(scope);
 	                        const entityGradientStops = this._getScopedGradientStopsValue(scope);
 	                        const entityGradientDraft = this._getGradientStopsDraftState(scope);
 	                        const entityGradientDraftMessage = this._getGradientDraftValidationMessage(scope);
@@ -6940,30 +7179,25 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          content: `
 	                      <div class="field-row">
 	                        <div class="toggle">
-	                          <input id="entity-${index}-min-inherit" type="checkbox" data-kind="entity-override-min-inherit" data-index="${index}"${minInherited ? ' checked' : ''}>
-	                          <label for="entity-${index}-min-inherit">Min inherit card default</label>
+	                          <input id="entity-${index}-scale-inherit" type="checkbox" data-kind="entity-scale-inherit" data-index="${index}"${scaleInherited ? ' checked' : ''}>
+	                          <label for="entity-${index}-scale-inherit">Inherit card settings</label>
                         </div>
                       </div>
+	                      <div class="section-note">Fixed values are used as fallback when entity values are unavailable.</div>
                       <div class="field-row">
-                        <label for="entity-${index}-min">Min fallback value</label>
+                        <label for="entity-${index}-min">Min fallback</label>
                         <input id="entity-${index}-min" type="number" step="any" data-kind="entity-override-min" data-index="${index}" value="${this._escapeAttribute(minParts.fixed)}" placeholder="inherit card default">
                       </div>
                       <div class="field-row">
-                        <label>Min entity override</label>
+                        <label>Min entity</label>
                         ${this._renderEntitySourceInput('entity-override-min-entity-source', index, minParts.entity, 'inherit card default')}
                       </div>
                       <div class="field-row">
-                        <div class="toggle">
-                          <input id="entity-${index}-max-inherit" type="checkbox" data-kind="entity-override-max-inherit" data-index="${index}"${maxInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-max-inherit">Max inherit card default</label>
-                        </div>
-                      </div>
-                      <div class="field-row">
-                        <label for="entity-${index}-max">Max fallback value</label>
+                        <label for="entity-${index}-max">Max fallback</label>
                         <input id="entity-${index}-max" type="number" step="any" data-kind="entity-override-max" data-index="${index}" value="${this._escapeAttribute(maxParts.fixed)}" placeholder="inherit card default">
                       </div>
                       <div class="field-row">
-                        <label>Max entity override</label>
+                        <label>Max entity</label>
                         ${this._renderEntitySourceInput('entity-override-max-entity-source', index, maxParts.entity, 'inherit card default')}
                       </div>
 	                          `,
@@ -6977,26 +7211,26 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                      <div class="field-row">
 	                        <div class="toggle">
 	                          <input id="entity-${index}-layout-inherit" type="checkbox" data-kind="entity-layout-inherit" data-index="${index}"${layoutInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-layout-inherit">Layout inherit</label>
+                          <label for="entity-${index}-layout-inherit">Inherit card settings</label>
                         </div>
                       </div>
 	                      <div class="field-row">
 	                        <label for="entity-${index}-height">Row height</label>
-	                        <input id="entity-${index}-height" type="number" min="24" step="1" data-kind="entity-override-height" data-index="${index}" value="${this._escapeAttribute(this._getScopedLayoutValue(scope, 'height'))}" placeholder="inherit card default">
+	                        <input id="entity-${index}-height" type="number" min="24" step="1" data-kind="entity-override-height" data-index="${index}" value="${this._escapeAttribute(this._getEffectiveScopedLayoutValue(scope, 'height'))}" placeholder="inherit card default">
 	                      </div>
-                      <div class="field-row">
-                        <label for="entity-${index}-label-position">Label position</label>
-                        <select id="entity-${index}-label-position" data-kind="entity-layout-label-position" data-index="${index}" value="${this._escapeAttribute(this._getScopedLayoutValue(scope, 'position'))}">
-                          <option value=""${this._getScopedLayoutValue(scope, 'position') === '' ? ' selected' : ''}>inherit card default</option>
-                          <option value="left"${this._getScopedLayoutValue(scope, 'position') === 'left' ? ' selected' : ''}>left</option>
-                          <option value="above"${this._getScopedLayoutValue(scope, 'position') === 'above' ? ' selected' : ''}>above</option>
-                          <option value="inside"${this._getScopedLayoutValue(scope, 'position') === 'inside' ? ' selected' : ''}>inside</option>
-                          <option value="off"${this._getScopedLayoutValue(scope, 'position') === 'off' ? ' selected' : ''}>off</option>
+	                      <div class="field-row">
+	                        <label for="entity-${index}-label-position">Label position</label>
+	                        <select id="entity-${index}-label-position" data-kind="entity-layout-label-position" data-index="${index}" value="${this._escapeAttribute(this._getEffectiveScopedLayoutValue(scope, 'position'))}">
+                          <option value=""${this._getEffectiveScopedLayoutValue(scope, 'position') === '' ? ' selected' : ''}>inherit card default</option>
+                          <option value="left"${this._getEffectiveScopedLayoutValue(scope, 'position') === 'left' ? ' selected' : ''}>left</option>
+                          <option value="above"${this._getEffectiveScopedLayoutValue(scope, 'position') === 'above' ? ' selected' : ''}>above</option>
+                          <option value="inside"${this._getEffectiveScopedLayoutValue(scope, 'position') === 'inside' ? ' selected' : ''}>inside</option>
+                          <option value="off"${this._getEffectiveScopedLayoutValue(scope, 'position') === 'off' ? ' selected' : ''}>off</option>
                         </select>
                       </div>
 	                      <div class="field-row">
 	                        <label for="entity-${index}-label-width">Label width</label>
-	                        <input id="entity-${index}-label-width" type="number" step="1" data-kind="entity-layout-label-width" data-index="${index}" value="${this._escapeAttribute(this._getScopedLayoutValue(scope, 'width'))}" placeholder="inherit card default">
+	                        <input id="entity-${index}-label-width" type="number" step="1" data-kind="entity-layout-label-width" data-index="${index}" value="${this._escapeAttribute(this._getEffectiveScopedLayoutValue(scope, 'width'))}" placeholder="inherit card default">
 	                      </div>
 	                          `,
 	                        });
@@ -7009,17 +7243,17 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                      <div class="field-row">
 	                        <div class="toggle">
 	                          <input id="entity-${index}-bar-inherit" type="checkbox" data-kind="entity-bar-inherit" data-index="${index}"${barAppearanceInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-bar-inherit">Bar appearance inherit</label>
+                          <label for="entity-${index}-bar-inherit">Inherit card settings</label>
                         </div>
                       </div>
                       <div class="field-row">
                         <label for="entity-${index}-bar-fill-style">Fill style</label>
-                        <select id="entity-${index}-bar-fill-style" data-kind="entity-bar-fill-style" data-index="${index}" value="${this._escapeAttribute(this._getScopedFillStyleValue(scope))}">
-                          <option value="bands"${this._getScopedFillStyleValue(scope) === 'bands' ? ' selected' : ''}>bands</option>
-                          <option value="solid"${this._getScopedFillStyleValue(scope) === 'solid' ? ' selected' : ''}>solid</option>
-                          <option value="gradient"${this._getScopedFillStyleValue(scope) === 'gradient' ? ' selected' : ''}>gradient</option>
-                          <option value="soft_bands"${this._getScopedFillStyleValue(scope) === 'soft_bands' ? ' selected' : ''}>soft_bands</option>
-                          <option value="band_gradient"${this._getScopedFillStyleValue(scope) === 'band_gradient' ? ' selected' : ''}>band_gradient</option>
+                        <select id="entity-${index}-bar-fill-style" data-kind="entity-bar-fill-style" data-index="${index}" value="${this._escapeAttribute(this._getEffectiveScopedFillStyleValue(scope))}">
+                          <option value="bands"${this._getEffectiveScopedFillStyleValue(scope) === 'bands' ? ' selected' : ''}>bands</option>
+                          <option value="solid"${this._getEffectiveScopedFillStyleValue(scope) === 'solid' ? ' selected' : ''}>solid</option>
+                          <option value="gradient"${this._getEffectiveScopedFillStyleValue(scope) === 'gradient' ? ' selected' : ''}>gradient</option>
+                          <option value="soft_bands"${this._getEffectiveScopedFillStyleValue(scope) === 'soft_bands' ? ' selected' : ''}>soft_bands</option>
+                          <option value="band_gradient"${this._getEffectiveScopedFillStyleValue(scope) === 'band_gradient' ? ' selected' : ''}>band_gradient</option>
                         </select>
                       </div>
                       <div class="field-row">
@@ -7028,17 +7262,11 @@ class SensorBarCardPlusEditor extends HTMLElement {
                           id: `entity-${index}-bar-color`,
                           kind: 'entity-bar-color',
                           index,
-                          value: this._getScopedBarColorValue(scope),
+                          value: this._getEffectiveScopedBarColorValue(scope),
                           fallbackHex: '#4a9eff',
                           placeholder: 'inherit card default',
                         })}
                       </div>
-	                      <div class="field-row">
-	                        <div class="toggle">
-	                          <input id="entity-${index}-bar-solid-fill" type="checkbox" data-kind="entity-bar-solid-fill" data-index="${index}"${this._getScopedBarSolidFillValue(scope) ? ' checked' : ''}>
-	                          <label for="entity-${index}-bar-solid-fill">Solid fill</label>
-	                        </div>
-	                      </div>
 	                          `,
 	                        });
 	                        const needleGroup = this._renderOverrideGroup({
@@ -7048,9 +7276,14 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          summary: this._getNeedleSummary(scope),
 	                          content: `
 	                      <div class="field-row">
+	                        <div class="toggle">
+	                          <input id="entity-${index}-needle-inherit" type="checkbox" data-kind="entity-needle-inherit" data-index="${index}"${needleInherited ? ' checked' : ''}>
+                          <label for="entity-${index}-needle-inherit">Inherit card settings</label>
+                        </div>
+                      </div>
+	                      <div class="field-row">
 	                        <label for="entity-${index}-needle-mode">Needle mode</label>
 	                        <select id="entity-${index}-needle-mode" data-kind="entity-needle-mode" data-index="${index}" value="${this._escapeAttribute(entityNeedle.mode)}">
-                          <option value="inherit"${entityNeedle.mode === 'inherit' ? ' selected' : ''}>inherit</option>
                           <option value="enabled"${entityNeedle.mode === 'enabled' ? ' selected' : ''}>enabled</option>
                           <option value="disabled"${entityNeedle.mode === 'disabled' ? ' selected' : ''}>disabled</option>
                         </select>
@@ -7077,16 +7310,16 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                      <div class="field-row">
 	                        <div class="toggle">
 	                          <input id="entity-${index}-formatting-inherit" type="checkbox" data-kind="entity-formatting-inherit" data-index="${index}"${formattingInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-formatting-inherit">Formatting inherit</label>
+                          <label for="entity-${index}-formatting-inherit">Inherit card settings</label>
                         </div>
                       </div>
                       <div class="field-row">
-                        <label for="entity-${index}-formatting-unit">Unit override</label>
-                        <input id="entity-${index}-formatting-unit" type="text" data-kind="entity-formatting-unit" data-index="${index}" value="${this._escapeAttribute(this._getScopedFormattingValue(scope, 'unit'))}" placeholder="inherit card default">
+                        <label for="entity-${index}-formatting-unit">Unit</label>
+                        <input id="entity-${index}-formatting-unit" type="text" data-kind="entity-formatting-unit" data-index="${index}" value="${this._escapeAttribute(this._getEffectiveScopedFormattingValue(scope, 'unit'))}" placeholder="inherit card default">
                       </div>
                       <div class="field-row">
-                        <label for="entity-${index}-formatting-decimal">Decimal places</label>
-                        <input id="entity-${index}-formatting-decimal" type="number" min="0" step="1" data-kind="entity-formatting-decimal" data-index="${index}" value="${this._escapeAttribute(this._getScopedFormattingValue(scope, 'decimal'))}" placeholder="inherit card default">
+                        <label for="entity-${index}-formatting-decimal">Decimals</label>
+                        <input id="entity-${index}-formatting-decimal" type="number" min="0" step="1" data-kind="entity-formatting-decimal" data-index="${index}" value="${this._escapeAttribute(this._getEffectiveScopedFormattingValue(scope, 'decimal'))}" placeholder="inherit card default">
                       </div>
 	                          `,
 	                        });
@@ -7099,7 +7332,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                      <div class="field-row">
 	                        <div class="toggle">
 	                          <input id="entity-${index}-peak-inherit" type="checkbox" data-kind="entity-peak-inherit" data-index="${index}"${peakInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-peak-inherit">Peak inherit</label>
+                          <label for="entity-${index}-peak-inherit">Inherit card settings</label>
                         </div>
                       </div>
                       <div class="field-row">
@@ -7130,7 +7363,17 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                      <div class="field-row">
 	                        <div class="toggle">
 	                          <input id="entity-${index}-segments-inherit" type="checkbox" data-kind="entity-segments-inherit" data-index="${index}"${segmentsInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-segments-inherit">Segments inherit</label>
+                          <label for="entity-${index}-segments-inherit">Inherit card settings</label>
+                        </div>
+                      </div>
+                      ${this._isSegmentFillStyle(this._getEffectiveFillStyleValue(scope))
+                        ? ''
+                        : '<div class="section-note">Only used with segment-based fill styles.</div>'
+                      }
+                      <div class="field-row">
+                        <div class="toggle">
+                          <input id="entity-${index}-bar-solid-fill" type="checkbox" data-kind="entity-bar-solid-fill" data-index="${index}"${this._getEffectiveScopedBarSolidFillValue(scope) ? ' checked' : ''}>
+                          <label for="entity-${index}-bar-solid-fill">Solid fill</label>
                         </div>
                       </div>
                       <div class="field-row">
@@ -7158,7 +7401,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                      <div class="field-row">
 	                        <div class="toggle">
 	                          <input id="entity-${index}-gradient-stops-inherit" type="checkbox" data-kind="entity-gradient-stops-inherit" data-index="${index}"${gradientStopsInherited ? ' checked' : ''}>
-                          <label for="entity-${index}-gradient-stops-inherit">Gradient stops inherit</label>
+                          <label for="entity-${index}-gradient-stops-inherit">Inherit card settings</label>
                         </div>
                       </div>
                       ${this._getEffectiveFillStyleValue(scope) !== 'gradient'
@@ -7216,39 +7459,44 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          summary: this._getBaselineOverrideSummary(scope),
 	                          content: `
 	                      <div class="field-row">
+	                        <div class="toggle">
+	                          <input id="entity-${index}-baseline-inherit" type="checkbox" data-kind="entity-baseline-inherit" data-index="${index}"${baselineInherited ? ' checked' : ''}>
+                          <label for="entity-${index}-baseline-inherit">Inherit card settings</label>
+                        </div>
+                      </div>
+	                      <div class="field-row">
 	                        <label for="entity-${index}-baseline-mode">Baseline mode</label>
 	                        <select id="entity-${index}-baseline-mode" data-kind="entity-baseline-mode" data-index="${index}" value="${this._escapeAttribute(baselineMode)}">
-                          <option value="inherit"${baselineMode === 'inherit' ? ' selected' : ''}>inherit</option>
                           <option value="enabled"${baselineMode === 'enabled' ? ' selected' : ''}>enabled</option>
                           <option value="disabled"${baselineMode === 'disabled' ? ' selected' : ''}>disabled</option>
                         </select>
                       </div>
                       <div class="field-row">
-                        <label for="entity-${index}-baseline-value">Baseline fallback value</label>
+                        <label for="entity-${index}-baseline-value">Baseline fallback</label>
                         <input id="entity-${index}-baseline-value" type="number" step="any" data-kind="entity-baseline-value" data-index="${index}" value="${this._escapeAttribute(baselineParts.fixed)}" placeholder="inherit card default">
                       </div>
                       <div class="field-row">
-                        <label>Baseline entity override</label>
+                        <label>Baseline entity</label>
                         ${this._renderEntitySourceInput('entity-baseline-entity-source', index, baselineParts.entity, 'inherit card default')}
                       </div>
                       <div class="field-row">
-                        <label for="entity-${index}-baseline-above-color">Above-baseline fill color</label>
+                        <label for="entity-${index}-baseline-above-color">Above-baseline color</label>
                         ${this._renderColorInput({
                           id: `entity-${index}-baseline-above-color`,
                           kind: 'entity-baseline-above-color',
                           index,
-                          value: this._getBaselineDirectionalColorValue(scope, 'above'),
+                          value: this._getEffectiveBaselineDirectionalColorValue(scope, 'above'),
                           fallbackHex: '#000000',
                           placeholder: 'inherit card default',
                         })}
                       </div>
 	                      <div class="field-row">
-	                        <label for="entity-${index}-baseline-below-color">Below-baseline fill color</label>
+	                        <label for="entity-${index}-baseline-below-color">Below-baseline color</label>
 	                        ${this._renderColorInput({
                           id: `entity-${index}-baseline-below-color`,
                           kind: 'entity-baseline-below-color',
                           index,
-                          value: this._getBaselineDirectionalColorValue(scope, 'below'),
+                          value: this._getEffectiveBaselineDirectionalColorValue(scope, 'below'),
                           fallbackHex: '#000000',
 	                          placeholder: 'inherit card default',
 	                        })}
@@ -7262,19 +7510,24 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                          summary: this._getTargetOverrideSummary(scope),
 	                          content: `
 	                      <div class="field-row">
+	                        <div class="toggle">
+	                          <input id="entity-${index}-target-inherit" type="checkbox" data-kind="entity-target-inherit" data-index="${index}"${targetInherited ? ' checked' : ''}>
+                          <label for="entity-${index}-target-inherit">Inherit card settings</label>
+                        </div>
+                      </div>
+	                      <div class="field-row">
 	                        <label for="entity-${index}-target-mode">Target mode</label>
 	                        <select id="entity-${index}-target-mode" data-kind="entity-target-mode" data-index="${index}" value="${this._escapeAttribute(targetMode)}">
-                          <option value="inherit"${targetMode === 'inherit' ? ' selected' : ''}>inherit</option>
                           <option value="enabled"${targetMode === 'enabled' ? ' selected' : ''}>enabled</option>
                           <option value="disabled"${targetMode === 'disabled' ? ' selected' : ''}>disabled</option>
                         </select>
                       </div>
                       <div class="field-row">
-                        <label for="entity-${index}-target-value">Target fallback value</label>
+                        <label for="entity-${index}-target-value">Target fallback</label>
                         <input id="entity-${index}-target-value" type="number" step="any" data-kind="entity-target-value" data-index="${index}" value="${this._escapeAttribute(targetParts.fixed)}" placeholder="inherit card default">
                       </div>
                       <div class="field-row">
-                        <label>Target entity override</label>
+                        <label>Target entity</label>
                         ${this._renderEntitySourceInput('entity-target-entity-source', index, targetParts.entity, 'inherit card default')}
                       </div>
                       <div class="field-row">
@@ -7283,24 +7536,24 @@ class SensorBarCardPlusEditor extends HTMLElement {
                           id: `entity-${index}-target-color`,
                           kind: 'entity-target-color',
                           index,
-                          value: this._getTargetColorValue(scope),
+                          value: this._getEffectiveTargetColorValue(scope),
                           fallbackHex: '#888',
                           placeholder: 'inherit card default',
                         })}
                       </div>
                       <div class="field-row">
                         <div class="toggle">
-                          <input id="entity-${index}-target-label-show" type="checkbox" data-kind="entity-target-label-show" data-index="${index}"${this._getTargetLabelShowValue(scope) ? ' checked' : ''}>
+                          <input id="entity-${index}-target-label-show" type="checkbox" data-kind="entity-target-label-show" data-index="${index}"${this._getEffectiveTargetLabelShowValue(scope) ? ' checked' : ''}>
                           <label for="entity-${index}-target-label-show">Show target label</label>
                         </div>
                       </div>
 	                      <div class="field-row">
-	                        <label for="entity-${index}-target-above-fill">Above-target fill color</label>
+	                        <label for="entity-${index}-target-above-fill">Above-target color</label>
 	                        ${this._renderColorInput({
                           id: `entity-${index}-target-above-fill`,
                           kind: 'entity-target-above-fill-color',
                           index,
-                          value: this._getTargetAboveFillColorValue(scope),
+                          value: this._getEffectiveTargetAboveFillColorValue(scope),
                           fallbackHex: '#000000',
 	                          placeholder: 'inherit card default',
 	                        })}
@@ -7309,15 +7562,15 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                        });
 	                        return `
 	                          ${scaleGroup}
-	                          ${layoutGroup}
-	                          ${formattingGroup}
-	                          ${peakGroup}
-	                          ${gradientStopsGroup}
-	                          ${segmentsGroup}
 	                          ${targetGroup}
 	                          ${baselineGroup}
-	                          ${barGroup}
 	                          ${needleGroup}
+	                          ${peakGroup}
+	                          ${barGroup}
+	                          ${segmentsGroup}
+	                          ${gradientStopsGroup}
+	                          ${layoutGroup}
+	                          ${formattingGroup}
 	                        `;
 	                      })()}
 	                    </div>
@@ -7325,24 +7578,281 @@ class SensorBarCardPlusEditor extends HTMLElement {
                 `)}
                 <button type="button" data-action="add-entity">Add entity</button>
               </div>
+          </div>
+	        </div>
+
+	        <div class="section">
+	          <div class="section-head">
+	            <h3>Scale</h3>
+	            <div class="section-note">Entity values take precedence. Fixed values are used as fallback.</div>
+	          </div>
+	          <div class="inline-row editor-grid">
+            <div class="field-row">
+              <label for="scale-min">Min fallback</label>
+              <input id="scale-min" type="number" step="any" data-field="scale-min" value="${this._escapeAttribute(scaleMin)}">
+            </div>
+            <div class="field-row">
+              <label>Min entity</label>
+              ${this._renderEntitySourceInput('scale-min-entity-source', 'card', scaleMinEntity)}
+            </div>
+            <div class="field-row">
+              <label for="scale-max">Max fallback</label>
+              <input id="scale-max" type="number" step="any" data-field="scale-max" value="${this._escapeAttribute(scaleMax)}">
+            </div>
+            <div class="field-row">
+              <label>Max entity</label>
+              ${this._renderEntitySourceInput('scale-max-entity-source', 'card', scaleMaxEntity)}
             </div>
           </div>
 	        </div>
 
 	        <div class="section">
 	          <div class="section-head">
-	            <h3>Formatting</h3>
+	            <h3>Markers</h3>
+	            <div class="section-note">Target, baseline, and peak markers help compare the current value against reference points.</div>
+	          </div>
+	          <div class="field-grid">
+            <div class="field-row">
+              <label for="target-mode">Target mode</label>
+              <select id="target-mode" data-field="target-mode" value="${this._escapeAttribute(targetMode)}">
+                <option value="auto"${targetMode === 'auto' ? ' selected' : ''}>auto</option>
+                <option value="enabled"${targetMode === 'enabled' ? ' selected' : ''}>enabled</option>
+                <option value="disabled"${targetMode === 'disabled' ? ' selected' : ''}>disabled</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label for="target-value">Target fallback</label>
+              <input id="target-value" type="number" step="any" data-field="target-value" value="${this._escapeAttribute(target.fixed)}">
+            </div>
+            <div class="field-row">
+              <label>Target entity</label>
+              ${this._renderEntitySourceInput('target-entity-source', 'card', target.entity)}
+            </div>
+            <div class="field-row">
+              <label for="target-color">Target color</label>
+              ${this._renderColorInput({
+                id: 'target-color',
+                field: 'target-color',
+                value: targetColor,
+                fallbackHex: '#888',
+                placeholder: '#888',
+              })}
+            </div>
+            <div class="field-row">
+              <div class="toggle">
+                <input id="target-label-show" type="checkbox" data-field="target-label-show"${targetLabelShow ? ' checked' : ''}>
+                <label for="target-label-show">Show target label</label>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="target-above-fill-color">Above-target color</label>
+              ${this._renderColorInput({
+                id: 'target-above-fill-color',
+                field: 'target-above-fill-color',
+                value: targetAboveFillColor,
+                fallbackHex: '#000000',
+              })}
+            </div>
+            <div class="field-row">
+              <label for="baseline-mode">Baseline mode</label>
+              <select id="baseline-mode" data-field="baseline-mode" value="${this._escapeAttribute(baselineMode)}">
+                <option value="auto"${baselineMode === 'auto' ? ' selected' : ''}>auto</option>
+                <option value="enabled"${baselineMode === 'enabled' ? ' selected' : ''}>enabled</option>
+                <option value="disabled"${baselineMode === 'disabled' ? ' selected' : ''}>disabled</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label for="baseline-value">Baseline fallback</label>
+              <input id="baseline-value" type="number" step="any" data-field="baseline-value" value="${this._escapeAttribute(baseline.fixed)}">
+            </div>
+            <div class="field-row">
+              <label>Baseline entity</label>
+              ${this._renderEntitySourceInput('baseline-entity-source', 'card', baseline.entity)}
+            </div>
+            <div class="field-row">
+              <label for="baseline-above-color">Above-baseline color</label>
+              ${this._renderColorInput({
+                id: 'baseline-above-color',
+                field: 'baseline-above-color',
+                value: baselineAboveColor,
+                fallbackHex: '#000000',
+              })}
+            </div>
+            <div class="field-row">
+              <label for="baseline-below-color">Below-baseline color</label>
+              ${this._renderColorInput({
+                id: 'baseline-below-color',
+                field: 'baseline-below-color',
+                value: baselineBelowColor,
+                fallbackHex: '#000000',
+              })}
+            </div>
+            <div class="field-row">
+              <div class="toggle">
+                <input id="peak-show" type="checkbox" data-field="peak-show"${cardPeak.mode === 'enabled' ? ' checked' : ''}>
+                <label for="peak-show">Peak enabled</label>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="peak-color">Peak color</label>
+              ${this._renderColorInput({
+                id: 'peak-color',
+                field: 'peak-color',
+                value: cardPeak.color,
+                fallbackHex: '#888',
+                placeholder: '#888',
+              })}
+            </div>
+          </div>
+	        </div>
+
+	        <div class="section">
+	          <div class="section-head">
+	            <h3>Bar Appearance</h3>
+	            <div class="section-note">Choose the bar rendering mode and base bar colors.</div>
 	          </div>
 	          <div class="inline-row editor-grid">
             <div class="field-row">
-              <label for="formatting-unit">Unit override</label>
-              <input id="formatting-unit" type="text" data-field="formatting-unit" value="${this._escapeAttribute(formattingUnit)}">
+              <label for="bar-fill-style">Fill style</label>
+              <select id="bar-fill-style" data-field="bar-fill-style" value="${this._escapeAttribute(fillStyle)}">
+                <option value="solid"${fillStyle === 'solid' ? ' selected' : ''}>solid</option>
+                <option value="gradient"${fillStyle === 'gradient' ? ' selected' : ''}>gradient</option>
+                <option value="bands"${fillStyle === 'bands' ? ' selected' : ''}>bands</option>
+                <option value="band_gradient"${fillStyle === 'band_gradient' ? ' selected' : ''}>band_gradient</option>
+                <option value="soft_bands"${fillStyle === 'soft_bands' ? ' selected' : ''}>soft_bands</option>
+              </select>
             </div>
             <div class="field-row">
-              <label for="formatting-decimal">Decimal places</label>
-              <input id="formatting-decimal" type="number" min="0" step="1" data-field="formatting-decimal" value="${this._escapeAttribute(formattingDecimal)}">
+              <label for="bar-color">Bar color</label>
+              ${this._renderColorInput({
+                id: 'bar-color',
+                field: 'bar-color',
+                value: barColor,
+                fallbackHex: '#4a9eff',
+                placeholder: '#4a9eff',
+              })}
+            </div>
+            <div class="field-row">
+              <label for="bar-needle-mode">Needle enabled</label>
+              <select id="bar-needle-mode" data-field="bar-needle-mode" value="${this._escapeAttribute(cardNeedle.mode)}">
+                <option value="disabled"${cardNeedle.mode === 'disabled' ? ' selected' : ''}>disabled</option>
+                <option value="enabled"${cardNeedle.mode === 'enabled' ? ' selected' : ''}>enabled</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label for="bar-needle-color">Needle color</label>
+              ${this._renderColorInput({
+                id: 'bar-needle-color',
+                field: 'bar-needle-color',
+                value: cardNeedle.color,
+                fallbackHex: '#ffffff',
+                placeholder: '#ffffff',
+              })}
             </div>
           </div>
+	        </div>
+
+	        <div class="section">
+	          <div class="section-head">
+	            <h3>Segments</h3>
+	            <div class="section-note">Segments define colored value ranges.</div>
+	          </div>
+	          ${this._renderCardGroup({
+	            group: 'segments',
+	            title: 'Segments',
+	            summary: this._getSegmentsSummary({ type: 'card' }),
+	            inactive: !this._isSegmentFillStyle(fillStyle),
+	            content: `
+	              ${this._isSegmentFillStyle(fillStyle)
+	                ? ''
+	                : '<div class="section-note">Only used with segment-based fill styles.</div>'
+	              }
+	              <div class="field-row">
+	                <div class="toggle">
+	                  <input id="bar-solid-fill" type="checkbox" data-field="bar-solid-fill"${barSolidFill ? ' checked' : ''}>
+	                  <label for="bar-solid-fill">Solid fill</label>
+	                </div>
+	              </div>
+	              <div class="field-row">
+	                <label>Segments</label>
+	                <div class="list">
+	                  ${defaultSegmentsVisible
+	                    ? '<div class="section-note">Default bands</div>'
+	                    : ''
+	                  }
+	                  ${this._renderListRows(segments, (segment, index) => `
+	                    <div class="list-row triple">
+	                      <input type="text" data-kind="segment-from" data-index="${index}" value="${this._escapeAttribute(this._formatSegmentBoundaryValue(segment?.from))}" placeholder="0%">
+	                      <input type="text" data-kind="segment-to" data-index="${index}" value="${this._escapeAttribute(this._formatSegmentBoundaryValue(segment?.to))}" placeholder="100%">
+	                      <input type="color" data-kind="segment-color" data-index="${index}" value="${this._escapeAttribute(segment?.color ?? '#4a9eff')}">
+	                      <button type="button" data-action="remove-segment" data-index="${index}">Remove</button>
+	                    </div>
+	                  `)}
+	                  <button type="button" data-action="add-segment">Add segment</button>
+	                </div>
+	              </div>
+	            `,
+	          })}
+	        </div>
+
+	        <div class="section">
+	          <div class="section-head">
+	            <h3>Gradient Stops</h3>
+	            <div class="section-note">Gradient stops define a smooth color transition from 0 to 100%.</div>
+	          </div>
+	          ${this._renderCardGroup({
+	            group: 'gradient-stops',
+	            title: 'Gradient Stops',
+	            summary: gradientStopsSummary,
+	            inactive: gradientStopsInactive,
+	            content: `
+	              ${gradientStopsInactive
+	                ? '<div class="section-note">Only used with Gradient fill style</div>'
+	                : ''
+	              }
+	              ${this._renderGradientPreview({ type: 'card' }, {
+	                previewId: 'card-gradient-preview',
+	                trackId: 'card-gradient-preview-track',
+	              })}
+	              <div class="field-row">
+	                <label>Gradient stops</label>
+	                <div class="list gradient-stop-list">
+	                  ${this._renderListRows(gradientStops, (stop, index) => `
+	                    <div class="list-row gradient-stop-row">
+	                      <input type="number" min="0" max="100" step="any" data-kind="gradient-pos" data-index="${index}" value="${this._escapeAttribute(this._getGradientStopPosText({ type: 'card' }, index, stop?.pos ?? ''))}" placeholder="0">
+	                      ${this._renderColorInput({
+	                        id: `gradient-color-${index}`,
+	                        kind: 'gradient-color',
+	                        index,
+	                        value: stop?.color ?? '#4a9eff',
+	                        fallbackHex: '#4CAF50',
+	                        placeholder: 'CSS color value',
+	                      })}
+	                      <button type="button" data-action="remove-gradient-stop" data-index="${index}">Remove</button>
+	                    </div>
+	                  `)}
+	                  <div class="gradient-stop-draft">
+	                    <div class="list-row gradient-stop-row">
+	                      <input id="gradient-draft-pos" type="number" min="0" max="100" step="any" data-kind="gradient-draft-pos" value="${this._escapeAttribute(gradientDraft.pos)}" placeholder="0">
+	                      ${this._renderColorInput({
+	                        id: 'gradient-draft-color',
+	                        kind: 'gradient-draft-color',
+	                        index: 'card',
+	                        value: gradientDraft.color,
+	                        fallbackHex: '#4CAF50',
+	                        placeholder: 'CSS color value',
+	                      })}
+	                      <button type="button" data-action="add-gradient-stop"${this._canAddGradientStop({ type: 'card' }) ? '' : ' disabled'}>Add</button>
+	                    </div>
+	                    ${gradientDraftMessage
+	                      ? `<div id="gradient-draft-hint" class="section-note">${this._escapeAttribute(gradientDraftMessage)}</div>`
+	                      : ''
+	                    }
+	                  </div>
+	                </div>
+	              </div>
+	            `,
+	          })}
 	        </div>
 
 	        <div class="section">
@@ -7372,260 +7882,19 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
 	        <div class="section">
 	          <div class="section-head">
-	            <h3>Scale</h3>
+	            <h3>Formatting</h3>
 	          </div>
 	          <div class="inline-row editor-grid">
             <div class="field-row">
-              <label for="scale-min">Min fallback value</label>
-              <input id="scale-min" type="number" step="any" data-field="scale-min" value="${this._escapeAttribute(scaleMin)}">
+              <label for="formatting-unit">Unit</label>
+              <input id="formatting-unit" type="text" data-field="formatting-unit" value="${this._escapeAttribute(formattingUnit)}">
             </div>
             <div class="field-row">
-              <label>Min entity override</label>
-              ${this._renderEntitySourceInput('scale-min-entity-source', 'card', scaleMinEntity)}
-            </div>
-            <div class="field-row">
-              <label for="scale-max">Max fallback value</label>
-              <input id="scale-max" type="number" step="any" data-field="scale-max" value="${this._escapeAttribute(scaleMax)}">
-            </div>
-            <div class="field-row">
-              <label>Max entity override</label>
-              ${this._renderEntitySourceInput('scale-max-entity-source', 'card', scaleMaxEntity)}
+              <label for="formatting-decimal">Decimals</label>
+              <input id="formatting-decimal" type="number" min="0" step="1" data-field="formatting-decimal" value="${this._escapeAttribute(formattingDecimal)}">
             </div>
           </div>
 	        </div>
-
-	        <div class="section">
-	          <div class="section-head">
-	            <h3>Bar Appearance</h3>
-	            <div class="section-note">Core fill, marker, gradient, and segment styling.</div>
-	          </div>
-	          <div class="field-grid">
-	            <div class="inline-row editor-grid">
-              <div class="field-row">
-                <label for="bar-fill-style">Fill style</label>
-                <select id="bar-fill-style" data-field="bar-fill-style" value="${this._escapeAttribute(fillStyle)}">
-                  <option value="solid"${fillStyle === 'solid' ? ' selected' : ''}>solid</option>
-                  <option value="gradient"${fillStyle === 'gradient' ? ' selected' : ''}>gradient</option>
-                  <option value="bands"${fillStyle === 'bands' ? ' selected' : ''}>bands</option>
-                  <option value="band_gradient"${fillStyle === 'band_gradient' ? ' selected' : ''}>band_gradient</option>
-                  <option value="soft_bands"${fillStyle === 'soft_bands' ? ' selected' : ''}>soft_bands</option>
-                </select>
-              </div>
-              <div class="field-row">
-                <label for="bar-color">Bar color</label>
-                ${this._renderColorInput({
-                  id: 'bar-color',
-                  field: 'bar-color',
-                  value: barColor,
-                  fallbackHex: '#4a9eff',
-                  placeholder: '#4a9eff',
-                })}
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="toggle">
-                <input id="bar-solid-fill" type="checkbox" data-field="bar-solid-fill"${barSolidFill ? ' checked' : ''}>
-                <label for="bar-solid-fill">Solid fill</label>
-              </div>
-            </div>
-            <div class="field-row">
-              <label for="bar-needle-mode">Needle enabled</label>
-              <select id="bar-needle-mode" data-field="bar-needle-mode" value="${this._escapeAttribute(cardNeedle.mode)}">
-                <option value="disabled"${cardNeedle.mode === 'disabled' ? ' selected' : ''}>disabled</option>
-                <option value="enabled"${cardNeedle.mode === 'enabled' ? ' selected' : ''}>enabled</option>
-              </select>
-            </div>
-            <div class="field-row">
-              <label for="bar-needle-color">Needle color</label>
-              ${this._renderColorInput({
-                id: 'bar-needle-color',
-                field: 'bar-needle-color',
-                value: cardNeedle.color,
-                fallbackHex: '#ffffff',
-                placeholder: '#ffffff',
-              })}
-            </div>
-            ${this._renderCardGroup({
-              group: 'gradient-stops',
-              title: 'Gradient Stops',
-              summary: gradientStopsSummary,
-              inactive: gradientStopsInactive,
-              content: `
-                ${gradientStopsInactive
-                  ? '<div class="section-note">Only used with Gradient fill style</div>'
-                  : ''
-                }
-                ${this._renderGradientPreview({ type: 'card' }, {
-                  previewId: 'card-gradient-preview',
-                  trackId: 'card-gradient-preview-track',
-                })}
-                <div class="field-row">
-                  <label>Gradient stops</label>
-                  <div class="list gradient-stop-list">
-                    ${this._renderListRows(gradientStops, (stop, index) => `
-                      <div class="list-row gradient-stop-row">
-                        <input type="number" min="0" max="100" step="any" data-kind="gradient-pos" data-index="${index}" value="${this._escapeAttribute(this._getGradientStopPosText({ type: 'card' }, index, stop?.pos ?? ''))}" placeholder="0">
-                        ${this._renderColorInput({
-                          id: `gradient-color-${index}`,
-                          kind: 'gradient-color',
-                          index,
-                          value: stop?.color ?? '#4a9eff',
-                          fallbackHex: '#4CAF50',
-                          placeholder: 'CSS color value',
-                        })}
-                        <button type="button" data-action="remove-gradient-stop" data-index="${index}">Remove</button>
-                      </div>
-                    `)}
-                    <div class="gradient-stop-draft">
-                      <div class="list-row gradient-stop-row">
-                        <input id="gradient-draft-pos" type="number" min="0" max="100" step="any" data-kind="gradient-draft-pos" value="${this._escapeAttribute(gradientDraft.pos)}" placeholder="0">
-                        ${this._renderColorInput({
-                          id: 'gradient-draft-color',
-                          kind: 'gradient-draft-color',
-                          index: 'card',
-                          value: gradientDraft.color,
-                          fallbackHex: '#4CAF50',
-                          placeholder: 'CSS color value',
-                        })}
-                        <button type="button" data-action="add-gradient-stop"${this._canAddGradientStop({ type: 'card' }) ? '' : ' disabled'}>Add</button>
-                      </div>
-                      ${gradientDraftMessage
-                        ? `<div id="gradient-draft-hint" class="section-note">${this._escapeAttribute(gradientDraftMessage)}</div>`
-                        : ''
-                      }
-                    </div>
-                  </div>
-                </div>
-              `,
-            })}
-            <div class="field-row">
-              <label>Segments</label>
-              <div class="list">
-                ${defaultSegmentsVisible
-                  ? '<div class="section-note">Default bands</div>'
-                  : ''
-                }
-                ${this._renderListRows(segments, (segment, index) => `
-                  <div class="list-row triple">
-                    <input type="text" data-kind="segment-from" data-index="${index}" value="${this._escapeAttribute(this._formatSegmentBoundaryValue(segment?.from))}" placeholder="0%">
-                    <input type="text" data-kind="segment-to" data-index="${index}" value="${this._escapeAttribute(this._formatSegmentBoundaryValue(segment?.to))}" placeholder="100%">
-                    <input type="color" data-kind="segment-color" data-index="${index}" value="${this._escapeAttribute(segment?.color ?? '#4a9eff')}">
-                    <button type="button" data-action="remove-segment" data-index="${index}">Remove</button>
-                  </div>
-                `)}
-                <button type="button" data-action="add-segment">Add segment</button>
-              </div>
-            </div>
-          </div>
-	        </div>
-
-	        <div class="section">
-	          <div class="section-head">
-	            <h3>Peak Marker</h3>
-	          </div>
-	          <div class="inline-row editor-grid">
-            <div class="field-row">
-              <div class="toggle">
-                <input id="peak-show" type="checkbox" data-field="peak-show"${cardPeak.mode === 'enabled' ? ' checked' : ''}>
-                <label for="peak-show">Peak enabled</label>
-              </div>
-            </div>
-            <div class="field-row">
-              <label for="peak-color">Peak color</label>
-              ${this._renderColorInput({
-                id: 'peak-color',
-                field: 'peak-color',
-                value: cardPeak.color,
-                fallbackHex: '#888',
-                placeholder: '#888',
-              })}
-            </div>
-          </div>
-	        </div>
-
-	        <div class="section">
-	          <div class="section-head">
-	            <h3>Markers</h3>
-	            <div class="section-note">Baseline and target configuration.</div>
-	          </div>
-	          <div class="field-grid">
-            <div class="field-row">
-              <label for="baseline-mode">Baseline mode</label>
-              <select id="baseline-mode" data-field="baseline-mode" value="${this._escapeAttribute(baselineMode)}">
-                <option value="auto"${baselineMode === 'auto' ? ' selected' : ''}>auto</option>
-                <option value="enabled"${baselineMode === 'enabled' ? ' selected' : ''}>enabled</option>
-                <option value="disabled"${baselineMode === 'disabled' ? ' selected' : ''}>disabled</option>
-              </select>
-            </div>
-            <div class="field-row">
-              <label for="baseline-value">Baseline fallback value</label>
-              <input id="baseline-value" type="number" step="any" data-field="baseline-value" value="${this._escapeAttribute(baseline.fixed)}">
-            </div>
-            <div class="field-row">
-              <label>Baseline entity override</label>
-              ${this._renderEntitySourceInput('baseline-entity-source', 'card', baseline.entity)}
-            </div>
-            <div class="field-row">
-              <label for="baseline-above-color">Above-baseline fill color</label>
-              ${this._renderColorInput({
-                id: 'baseline-above-color',
-                field: 'baseline-above-color',
-                value: baselineAboveColor,
-                fallbackHex: '#000000',
-              })}
-            </div>
-            <div class="field-row">
-              <label for="baseline-below-color">Below-baseline fill color</label>
-              ${this._renderColorInput({
-                id: 'baseline-below-color',
-                field: 'baseline-below-color',
-                value: baselineBelowColor,
-                fallbackHex: '#000000',
-              })}
-            </div>
-            <div class="field-row">
-              <label for="target-mode">Target mode</label>
-              <select id="target-mode" data-field="target-mode" value="${this._escapeAttribute(targetMode)}">
-                <option value="auto"${targetMode === 'auto' ? ' selected' : ''}>auto</option>
-                <option value="enabled"${targetMode === 'enabled' ? ' selected' : ''}>enabled</option>
-                <option value="disabled"${targetMode === 'disabled' ? ' selected' : ''}>disabled</option>
-              </select>
-            </div>
-            <div class="field-row">
-              <label for="target-value">Target fallback value</label>
-              <input id="target-value" type="number" step="any" data-field="target-value" value="${this._escapeAttribute(target.fixed)}">
-            </div>
-            <div class="field-row">
-              <label>Target entity override</label>
-              ${this._renderEntitySourceInput('target-entity-source', 'card', target.entity)}
-            </div>
-            <div class="field-row">
-              <label for="target-color">Target color</label>
-              ${this._renderColorInput({
-                id: 'target-color',
-                field: 'target-color',
-                value: targetColor,
-                fallbackHex: '#888',
-                placeholder: '#888',
-              })}
-            </div>
-            <div class="field-row">
-              <div class="toggle">
-                <input id="target-label-show" type="checkbox" data-field="target-label-show"${targetLabelShow ? ' checked' : ''}>
-                <label for="target-label-show">Show target label</label>
-              </div>
-            </div>
-            <div class="field-row">
-              <label for="target-above-fill-color">Above-target fill color</label>
-              ${this._renderColorInput({
-                id: 'target-above-fill-color',
-                field: 'target-above-fill-color',
-                value: targetAboveFillColor,
-                fallbackHex: '#000000',
-              })}
-            </div>
-          </div>
-        </div>
       </div>
     `;
 
@@ -7666,49 +7935,49 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
       if (kind === 'scale-min-entity-source') {
         picker.value = this._getScaleEntityValue('min');
-        picker.label = 'Min entity override';
+        picker.label = 'Min entity';
         return;
       }
 
       if (kind === 'scale-max-entity-source') {
         picker.value = this._getScaleEntityValue('max');
-        picker.label = 'Max entity override';
+        picker.label = 'Max entity';
         return;
       }
 
       if (kind === 'baseline-entity-source') {
         picker.value = this._getBaselineResolvableValue({ type: 'card' }).entity;
-        picker.label = 'Baseline entity override';
+        picker.label = 'Baseline entity';
         return;
       }
 
       if (kind === 'target-entity-source') {
         picker.value = this._getTargetResolvableValue({ type: 'card' }).entity;
-        picker.label = 'Target entity override';
+        picker.label = 'Target entity';
         return;
       }
 
       if (kind === 'entity-override-min-entity-source') {
-        picker.value = this._getResolvableScopedValue({ type: 'entity', index }, 'min').entity;
-        picker.label = `Entity ${index + 1} min override`;
+        picker.value = this._getEffectiveResolvableScopedValue({ type: 'entity', index }, 'min').entity;
+        picker.label = `Entity ${index + 1} min entity`;
         return;
       }
 
       if (kind === 'entity-override-max-entity-source') {
-        picker.value = this._getResolvableScopedValue({ type: 'entity', index }, 'max').entity;
-        picker.label = `Entity ${index + 1} max override`;
+        picker.value = this._getEffectiveResolvableScopedValue({ type: 'entity', index }, 'max').entity;
+        picker.label = `Entity ${index + 1} max entity`;
         return;
       }
 
       if (kind === 'entity-baseline-entity-source') {
-        picker.value = this._getBaselineResolvableValue({ type: 'entity', index }).entity;
-        picker.label = `Entity ${index + 1} baseline override`;
+        picker.value = this._getEffectiveBaselineResolvableValue({ type: 'entity', index }).entity;
+        picker.label = `Entity ${index + 1} baseline entity`;
         return;
       }
 
       if (kind === 'entity-target-entity-source') {
-        picker.value = this._getTargetResolvableValue({ type: 'entity', index }).entity;
-        picker.label = `Entity ${index + 1} target override`;
+        picker.value = this._getEffectiveTargetResolvableValue({ type: 'entity', index }).entity;
+        picker.label = `Entity ${index + 1} target entity`;
       }
     };
 
@@ -7997,16 +8266,9 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return void this._setTargetResolvablePart({ type: 'card' }, 'entity', value);
     }
 
-    if (kind === 'entity-override-min-inherit') {
+    if (kind === 'entity-scale-inherit') {
       if (value) {
-        return void this._clearCanonicalResolvableValue({ type: 'entity', index: Number(target.dataset.index) }, 'min');
-      }
-      return;
-    }
-
-    if (kind === 'entity-override-max-inherit') {
-      if (value) {
-        return void this._clearCanonicalResolvableValue({ type: 'entity', index: Number(target.dataset.index) }, 'max');
+        return void this._clearScaleOverride({ type: 'entity', index: Number(target.dataset.index) });
       }
       return;
     }
@@ -8097,6 +8359,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return;
     }
 
+    if (kind === 'entity-needle-inherit') {
+      if (value) {
+        return void this._removeScopedNeedle({ type: 'entity', index: Number(target.dataset.index) });
+      }
+      return;
+    }
+
     if (kind === 'entity-bar-fill-style') {
       return void this._setScopedBarFillStyle({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
@@ -8121,6 +8390,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
       return void this._setBaselineMode({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
 
+    if (kind === 'entity-baseline-inherit') {
+      if (value) {
+        return void this._clearBaselineOverride({ type: 'entity', index: Number(target.dataset.index) });
+      }
+      return;
+    }
+
     if (kind === 'entity-baseline-value') {
       return void this._setBaselineResolvablePart({ type: 'entity', index: Number(target.dataset.index) }, 'fixed', value);
     }
@@ -8139,6 +8415,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
     if (kind === 'entity-target-mode') {
       return void this._setTargetMode({ type: 'entity', index: Number(target.dataset.index) }, value);
+    }
+
+    if (kind === 'entity-target-inherit') {
+      if (value) {
+        return void this._clearTargetOverride({ type: 'entity', index: Number(target.dataset.index) });
+      }
+      return;
     }
 
     if (kind === 'entity-target-value') {
