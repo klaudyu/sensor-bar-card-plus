@@ -3230,6 +3230,53 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(finalConfig.color).toBeUndefined();
   });
 
+  it('default card-level segment rows are visible without emission', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'bands',
+      },
+    });
+
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')).toHaveLength(3);
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[0].value).toBe('0%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[0].value).toBe('33%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[1].value).toBe('33%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[1].value).toBe('75%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[2].value).toBe('75%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[2].value).toBe('100%');
+    expect(editor.shadowRoot.innerHTML).toContain('Default bands');
+    expect(events).toHaveLength(0);
+  });
+
+  it('Add segment from default card-level rows creates explicit custom segments', async () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'bands',
+      },
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="add-segment"]')[0]);
+    await flushTimers();
+
+    const finalConfig = events.at(-1).detail.config;
+    expect(finalConfig.bar.segments).toEqual([
+      { from: '0%', to: '33%', color: '#4CAF50' },
+      { from: '33%', to: '75%', color: '#FF9800' },
+      { from: '75%', to: '100%', color: '#F44336' },
+      { from: '100%', to: '100%', color: '#4a9eff' },
+    ]);
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[3].value).toBe('100%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[3].value).toBe('100%');
+  });
+
   it('Add segment creates a new row with smart defaults', async () => {
     const editor = createEditor();
     const events = trackConfigEvents(editor);
@@ -3253,6 +3300,29 @@ describe('Sensor Bar Card Plus editor', () => {
     ]);
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-from"]')[1].value).toBe('20%');
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[1].value).toBe('100%');
+  });
+
+  it('editing a default card-level segment row emits explicit bar.segments', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'soft_bands',
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-to"]')[1], '80%');
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      fill_style: 'soft_bands',
+      segments: [
+        { from: '0%', to: '33%', color: '#4CAF50' },
+        { from: '33%', to: '80%', color: '#FF9800' },
+        { from: '75%', to: '100%', color: '#F44336' },
+      ],
+    });
   });
 
   it('segment rows accept percent input and emit structured bar.segments', () => {
@@ -3304,6 +3374,67 @@ describe('Sensor Bar Card Plus editor', () => {
         { from: '20%', to: '100%', color: '#4a9eff' },
       ],
     });
+  });
+
+  it('removing a default card-level segment row emits explicit bar.segments', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'band_gradient',
+      },
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="remove-segment"]')[1]);
+
+    expect(events.at(-1).detail.config.bar).toEqual({
+      fill_style: 'band_gradient',
+      segments: [
+        { from: '0%', to: '33%', color: '#4CAF50' },
+        { from: '75%', to: '100%', color: '#F44336' },
+      ],
+    });
+  });
+
+  it('restoring exact default card-level segments suppresses bar.segments', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'bands',
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-color"]')[1], '#ffff00');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-color"]')[1], '#ff9800');
+
+    expect(events.at(-1).detail.config.bar.segments).toBeUndefined();
+    expect(editor.shadowRoot.innerHTML).toContain('Default bands');
+  });
+
+  it('default card-level segment equivalence ignores hex case', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      bar: {
+        fill_style: 'bands',
+        segments: [
+          { from: '0%', to: '33%', color: '#4CAF50' },
+          { from: '33%', to: '75%', color: '#ffff00' },
+          { from: '75%', to: '100%', color: '#f44336' },
+        ],
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="segment-color"]')[1], '#ff9800');
+
+    expect(events.at(-1).detail.config.bar.segments).toBeUndefined();
   });
 
   it('editing flat-loaded segments converts them to structured bar.segments', () => {
@@ -5415,6 +5546,22 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.innerHTML).toContain('>Inherited</span>');
   });
 
+  it('per-entity inherited/default segment rows are visible without emission', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', bar: { fill_style: 'bands' } }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-segments'));
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-segment-from"]')).toHaveLength(3);
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-segment-from"]')[0].value).toBe('0%');
+    expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-segment-to"]')[2].value).toBe('100%');
+    expect(events).toHaveLength(0);
+  });
+
   it('per-entity segments summary renders segment count', () => {
     const editor = createEditor();
 
@@ -5454,6 +5601,36 @@ describe('Sensor Bar Card Plus editor', () => {
     expect(editor.shadowRoot.querySelectorAll('input[data-kind="entity-segment-to"]')[1].value).toBe('100%');
   });
 
+  it('adding from inherited/default entity segments emits explicit entity-level bar.segments', async () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', bar: { fill_style: 'bands', color: '#ff9800' } }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-segments'));
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="add-entity-segment"]')[0]);
+    await flushTimers();
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        bar: {
+          fill_style: 'bands',
+          color: '#ff9800',
+          segments: [
+            { from: '0%', to: '33%', color: '#4CAF50' },
+            { from: '33%', to: '75%', color: '#FF9800' },
+            { from: '75%', to: '100%', color: '#F44336' },
+            { from: '100%', to: '100%', color: '#4a9eff' },
+          ],
+        },
+      },
+    ]);
+  });
+
   it('per-entity segment rows accept percent input and emit structured bar.segments', () => {
     const editor = createEditor();
     const events = trackConfigEvents(editor);
@@ -5480,6 +5657,33 @@ describe('Sensor Bar Card Plus editor', () => {
     ]);
     expect(events.at(-1).detail.config.entities[0].segments).toBeUndefined();
     expect(events.at(-1).detail.config.entities[0].severity).toBeUndefined();
+  });
+
+  it('editing inherited/default entity segment rows emits entity-level bar.segments', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', bar: { fill_style: 'soft_bands' } }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-segments'));
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-segment-to"]')[1], '80%');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        bar: {
+          fill_style: 'soft_bands',
+          segments: [
+            { from: '0%', to: '33%', color: '#4CAF50' },
+            { from: '33%', to: '80%', color: '#FF9800' },
+            { from: '75%', to: '100%', color: '#F44336' },
+          ],
+        },
+      },
+    ]);
   });
 
   it('per-entity Remove segment removes the selected row', () => {
@@ -5544,6 +5748,30 @@ describe('Sensor Bar Card Plus editor', () => {
         custom_entity_key: 'keep',
       },
     ]);
+  });
+
+  it('restoring inherited/default entity segments suppresses entity-level override', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', bar: { fill_style: 'bands' } }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-segments'));
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-segment-color"]')[1], '#ffff00');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-segment-color"]')[1], '#ff9800');
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        bar: {
+          fill_style: 'bands',
+        },
+      },
+    ]);
+    expect(editor.shadowRoot.innerHTML).toContain('>Inherited</span>');
   });
 
   it('per-entity segment overrides stay isolated per entity', () => {
