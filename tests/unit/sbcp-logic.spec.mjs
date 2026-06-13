@@ -1213,6 +1213,94 @@ describe('Sensor Bar Card Plus logic', () => {
     expect(peakMarker.style.__writes).toEqual([]);
   });
 
+  it('does not move the stored peak downward during _patchRow', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      min: 0,
+      max: 100,
+      peak: { enabled: true, color: '#7c3aed' },
+      bar: { needle: true },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    }).entities[0];
+
+    card._peaks['sensor.row'] = 80;
+    const peakMarker = createTrackedElement({
+      style: {
+        left: '80%',
+        '--marker-color': '#7c3aed',
+        '--marker-contrast-color': card._getMarkerContrastColor('#7c3aed'),
+      },
+    });
+    const row = createTrackedRow({
+      '.peak-marker': peakMarker,
+      '.needle-marker': createTrackedElement({ style: { left: '20%' } }),
+    }, {
+      baseHeight: '38',
+      heightExplicit: 'false',
+      barAnimated: 'true',
+    });
+
+    card._patchRow(row, cfg, {
+      state: '20',
+      attributes: {
+        friendly_name: 'Row',
+        icon: 'mdi:flash',
+        unit_of_measurement: 'W',
+      },
+    });
+
+    expect(card._peaks['sensor.row']).toBe(80);
+    expect(peakMarker.style.left).toBe('80%');
+  });
+
+  it('preserves a higher stored peak during a full _update rebuild', () => {
+    const card = createCard();
+    card._config = card.normalizeCardConfig({
+      min: 0,
+      max: 100,
+      peak: { enabled: true, color: '#7c3aed' },
+      entities: [{ entity: 'sensor.row', name: 'Sensor' }],
+    });
+    card._hass = {
+      states: {
+        'sensor.row': {
+          state: '20',
+          attributes: {
+            friendly_name: 'Row',
+            icon: 'mdi:flash',
+            unit_of_measurement: 'W',
+          },
+        },
+      },
+    };
+    card._peaks['sensor.row'] = 80;
+    card.shadowRoot = {
+      querySelectorAll: () => [],
+      querySelector: (selector) => (
+        selector === '.rows'
+          ? {
+            innerHTML: '',
+            querySelectorAll: () => [],
+          }
+          : null
+      ),
+    };
+
+    let capturedPeakPct = null;
+    let capturedPeakDisplay = null;
+    card._buildRow = (_entityCfg, _display, _displayUnit, _pct, _color, peakPct, peakDisplay) => {
+      capturedPeakPct = peakPct;
+      capturedPeakDisplay = peakDisplay;
+      return '<div class="row" data-entity="sensor.row"></div>';
+    };
+
+    card._update();
+
+    expect(card._peaks['sensor.row']).toBe(80);
+    expect(capturedPeakPct).toBe(80);
+    expect(capturedPeakDisplay).toBe('80');
+  });
+
   it('does not recreate or rewrite an unchanged needle marker during _patchRow', () => {
     const card = createCard();
     const cfg = card.normalizeCardConfig({
