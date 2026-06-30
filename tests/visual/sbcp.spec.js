@@ -531,6 +531,117 @@ for (const scenario of scenarios) {
   });
 }
 
+test('visual: major-only scale ticks render with labels', async ({ page }) => {
+  await render(page, {
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Major ticks',
+      label_position: 'left',
+      animated: false,
+      min: 0,
+      max: 100,
+      scale: {
+        ticks: {
+          enabled: true,
+          major: {
+            modulo: 25,
+            labels: { show: true },
+          },
+        },
+      },
+      entities: [{ entity: 'sensor.main_positive', name: 'Major only' }],
+    },
+  });
+
+  const counts = await page.evaluate(() => {
+    const card = document.querySelector('sensor-bar-card-plus');
+    return {
+      major: card.shadowRoot.querySelectorAll('.scale-tick-major').length,
+      minor: card.shadowRoot.querySelectorAll('.scale-tick-minor').length,
+      labels: [...card.shadowRoot.querySelectorAll('.scale-tick-label')].map(label => label.textContent.trim()),
+    };
+  });
+
+  expect(counts.major).toBe(5);
+  expect(counts.minor).toBe(0);
+  expect(counts.labels).toEqual(['0', '25', '50', '75', '100']);
+});
+
+test('visual: major and decimal minor scale ticks render with overlap removed', async ({ page }) => {
+  await render(page, {
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Minor ticks',
+      label_position: 'left',
+      animated: false,
+      min: -1,
+      max: 1,
+      scale: {
+        ticks: {
+          enabled: true,
+          major: { modulo: 0.5 },
+          minor: { modulo: 0.1 },
+        },
+      },
+      entities: [{ entity: 'sensor.main_positive', name: 'Major and minor' }],
+    },
+  });
+
+  const counts = await page.evaluate(() => {
+    const card = document.querySelector('sensor-bar-card-plus');
+    return {
+      major: card.shadowRoot.querySelectorAll('.scale-tick-major').length,
+      minor: card.shadowRoot.querySelectorAll('.scale-tick-minor').length,
+    };
+  });
+
+  expect(counts.major).toBe(5);
+  expect(counts.minor).toBe(16);
+});
+
+test('visual: scale ticks update when dynamic scale changes', async ({ page }) => {
+  await render(page, {
+    config: {
+      type: 'custom:sensor-bar-card-plus',
+      title: 'Dynamic ticks',
+      label_position: 'left',
+      animated: false,
+      scale: {
+        min: { entity: 'sensor.dynamic_min', fixed: 0 },
+        max: { entity: 'sensor.dynamic_max', fixed: 100 },
+        ticks: {
+          enabled: true,
+          major: { modulo: 50 },
+        },
+      },
+      entities: [{ entity: 'sensor.main_positive', name: 'Dynamic scale' }],
+    },
+    states: {
+      ...baseStates,
+      'sensor.dynamic_min': sensor(0),
+      'sensor.dynamic_max': sensor(100),
+    },
+  });
+
+  const before = await page.evaluate(() => document.querySelector('sensor-bar-card-plus').shadowRoot.querySelectorAll('.scale-tick-major').length);
+
+  const after = await page.evaluate(async ({ states }) => {
+    const card = document.querySelector('sensor-bar-card-plus');
+    card.hass = {
+      states: {
+        ...states,
+        'sensor.dynamic_min': window.__sbcpCreateState(-100),
+        'sensor.dynamic_max': window.__sbcpCreateState(100),
+      },
+    };
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return card.shadowRoot.querySelectorAll('.scale-tick-major').length;
+  }, { states: baseStates });
+
+  expect(before).toBe(3);
+  expect(after).toBe(5);
+});
+
 test('visual regression: baseline-severity-mid-transition', async ({ page }) => {
   const config = {
     type: 'custom:sensor-bar-card-plus',

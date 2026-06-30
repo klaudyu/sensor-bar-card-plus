@@ -482,10 +482,97 @@ class SensorBarCard extends HTMLElement {
     return this.normalizeResolvableValue(value, entity);
   }
 
+  normalizeTickLevelConfig(input, inherited = null, defaults = {}) {
+    const allowLabels = defaults.allowLabels !== false;
+    const inheritedLevel = inherited ?? {
+      modulo: null,
+      color: defaults.color ?? null,
+      labels: {
+        show: false,
+        color: defaults.labelColor ?? null,
+      },
+    };
+
+    if (input === undefined) {
+      return {
+        modulo: inheritedLevel.modulo ?? null,
+        color: inheritedLevel.color ?? defaults.color ?? null,
+        labels: {
+          show: allowLabels ? !!inheritedLevel.labels?.show : false,
+          color: allowLabels ? (inheritedLevel.labels?.color ?? defaults.labelColor ?? null) : null,
+        },
+      };
+    }
+
+    if (input === null || input === false) {
+      return {
+        modulo: null,
+        color: defaults.color ?? null,
+        labels: {
+          show: false,
+          color: defaults.labelColor ?? null,
+        },
+      };
+    }
+
+    if (typeof input !== 'object' || Array.isArray(input)) {
+      return {
+        ...inheritedLevel,
+        modulo: this._getFiniteNumber(input),
+        labels: {
+          show: allowLabels ? !!inheritedLevel.labels?.show : false,
+          color: allowLabels ? (inheritedLevel.labels?.color ?? defaults.labelColor ?? null) : null,
+        },
+      };
+    }
+
+    return {
+      modulo: input.modulo !== undefined ? this._getFiniteNumber(input.modulo) : (inheritedLevel.modulo ?? null),
+      color: input.color ?? inheritedLevel.color ?? defaults.color ?? null,
+      labels: {
+        show: allowLabels ? !!(input.labels?.show ?? inheritedLevel.labels?.show ?? false) : false,
+        color: allowLabels ? (input.labels?.color ?? inheritedLevel.labels?.color ?? defaults.labelColor ?? null) : null,
+      },
+    };
+  }
+
+  normalizeScaleTicksConfig(entityConfig, cardConfig) {
+    const cardTicks = cardConfig?.scale?.ticks;
+    const rawTicks = entityConfig?.scale?.ticks;
+    const inherited = cardTicks ?? {
+      enabled: false,
+      major: this.normalizeTickLevelConfig(undefined, null, { color: 'rgba(255,255,255,0.68)', labelColor: 'var(--secondary-text-color, #666)' }),
+      minor: this.normalizeTickLevelConfig(undefined, null, { color: 'rgba(255,255,255,0.36)', allowLabels: false }),
+    };
+
+    if (rawTicks === undefined) {
+      return {
+        enabled: !!inherited.enabled,
+        major: this.normalizeTickLevelConfig(undefined, inherited.major, { color: 'rgba(255,255,255,0.68)', labelColor: 'var(--secondary-text-color, #666)' }),
+        minor: this.normalizeTickLevelConfig(undefined, inherited.minor, { color: 'rgba(255,255,255,0.36)', allowLabels: false }),
+      };
+    }
+
+    if (rawTicks === null || rawTicks === false) {
+      return {
+        enabled: false,
+        major: this.normalizeTickLevelConfig(null, null, { color: 'rgba(255,255,255,0.68)', labelColor: 'var(--secondary-text-color, #666)' }),
+        minor: this.normalizeTickLevelConfig(null, null, { color: 'rgba(255,255,255,0.36)', allowLabels: false }),
+      };
+    }
+
+    return {
+      enabled: rawTicks.enabled !== undefined ? rawTicks.enabled !== false : !!inherited.enabled,
+      major: this.normalizeTickLevelConfig(rawTicks.major, inherited.major, { color: 'rgba(255,255,255,0.68)', labelColor: 'var(--secondary-text-color, #666)' }),
+      minor: this.normalizeTickLevelConfig(rawTicks.minor, inherited.minor, { color: 'rgba(255,255,255,0.36)', allowLabels: false }),
+    };
+  }
+
   normalizeScaleConfig(entityConfig, cardConfig) {
     return {
       min: this.normalizeScaleBound(entityConfig, cardConfig, 'min', 0),
       max: this.normalizeScaleBound(entityConfig, cardConfig, 'max', 100),
+      ticks: this.normalizeScaleTicksConfig(entityConfig, cardConfig),
     };
   }
 
@@ -851,6 +938,25 @@ class SensorBarCard extends HTMLElement {
     if ((el.className ?? '') === nextValue) return false;
     el.className = nextValue;
     return true;
+  }
+
+  _replaceElementMarkup(existingEl, markup, insertParent = null, insertPosition = 'beforeend') {
+    if (existingEl) {
+      if (markup) {
+        if (existingEl.outerHTML !== undefined && existingEl.outerHTML !== markup) {
+          existingEl.outerHTML = markup;
+        }
+      } else if (typeof existingEl.remove === 'function') {
+        existingEl.remove();
+      } else if (existingEl.parentNode?.removeChild) {
+        existingEl.parentNode.removeChild(existingEl);
+      }
+      return;
+    }
+
+    if (markup && insertParent?.insertAdjacentHTML) {
+      insertParent.insertAdjacentHTML(insertPosition, markup);
+    }
   }
   
   _repositionAllTargetLabels() {
@@ -1261,6 +1367,87 @@ class SensorBarCard extends HTMLElement {
     const safeMax = Number.isFinite(maxValue) ? maxValue : 100;
     const range = safeMax - safeMin || 1;
     return Math.min(100, Math.max(0, ((value - safeMin) / range) * 100));
+  }
+
+  _getDecimalPrecision(value) {
+    const text = String(value);
+    const exponentMatch = text.match(/e-(\d+)$/i);
+    if (exponentMatch) return Number(exponentMatch[1]);
+    const decimal = text.split('.')[1];
+    return decimal ? decimal.length : 0;
+  }
+
+  _getTickScaleFactor(...values) {
+    const precision = Math.max(0, ...values.map(value => this._getDecimalPrecision(value)));
+    return 10 ** Math.min(12, precision);
+  }
+
+  _formatTickLabel(value, modulo) {
+    const precision = Math.min(6, this._getDecimalPrecision(modulo));
+    return parseFloat(value.toFixed(precision)).toLocaleString();
+  }
+
+  _generateTickLevel(levelConfig, level, minValue, maxValue, occupiedValues = new Set()) {
+    const modulo = this._getFiniteNumber(levelConfig?.modulo);
+    if (!Number.isFinite(modulo) || modulo <= 0) return [];
+
+    const safeMin = Math.min(minValue, maxValue);
+    const safeMax = Math.max(minValue, maxValue);
+    const factor = this._getTickScaleFactor(safeMin, safeMax, modulo);
+    const scaledModulo = Math.round(modulo * factor);
+    if (scaledModulo <= 0) return [];
+
+    const scaledMin = Math.ceil((safeMin * factor) / scaledModulo) * scaledModulo;
+    const scaledMax = Math.floor((safeMax * factor) / scaledModulo) * scaledModulo;
+    const ticks = [];
+
+    for (let scaledValue = scaledMin; scaledValue <= scaledMax; scaledValue += scaledModulo) {
+      const value = scaledValue / factor;
+      const valueKey = String(scaledValue);
+      if (occupiedValues.has(valueKey)) continue;
+      const pct = this._toScalePct(value, minValue, maxValue);
+      if (!Number.isFinite(pct)) continue;
+      ticks.push({
+        level,
+        value,
+        pct,
+        color: levelConfig?.color ?? null,
+        label: level === 'major' && levelConfig?.labels?.show
+          ? this._formatTickLabel(value, modulo)
+          : null,
+        labelColor: level === 'major' ? (levelConfig?.labels?.color ?? null) : null,
+        key: valueKey,
+      });
+    }
+
+    return ticks;
+  }
+
+  _generateScaleTicks(scaleConfig, minValue, maxValue) {
+    if (!scaleConfig?.ticks?.enabled || !Number.isFinite(minValue) || !Number.isFinite(maxValue) || minValue === maxValue) {
+      return [];
+    }
+
+    const major = this._generateTickLevel(scaleConfig.ticks.major, 'major', minValue, maxValue);
+    const minor = this._generateTickLevel(scaleConfig.ticks.minor, 'minor', minValue, maxValue)
+      .filter(minorTick => !major.some(majorTick => Math.abs(majorTick.value - minorTick.value) < 1e-9));
+    return [...minor, ...major].sort((left, right) => left.pct - right.pct || (left.level === 'major' ? -1 : 1));
+  }
+
+  _buildTickMarksMarkup(scaleConfig, minValue, maxValue) {
+    const ticks = this._generateScaleTicks(scaleConfig, minValue, maxValue);
+    if (!ticks.length) return '';
+    return `<div class="scale-ticks" aria-hidden="true">${ticks.map(tick => `
+                  <div class="scale-tick scale-tick-${tick.level}" style="left:${tick.pct}%;--tick-color:${tick.color || 'currentColor'};"></div>`).join('')}
+                </div>`;
+  }
+
+  _buildTickLabelsMarkup(scaleConfig, minValue, maxValue) {
+    const ticks = this._generateScaleTicks(scaleConfig, minValue, maxValue).filter(tick => tick.level === 'major' && tick.label !== null);
+    if (!ticks.length) return '';
+    return `<div class="scale-tick-labels">${ticks.map(tick => `
+                <span class="scale-tick-label" style="left:${tick.pct}%;--tick-label-color:${tick.labelColor || 'var(--secondary-text-color, #666)'};">${tick.label}</span>`).join('')}
+              </div>`;
   }
 
   _resolveBaselinePct(ecfg, safeMin, safeMax) {
@@ -1720,6 +1907,47 @@ _getAboveTargetLayerGeometry(targetPct = null) {
         }
         .bar-paint-layer[data-layer="above-target"] {
           z-index: 2;
+        }
+        .scale-ticks {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 3;
+        }
+        .scale-tick {
+          position: absolute;
+          bottom: 0;
+          width: 1px;
+          transform: translateX(-0.5px);
+          background: var(--tick-color);
+          opacity: 0.95;
+        }
+        .scale-tick-minor {
+          height: 32%;
+        }
+        .scale-tick-major {
+          height: 58%;
+          width: 2px;
+          transform: translateX(-1px);
+        }
+        .scale-tick-labels {
+          position: relative;
+          height: 14px;
+          margin-top: 2px;
+          pointer-events: none;
+        }
+        .scale-tick-label {
+          position: absolute;
+          top: 0;
+          transform: translateX(-50%);
+          max-width: 44px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 10px;
+          line-height: 1.1;
+          color: var(--tick-label-color);
+          font-variant-numeric: tabular-nums;
         }
         .bar-fill-reveal.no-anim {
           transition: none;
@@ -3117,6 +3345,8 @@ _getAboveTargetLayerGeometry(targetPct = null) {
       </div>` : '';
     const paintLayers = fillState.paintLayers.map(layer => `
                   <div class="bar-paint-layer" data-layer="${layer.id}" style="z-index:${layer.zIndex};${layer.paintStyle}${layer.revealStyle}"></div>`).join('');
+    const tickMarks = this._buildTickMarksMarkup(ecfg.scale, safeMin, safeMax);
+    const tickLabels = this._buildTickLabelsMarkup(ecfg.scale, safeMin, safeMax);
     const aboveLabel = lp === 'above' ? `
       <div class="above-line">
         ${ecfg.icon && ecfg.icon !== false ? `<div class="above-icon-spacer"></div>` : ''}
@@ -3155,17 +3385,31 @@ _getAboveTargetLayerGeometry(targetPct = null) {
                 <div class="bar-fill-reveal${bar.animated ? '' : ' no-anim'}" style="${fillState.revealStyle}">
 ${paintLayers}
                 </div>
+                ${tickMarks}
                 ${innerLabel}
                 ${peakMarker}
                 ${targetMarker}
                 ${needleMarker}
               </div>
+              ${tickLabels}
               ${targetValueLabel}
             </div>
             ${rightValue}
           </div>
         </div>
       </div>`;
+  }
+
+  _patchScaleTicks(row, ecfg, minValue, maxValue) {
+    const track = row?.querySelector?.('.bar-track');
+    const tickMarks = this._buildTickMarksMarkup(ecfg.scale, minValue, maxValue);
+    const existingMarks = row?.querySelector?.('.scale-ticks');
+    this._replaceElementMarkup(existingMarks, tickMarks, track, 'beforeend');
+
+    const labelsMarkup = this._buildTickLabelsMarkup(ecfg.scale, minValue, maxValue);
+    const existingLabels = row?.querySelector?.('.scale-tick-labels');
+    const barWrap = row?.querySelector?.('.bar-wrap');
+    this._replaceElementMarkup(existingLabels, labelsMarkup, barWrap, 'beforeend');
   }
 
   _patchRow(row, entityCfg, stateObj) {
@@ -3224,6 +3468,7 @@ ${paintLayers}
       this._setStyleIfChanged(needleEl, '--needle-border-color', needleState.borderColor);
       this._setDatasetIfChanged(needleEl, 'edge', needleState.edge);
     }
+    this._patchScaleTicks(row, ecfg, safeMin, safeMax);
     this._setDatasetIfChanged(row, 'baseHeight', ecfg.layout.height);
     this._setDatasetIfChanged(row, 'heightExplicit', ecfg.layout.height_explicit ? 'true' : 'false');
     this._setDatasetIfChanged(row, 'barAnimated', ecfg.bar.animated ? 'true' : 'false');
@@ -4001,6 +4246,54 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return Object.keys(nextValue).length ? nextValue : null;
   }
 
+  _cleanupScaleTickLevelForEmit(value, { allowLabels = false } = {}) {
+    if (!this._isObject(value)) return null;
+    const nextValue = {};
+    const modulo = this._normalizeNumberValue(value.modulo);
+    const color = this._normalizeTextValue(value.color).trim();
+
+    if (modulo !== null && modulo > 0) {
+      nextValue.modulo = modulo;
+    }
+    if (color) {
+      nextValue.color = color;
+    }
+
+    if (allowLabels && this._isObject(value.labels)) {
+      const labels = {};
+      const labelColor = this._normalizeTextValue(value.labels.color).trim();
+      if (value.labels.show === true) {
+        labels.show = true;
+      }
+      if (labelColor) {
+        labels.color = labelColor;
+      }
+      if (Object.keys(labels).length) {
+        nextValue.labels = labels;
+      }
+    }
+
+    return Object.keys(nextValue).length ? nextValue : null;
+  }
+
+  _cleanupScaleTicksForEmit(value) {
+    if (!this._isObject(value)) return null;
+    const nextTicks = {};
+
+    if (value.enabled === true) {
+      nextTicks.enabled = true;
+    } else if (value.enabled === false) {
+      nextTicks.enabled = false;
+    }
+
+    const major = this._cleanupScaleTickLevelForEmit(value.major, { allowLabels: true });
+    const minor = this._cleanupScaleTickLevelForEmit(value.minor, { allowLabels: false });
+    if (major) nextTicks.major = major;
+    if (minor) nextTicks.minor = minor;
+
+    return Object.keys(nextTicks).length ? nextTicks : null;
+  }
+
   _cleanupScaleForEmit(target) {
     if (!this._isObject(target) || !this._isObject(target.scale)) {
       return target;
@@ -4021,6 +4314,15 @@ class SensorBarCardPlusEditor extends HTMLElement {
         delete nextScale[key];
       }
     });
+
+    if (Object.prototype.hasOwnProperty.call(nextScale, 'ticks')) {
+      const cleanedTicks = this._cleanupScaleTicksForEmit(nextScale.ticks);
+      if (cleanedTicks) {
+        nextScale.ticks = cleanedTicks;
+      } else {
+        delete nextScale.ticks;
+      }
+    }
 
     if (Object.keys(nextScale).length) {
       nextTarget.scale = nextScale;
@@ -4967,6 +5269,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._applyScopedMutation(scope, (target) => {
       let nextTarget = this._deletePathValue(target, ['scale', 'min']);
       nextTarget = this._deletePathValue(nextTarget, ['scale', 'max']);
+      nextTarget = this._deletePathValue(nextTarget, ['scale', 'ticks']);
       nextTarget = this._deletePathValue(nextTarget, ['min']);
       nextTarget = this._deletePathValue(nextTarget, ['max']);
       nextTarget = this._deletePathValue(nextTarget, ['min_entity']);
@@ -6486,6 +6789,81 @@ class SensorBarCardPlusEditor extends HTMLElement {
     return this._getResolvableScopedValue({ type: 'card' }, key).entity;
   }
 
+  _getScopedScaleTicksValue(scope) {
+    return this._getScopedValue(scope, ['scale', 'ticks']) ?? {};
+  }
+
+  _getEffectiveScaleTicksValue(scope) {
+    const local = this._getScopedScaleTicksValue(scope);
+    if (scope?.type === 'entity' && !this._hasScaleTicksOverride(scope)) {
+      return this._getScopedScaleTicksValue({ type: 'card' });
+    }
+    return local;
+  }
+
+  _getScaleTickEnabledValue(scope) {
+    const value = this._getEffectiveScaleTicksValue(scope).enabled;
+    return value === true;
+  }
+
+  _getScaleTickLevelValue(scope, level, field) {
+    return this._getEffectiveScaleTicksValue(scope)?.[level]?.[field] ?? '';
+  }
+
+  _getScaleTickLabelShowValue(scope) {
+    return this._getEffectiveScaleTicksValue(scope)?.major?.labels?.show === true;
+  }
+
+  _getScaleTickLabelColorValue(scope) {
+    return this._getEffectiveScaleTicksValue(scope)?.major?.labels?.color ?? '';
+  }
+
+  _hasScaleTicksOverride(scope) {
+    return this._getScopedValue(scope, ['scale', 'ticks']) !== undefined;
+  }
+
+  _setScaleTicksEnabled(scope, value) {
+    return this._applyScopedMutation(scope, (target) => {
+      return this._setPathValue(target, ['scale', 'ticks', 'enabled'], !!value);
+    }, { rerender: true });
+  }
+
+  _setScaleTickModulo(scope, level, value) {
+    const numericValue = this._normalizeNumberValue(value);
+    return this._applyScopedMutation(scope, (target) => {
+      const path = ['scale', 'ticks', level, 'modulo'];
+      return numericValue !== null
+        ? this._setPathValue(target, path, numericValue)
+        : this._deletePathValue(target, path);
+    }, { rerender: true });
+  }
+
+  _setScaleTickColor(scope, level, value) {
+    const color = this._normalizeTextValue(value).trim();
+    return this._applyScopedMutation(scope, (target) => {
+      const path = ['scale', 'ticks', level, 'color'];
+      return color
+        ? this._setPathValue(target, path, color)
+        : this._deletePathValue(target, path);
+    }, { rerender: true });
+  }
+
+  _setScaleTickLabelShow(scope, value) {
+    return this._applyScopedMutation(scope, (target) => {
+      return this._setPathValue(target, ['scale', 'ticks', 'major', 'labels', 'show'], !!value);
+    }, { rerender: true });
+  }
+
+  _setScaleTickLabelColor(scope, value) {
+    const color = this._normalizeTextValue(value).trim();
+    return this._applyScopedMutation(scope, (target) => {
+      const path = ['scale', 'ticks', 'major', 'labels', 'color'];
+      return color
+        ? this._setPathValue(target, path, color)
+        : this._deletePathValue(target, path);
+    }, { rerender: true });
+  }
+
   _getTargetResolvableValue(scope) {
     return this._getResolvableScopedValue(scope, 'target', {
       canonicalBasePath: ['target', 'at'],
@@ -7011,6 +7389,7 @@ class SensorBarCardPlusEditor extends HTMLElement {
     else if (min.fixed !== '' && min.fixed !== undefined) parts.push(`Min ${min.fixed}`);
     if (max.entity) parts.push('Max entity');
     else if (max.fixed !== '' && max.fixed !== undefined) parts.push(`Max ${max.fixed}`);
+    if (this._hasScaleTicksOverride(scope)) parts.push('Ticks');
     return parts.length ? parts.join(' • ') : 'Inherited';
   }
 
@@ -7386,6 +7765,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
       const scaleMax = this._getScaleFixedValue('max', 'max');
       const scaleMinEntity = this._getScaleEntityValue('min');
       const scaleMaxEntity = this._getScaleEntityValue('max');
+      const scaleTicksEnabled = this._getScaleTickEnabledValue({ type: 'card' });
+      const scaleTickMajorModulo = this._getScaleTickLevelValue({ type: 'card' }, 'major', 'modulo');
+      const scaleTickMinorModulo = this._getScaleTickLevelValue({ type: 'card' }, 'minor', 'modulo');
+      const scaleTickMajorColor = this._getScaleTickLevelValue({ type: 'card' }, 'major', 'color');
+      const scaleTickMinorColor = this._getScaleTickLevelValue({ type: 'card' }, 'minor', 'color');
+      const scaleTickMajorLabels = this._getScaleTickLabelShowValue({ type: 'card' });
+      const scaleTickMajorLabelColor = this._getScaleTickLabelColorValue({ type: 'card' });
       const gradientStopsSummary = this._getGradientStopsSummary({ type: 'card' });
       const gradientStopsInactive = this._getEffectiveFillStyleValue({ type: 'card' }) !== 'gradient';
       const defaultSegmentsVisible = !this._hasSegmentsOverride({ type: 'card' }) && this._isSegmentFillStyle(this._getEffectiveFillStyleValue({ type: 'card' }));
@@ -7928,6 +8314,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
                         const scope = { type: 'entity', index };
                         const minParts = this._getEffectiveResolvableScopedValue(scope, 'min');
                         const maxParts = this._getEffectiveResolvableScopedValue(scope, 'max');
+                        const entityScaleTicksEnabled = this._getScaleTickEnabledValue(scope);
+                        const entityScaleTickMajorModulo = this._getScaleTickLevelValue(scope, 'major', 'modulo');
+                        const entityScaleTickMinorModulo = this._getScaleTickLevelValue(scope, 'minor', 'modulo');
+                        const entityScaleTickMajorColor = this._getScaleTickLevelValue(scope, 'major', 'color');
+                        const entityScaleTickMinorColor = this._getScaleTickLevelValue(scope, 'minor', 'color');
+                        const entityScaleTickMajorLabels = this._getScaleTickLabelShowValue(scope);
+                        const entityScaleTickMajorLabelColor = this._getScaleTickLabelColorValue(scope);
 	                        const barAppearanceInherited = !this._hasEntityBarAppearanceOverride(scope);
 	                        const needleInherited = !this._hasNeedleOverride(scope);
 	                        const entityNeedle = this._getEffectiveScopedNeedleConfig(scope);
@@ -7943,7 +8336,8 @@ class SensorBarCardPlusEditor extends HTMLElement {
 	                        const gradientStopsInherited = !this._hasGradientStopsOverride(scope);
 	                        const segmentsInherited = !this._hasSegmentsOverride(scope);
 	                        const scaleInherited = !this._hasResolvableOverride(this._getResolvableScopedValue(scope, 'min'))
-	                          && !this._hasResolvableOverride(this._getResolvableScopedValue(scope, 'max'));
+	                          && !this._hasResolvableOverride(this._getResolvableScopedValue(scope, 'max'))
+	                          && !this._hasScaleTicksOverride(scope);
 	                        const entityPeak = this._getEffectiveScopedPeakConfig(scope);
 	                        const entityGradientStops = this._getScopedGradientStopsValue(scope);
 	                        const entityGradientDraft = this._getGradientStopsDraftState(scope);
@@ -7977,6 +8371,38 @@ class SensorBarCardPlusEditor extends HTMLElement {
                       <div class="field-row">
                         <label>Max entity</label>
                         ${this._renderEntitySourceInput('entity-override-max-entity-source', index, maxParts.entity, 'inherit card default')}
+                      </div>
+                      <div class="field-row">
+                        <div class="toggle">
+                          <input id="entity-${index}-scale-ticks-enabled" type="checkbox" data-kind="entity-scale-ticks-enabled" data-index="${index}"${entityScaleTicksEnabled ? ' checked' : ''}>
+                          <label for="entity-${index}-scale-ticks-enabled">Show ticks</label>
+                        </div>
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-scale-ticks-major-modulo">Major tick modulo</label>
+                        <input id="entity-${index}-scale-ticks-major-modulo" type="number" min="0" step="any" data-kind="entity-scale-ticks-major-modulo" data-index="${index}" value="${this._escapeAttribute(entityScaleTickMajorModulo)}" placeholder="inherit card default">
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-scale-ticks-minor-modulo">Minor tick modulo</label>
+                        <input id="entity-${index}-scale-ticks-minor-modulo" type="number" min="0" step="any" data-kind="entity-scale-ticks-minor-modulo" data-index="${index}" value="${this._escapeAttribute(entityScaleTickMinorModulo)}" placeholder="inherit card default">
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-scale-ticks-major-color">Major tick color</label>
+                        ${this._renderColorInput({ id: `entity-${index}-scale-ticks-major-color`, kind: 'entity-scale-ticks-major-color', index, value: entityScaleTickMajorColor, fallbackHex: '#ffffff' })}
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-scale-ticks-minor-color">Minor tick color</label>
+                        ${this._renderColorInput({ id: `entity-${index}-scale-ticks-minor-color`, kind: 'entity-scale-ticks-minor-color', index, value: entityScaleTickMinorColor, fallbackHex: '#ffffff' })}
+                      </div>
+                      <div class="field-row">
+                        <div class="toggle">
+                          <input id="entity-${index}-scale-ticks-major-labels" type="checkbox" data-kind="entity-scale-ticks-major-labels" data-index="${index}"${entityScaleTickMajorLabels ? ' checked' : ''}>
+                          <label for="entity-${index}-scale-ticks-major-labels">Show major labels</label>
+                        </div>
+                      </div>
+                      <div class="field-row">
+                        <label for="entity-${index}-scale-ticks-major-label-color">Major label color</label>
+                        ${this._renderColorInput({ id: `entity-${index}-scale-ticks-major-label-color`, kind: 'entity-scale-ticks-major-label-color', index, value: entityScaleTickMajorLabelColor, fallbackHex: '#666666' })}
                       </div>
 	                          `,
 	                        });
@@ -8410,6 +8836,38 @@ class SensorBarCardPlusEditor extends HTMLElement {
             <div class="field-row">
               <label>Max entity</label>
               ${this._renderEntitySourceInput('scale-max-entity-source', 'card', scaleMaxEntity)}
+            </div>
+            <div class="field-row">
+              <div class="toggle">
+                <input id="scale-ticks-enabled" type="checkbox" data-field="scale-ticks-enabled"${scaleTicksEnabled ? ' checked' : ''}>
+                <label for="scale-ticks-enabled">Show ticks</label>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="scale-ticks-major-modulo">Major tick modulo</label>
+              <input id="scale-ticks-major-modulo" type="number" min="0" step="any" data-field="scale-ticks-major-modulo" value="${this._escapeAttribute(scaleTickMajorModulo)}">
+            </div>
+            <div class="field-row">
+              <label for="scale-ticks-minor-modulo">Minor tick modulo</label>
+              <input id="scale-ticks-minor-modulo" type="number" min="0" step="any" data-field="scale-ticks-minor-modulo" value="${this._escapeAttribute(scaleTickMinorModulo)}">
+            </div>
+            <div class="field-row">
+              <label for="scale-ticks-major-color">Major tick color</label>
+              ${this._renderColorInput({ id: 'scale-ticks-major-color', field: 'scale-ticks-major-color', value: scaleTickMajorColor, fallbackHex: '#ffffff' })}
+            </div>
+            <div class="field-row">
+              <label for="scale-ticks-minor-color">Minor tick color</label>
+              ${this._renderColorInput({ id: 'scale-ticks-minor-color', field: 'scale-ticks-minor-color', value: scaleTickMinorColor, fallbackHex: '#ffffff' })}
+            </div>
+            <div class="field-row">
+              <div class="toggle">
+                <input id="scale-ticks-major-labels" type="checkbox" data-field="scale-ticks-major-labels" ${scaleTickMajorLabels ? ' checked' : ''}>
+                <label for="scale-ticks-major-labels">Show major labels</label>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="scale-ticks-major-label-color">Major label color</label>
+              ${this._renderColorInput({ id: 'scale-ticks-major-label-color', field: 'scale-ticks-major-label-color', value: scaleTickMajorLabelColor, fallbackHex: '#666666' })}
             </div>
           </div>
 	        </div>
@@ -9135,6 +9593,13 @@ class SensorBarCardPlusEditor extends HTMLElement {
     if (field === 'layout-label-width') return void this._setScopedLayoutLabelWidth({ type: 'card' }, value);
     if (field === 'scale-min') return void this._setScaleBound('min', value);
     if (field === 'scale-max') return void this._setScaleBound('max', value);
+    if (field === 'scale-ticks-enabled') return void this._setScaleTicksEnabled({ type: 'card' }, value);
+    if (field === 'scale-ticks-major-modulo') return void this._setScaleTickModulo({ type: 'card' }, 'major', value);
+    if (field === 'scale-ticks-minor-modulo') return void this._setScaleTickModulo({ type: 'card' }, 'minor', value);
+    if (field === 'scale-ticks-major-color') return void this._setScaleTickColor({ type: 'card' }, 'major', value);
+    if (field === 'scale-ticks-minor-color') return void this._setScaleTickColor({ type: 'card' }, 'minor', value);
+    if (field === 'scale-ticks-major-labels') return void this._setScaleTickLabelShow({ type: 'card' }, value);
+    if (field === 'scale-ticks-major-label-color') return void this._setScaleTickLabelColor({ type: 'card' }, value);
     if (field === 'bar-fill-style') return void this._setBarFillStyle(value);
     if (field === 'bar-color') return void this._setBarColor(value);
     if (field === 'bar-solid-fill') return void this._setScopedBarSolidFill({ type: 'card' }, value);
@@ -9218,6 +9683,34 @@ class SensorBarCardPlusEditor extends HTMLElement {
 
     if (kind === 'entity-override-max-entity-source') {
       return void this._setCanonicalResolvablePart({ type: 'entity', index: Number(target.dataset.index) }, 'max', 'entity', value);
+    }
+
+    if (kind === 'entity-scale-ticks-enabled') {
+      return void this._setScaleTicksEnabled({ type: 'entity', index: Number(target.dataset.index) }, value);
+    }
+
+    if (kind === 'entity-scale-ticks-major-modulo') {
+      return void this._setScaleTickModulo({ type: 'entity', index: Number(target.dataset.index) }, 'major', value);
+    }
+
+    if (kind === 'entity-scale-ticks-minor-modulo') {
+      return void this._setScaleTickModulo({ type: 'entity', index: Number(target.dataset.index) }, 'minor', value);
+    }
+
+    if (kind === 'entity-scale-ticks-major-color') {
+      return void this._setScaleTickColor({ type: 'entity', index: Number(target.dataset.index) }, 'major', value);
+    }
+
+    if (kind === 'entity-scale-ticks-minor-color') {
+      return void this._setScaleTickColor({ type: 'entity', index: Number(target.dataset.index) }, 'minor', value);
+    }
+
+    if (kind === 'entity-scale-ticks-major-labels') {
+      return void this._setScaleTickLabelShow({ type: 'entity', index: Number(target.dataset.index) }, value);
+    }
+
+    if (kind === 'entity-scale-ticks-major-label-color') {
+      return void this._setScaleTickLabelColor({ type: 'entity', index: Number(target.dataset.index) }, value);
     }
 
     if (kind === 'entity-override-height') {

@@ -1,19 +1,35 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const repoRoot = resolve(new URL('../..', import.meta.url).pathname);
+const repoRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const converterPath = join(repoRoot, 'tools', 'convert-legacy-config.py');
-const pythonPath = join(repoRoot, '.venv', 'bin', 'python');
+const localPythonPath = process.platform === 'win32'
+  ? join(repoRoot, '.venv', 'Scripts', 'python.exe')
+  : join(repoRoot, '.venv', 'bin', 'python');
+const userPythonPath = process.platform === 'win32' ? join(homedir(), 'miniconda3', 'python.exe') : null;
+const pythonPath = existsSync(localPythonPath)
+  ? localPythonPath
+  : userPythonPath && existsSync(userPythonPath)
+    ? userPythonPath
+    : 'python';
+
+function execPython(args, options) {
+  if (process.platform === 'win32' && pythonPath.includes('\\')) {
+    return execFileSync('C:\\Windows\\System32\\cmd.exe', ['/c', pythonPath, ...args], options);
+  }
+  return execFileSync(pythonPath, args, options);
+}
 
 function convertYaml(inputYaml) {
   const tempDir = mkdtempSync(join(tmpdir(), 'sbcp-convert-'));
   const inputPath = join(tempDir, 'input.yaml');
   writeFileSync(inputPath, inputYaml, 'utf8');
 
-  const output = execFileSync(pythonPath, [converterPath, inputPath], {
+  const output = execPython([converterPath, inputPath], {
     cwd: repoRoot,
     encoding: 'utf8',
   });
@@ -22,7 +38,7 @@ function convertYaml(inputYaml) {
 }
 
 function parseYaml(yamlText) {
-  const json = execFileSync('ruby', ['-e', 'require "yaml"; require "json"; puts JSON.generate(YAML.load(ARGF.read))'], {
+  const json = execPython(['-c', 'import sys, yaml, json; print(json.dumps(yaml.safe_load(sys.stdin.read())))'], {
     cwd: repoRoot,
     input: yamlText,
     encoding: 'utf8',

@@ -1070,6 +1070,84 @@ describe('Sensor Bar Card Plus editor', () => {
     ]);
   });
 
+  it('card scale tick controls emit structured scale.ticks', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+    });
+
+    const cardTicksToggle = editor.shadowRoot.querySelector('#scale-ticks-enabled');
+    cardTicksToggle.checked = true;
+    cardTicksToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+    dispatchInput(editor.shadowRoot.querySelector('#scale-ticks-major-modulo'), '0.5');
+    dispatchInput(editor.shadowRoot.querySelector('#scale-ticks-minor-modulo'), '0.1');
+    dispatchInput(editor.shadowRoot.querySelector('#scale-ticks-major-color'), '#ffffff');
+    dispatchInput(editor.shadowRoot.querySelector('#scale-ticks-minor-color'), '#999999');
+    const cardTickLabelsToggle = editor.shadowRoot.querySelector('#scale-ticks-major-labels');
+    cardTickLabelsToggle.checked = true;
+    cardTickLabelsToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+    dispatchInput(editor.shadowRoot.querySelector('#scale-ticks-major-label-color'), '#111111');
+
+    expect(events.at(-1).detail.config.scale.ticks).toEqual({
+      enabled: true,
+      major: {
+        modulo: 0.5,
+        color: '#ffffff',
+        labels: {
+          show: true,
+          color: '#111111',
+        },
+      },
+      minor: {
+        modulo: 0.1,
+        color: '#999999',
+      },
+    });
+  });
+
+  it('per-entity scale tick controls emit entity-level scale.ticks', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [{ entity: 'sensor.one', name: 'One' }],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    dispatchClick(editor.shadowRoot.querySelector('#entity-0-group-scale'));
+    const entityTicksToggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-scale-ticks-enabled"]')[0];
+    entityTicksToggle.checked = true;
+    entityTicksToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-scale-ticks-major-modulo"]')[0], '10');
+    dispatchInput(editor.shadowRoot.querySelectorAll('input[data-kind="entity-scale-ticks-minor-modulo"]')[0], '2');
+    const entityTickLabelsToggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-scale-ticks-major-labels"]')[0];
+    entityTickLabelsToggle.checked = true;
+    entityTickLabelsToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        name: 'One',
+        scale: {
+          ticks: {
+            enabled: true,
+            major: {
+              modulo: 10,
+              labels: {
+                show: true,
+              },
+            },
+            minor: {
+              modulo: 2,
+            },
+          },
+        },
+      },
+    ]);
+  });
+
   it('per-entity height override writes entities[index].layout.height', () => {
     const editor = createEditor();
     const events = trackConfigEvents(editor);
@@ -1245,6 +1323,73 @@ describe('Sensor Bar Card Plus editor', () => {
         custom_entity_key: 'keep',
       },
     ]);
+  });
+
+  it('checking inherited scale removes entity tick overrides with min and max', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entities: [
+        {
+          entity: 'sensor.one',
+          name: 'One',
+          scale: {
+            min: { fixed: 0 },
+            max: { fixed: 100 },
+            ticks: {
+              enabled: true,
+              major: { modulo: 10 },
+              minor: { modulo: 2 },
+            },
+          },
+          custom_entity_key: 'keep',
+        },
+      ],
+    });
+
+    dispatchClick(editor.shadowRoot.querySelectorAll('button[data-action="toggle-entity-overrides"]')[0]);
+    const inheritToggle = editor.shadowRoot.querySelectorAll('input[data-kind="entity-scale-inherit"]')[0];
+    inheritToggle.checked = true;
+    inheritToggle.dispatchEvent({ type: 'change', bubbles: true, composed: true });
+
+    expect(events.at(-1).detail.config.entities).toEqual([
+      {
+        entity: 'sensor.one',
+        name: 'One',
+        custom_entity_key: 'keep',
+      },
+    ]);
+  });
+
+  it('editor serialization prunes unsupported minor tick labels', () => {
+    const editor = createEditor();
+    const events = trackConfigEvents(editor);
+
+    editor.setConfig({
+      entity: 'sensor.one',
+      scale: {
+        ticks: {
+          enabled: true,
+          minor: {
+            modulo: 5,
+            labels: {
+              show: true,
+              color: '#ff0000',
+            },
+          },
+        },
+      },
+    });
+
+    dispatchInput(editor.shadowRoot.querySelector('#scale-ticks-minor-modulo'), '10');
+
+    expect(events.at(-1).detail.config.scale.ticks).toEqual({
+      enabled: true,
+      minor: {
+        modulo: 10,
+      },
+    });
   });
 
   it('checking inherited scale removes managed entity max keys', () => {

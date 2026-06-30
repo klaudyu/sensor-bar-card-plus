@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
 import { createCard } from '../support/load-card-class.cjs';
+
+const pythonPath = (() => {
+  const userPythonPath = process.platform === 'win32' ? `${homedir()}\\miniconda3\\python.exe` : null;
+  return userPythonPath && existsSync(userPythonPath) ? userPythonPath : 'python';
+})();
 
 function createTrackedStyle(initial = {}) {
   const state = { ...initial };
@@ -355,6 +362,150 @@ describe('Sensor Bar Card Plus logic', () => {
 
     expect(cfg.scale.min).toEqual({ fixed: 0, entity: 'sensor.dynamic_min' });
     expect(cfg.scale.max).toEqual({ fixed: 100, entity: 'sensor.dynamic_max' });
+  });
+
+  it('normalizes disabled and enabled scale ticks', () => {
+    const card = createCard();
+    const disabled = card.normalizeCardConfig({
+      scale: {
+        ticks: {
+          enabled: false,
+          major: { modulo: 10 },
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+    const enabled = card.normalizeCardConfig({
+      scale: {
+        ticks: {
+          enabled: true,
+          major: {
+            modulo: 0.5,
+            color: '#ffffff',
+            labels: { show: true, color: '#111111' },
+          },
+          minor: {
+            modulo: 0.1,
+            color: '#999999',
+            labels: { show: true },
+          },
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(disabled.scale.ticks.enabled).toBe(false);
+    expect(disabled.scale.ticks.major.modulo).toBe(10);
+    expect(enabled.scale.ticks).toEqual({
+      enabled: true,
+      major: {
+        modulo: 0.5,
+        color: '#ffffff',
+        labels: { show: true, color: '#111111' },
+      },
+      minor: {
+        modulo: 0.1,
+        color: '#999999',
+        labels: { show: false, color: null },
+      },
+    });
+  });
+
+  it('inherits card scale ticks into entity scale config', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: -1 },
+        max: { fixed: 1 },
+        ticks: {
+          enabled: true,
+          major: { modulo: 0.5 },
+          minor: { modulo: 0.1 },
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(cfg.entities[0].scale.ticks.enabled).toBe(true);
+    expect(cfg.entities[0].scale.ticks.major.modulo).toBe(0.5);
+    expect(cfg.entities[0].scale.ticks.minor.modulo).toBe(0.1);
+  });
+
+  it('generates zero-anchored major ticks across negative and positive ranges', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: -1 },
+        max: { fixed: 1 },
+        ticks: {
+          enabled: true,
+          major: { modulo: 0.5 },
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(card._generateScaleTicks(cfg.scale, -1, 1).map(tick => tick.value)).toEqual([-1, -0.5, 0, 0.5, 1]);
+  });
+
+  it('generates decimal minor ticks without floating point drift', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: 0 },
+        max: { fixed: 0.3 },
+        ticks: {
+          enabled: true,
+          minor: { modulo: 0.1 },
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    expect(card._generateScaleTicks(cfg.scale, 0, 0.3).map(tick => tick.value)).toEqual([0, 0.1, 0.2, 0.3]);
+  });
+
+  it('omits minor ticks that overlap major ticks', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        min: { fixed: 0 },
+        max: { fixed: 1 },
+        ticks: {
+          enabled: true,
+          major: { modulo: 0.5 },
+          minor: { modulo: 0.1 },
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    const ticks = card._generateScaleTicks(cfg.scale, 0, 1);
+    expect(ticks.filter(tick => tick.level === 'major').map(tick => tick.value)).toEqual([0, 0.5, 1]);
+    expect(ticks.filter(tick => tick.level === 'minor').map(tick => tick.value)).not.toContain(0.5);
+  });
+
+  it('renders labels only for major ticks when enabled', () => {
+    const card = createCard();
+    const cfg = card.normalizeCardConfig({
+      scale: {
+        ticks: {
+          enabled: true,
+          major: { modulo: 50, labels: { show: true } },
+          minor: { modulo: 10 },
+        },
+      },
+      entities: [{ entity: 'sensor.row' }],
+    });
+
+    const labels = card._buildTickLabelsMarkup(cfg.scale, 0, 100);
+    const marks = card._buildTickMarksMarkup(cfg.scale, 0, 100);
+
+    expect(labels).toContain('scale-tick-label');
+    expect(labels).toContain('>50</span>');
+    expect(labels).not.toContain('>10</span>');
+    expect(marks).toContain('scale-tick-major');
+    expect(marks).toContain('scale-tick-minor');
   });
 
   it('does not treat structured scale bounds as percent-space values', () => {
@@ -1757,7 +1908,7 @@ describe('Sensor Bar Card Plus logic', () => {
   });
 
   it('renders inside labels above peak/target/needle and marker layering in CSS', () => {
-    const source = readFileSync(new URL('../../src/sensor-bar-card-plus.js', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../../src/sensor-bar-card-plus.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
     expect(source).toContain('.bar-inner-label {\n          position: absolute;');
     expect(source).toContain('z-index: 8;');
@@ -2946,7 +3097,7 @@ describe('Sensor Bar Card Plus logic', () => {
   });
 
   it('inside label pill shrink-wraps short labels while clamping long ones', () => {
-    const source = readFileSync(new URL('../../src/sensor-bar-card-plus.js', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../../src/sensor-bar-card-plus.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
     expect(source).toContain('.bar-inner-label .inside-name {\n          flex: 0 1 auto;');
     expect(source).toContain('width: fit-content;');
@@ -4714,10 +4865,10 @@ describe('Sensor Bar Card Plus logic', () => {
   });
 
   it('validates the heritage dashboard YAML', () => {
-    const heritagePath = new URL('../../examples/dashboards/sensor-bar-card-plus-heritage.yaml', import.meta.url);
+    const heritagePath = fileURLToPath(new URL('../../examples/dashboards/sensor-bar-card-plus-heritage.yaml', import.meta.url));
 
     expect(() => {
-      execFileSync('ruby', ['-e', 'require "yaml"; YAML.load_file(ARGV[0])', heritagePath.pathname], {
+      execFileSync(pythonPath, ['-c', 'import sys, yaml; yaml.safe_load(open(sys.argv[1], encoding="utf8"))', heritagePath], {
         stdio: 'pipe',
       });
     }).not.toThrow();
